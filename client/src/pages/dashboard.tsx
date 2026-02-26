@@ -7,9 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
   Stethoscope,
-  GraduationCap,
-  Home,
+  User,
+  CalendarCheck,
   Wifi,
+  HelpCircle,
   XCircle,
   FileDown,
   FileText,
@@ -28,25 +29,30 @@ const categoryConfig: Record<
   string,
   { icon: typeof Users; color: string; bgClass: string }
 > = {
-  Medical: {
+  "Sick/Medical": {
     icon: Stethoscope,
     color: "text-red-600 dark:text-red-400",
     bgClass: "bg-red-50 dark:bg-red-950/30",
   },
-  Academic: {
-    icon: GraduationCap,
-    color: "text-blue-600 dark:text-blue-400",
-    bgClass: "bg-blue-50 dark:bg-blue-950/30",
-  },
-  "Personal/Family": {
-    icon: Home,
+  Personal: {
+    icon: User,
     color: "text-amber-600 dark:text-amber-400",
     bgClass: "bg-amber-50 dark:bg-amber-950/30",
   },
-  "Technical/Other": {
+  "Program Event": {
+    icon: CalendarCheck,
+    color: "text-blue-600 dark:text-blue-400",
+    bgClass: "bg-blue-50 dark:bg-blue-950/30",
+  },
+  "Technical Issue": {
     icon: Wifi,
     color: "text-purple-600 dark:text-purple-400",
     bgClass: "bg-purple-50 dark:bg-purple-950/30",
+  },
+  Other: {
+    icon: HelpCircle,
+    color: "text-teal-600 dark:text-teal-400",
+    bgClass: "bg-teal-50 dark:bg-teal-950/30",
   },
   Unexcused: {
     icon: XCircle,
@@ -106,7 +112,7 @@ export default function Dashboard() {
                 Attendance Automator
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Process and categorize student absence excuses
+                Process and categorize builder absence excuses
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -134,7 +140,7 @@ export default function Dashboard() {
 
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <Card
               className={`cursor-pointer transition-all ${filterCategory === null ? "ring-2 ring-primary" : ""}`}
               onClick={() => setFilterCategory(null)}
@@ -165,7 +171,7 @@ export default function Dashboard() {
                   key={category}
                   className={`cursor-pointer transition-all ${config.bgClass} ${filterCategory === category ? "ring-2 ring-primary" : ""}`}
                   onClick={() => setFilterCategory(filterCategory === category ? null : category)}
-                  data-testid={`card-stat-${category.toLowerCase().replace(/\//g, "-")}`}
+                  data-testid={`card-stat-${category.toLowerCase().replace(/[\/ ]/g, "-")}`}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
@@ -250,7 +256,7 @@ export default function Dashboard() {
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-sm mb-6">
                   Add individual emails or use batch processing to categorize
-                  student absence excuses with AI.
+                  builder absence excuses with AI.
                 </p>
                 <div className="flex gap-2">
                   <Button

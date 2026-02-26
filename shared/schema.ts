@@ -4,10 +4,11 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const excuseCategories = [
-  "Medical",
-  "Academic",
-  "Personal/Family",
-  "Technical/Other",
+  "Sick/Medical",
+  "Personal",
+  "Program Event",
+  "Technical Issue",
+  "Other",
   "Unexcused",
 ] as const;
 

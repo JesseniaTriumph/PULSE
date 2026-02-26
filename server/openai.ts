@@ -17,14 +17,15 @@ export async function categorizeExcuse(emailBody: string): Promise<{
         role: "system",
         content: `You are an attendance management assistant. Your job is to categorize student absence excuses into exactly one of these categories:
 
-1. "Medical" - Illness, doctor appointments, medical emergencies, health-related issues
-2. "Academic" - Conflict with exams, classes, tutoring, academic events
-3. "Personal/Family" - Travel, family events, personal obligations, family emergencies
-4. "Technical/Other" - Internet issues, transport problems, equipment failures, miscellaneous
-5. "Unexcused" - No valid reason provided, vague excuses, or the message doesn't actually contain an excuse
+1. "Sick/Medical" - Illness, doctor appointments, medical emergencies, health-related issues
+2. "Personal" - Travel, family events, personal obligations, family emergencies
+3. "Program Event" - Conflict with program-related events, workshops, conferences, or scheduled activities
+4. "Technical Issue" - Internet issues, transport problems, equipment failures, software problems
+5. "Other" - Miscellaneous reasons that don't fit the above categories but still provide a reason
+6. "Unexcused" - No valid reason provided, vague excuses, or the message doesn't actually contain an excuse
 
 Respond in JSON format with exactly these fields:
-- "category": one of the five categories above (exact string match)
+- "category": one of the six categories above (exact string match)
 - "confidence": a number between 0 and 1 indicating how confident you are
 - "reasoning": a brief one-sentence explanation of why you chose this category`,
       },
@@ -37,7 +38,7 @@ Respond in JSON format with exactly these fields:
     max_completion_tokens: 256,
   });
 
-  const validCategories = ["Medical", "Academic", "Personal/Family", "Technical/Other", "Unexcused"];
+  const validCategories = ["Sick/Medical", "Personal", "Program Event", "Technical Issue", "Other", "Unexcused"];
   const content = response.choices[0]?.message?.content || "{}";
   try {
     const parsed = JSON.parse(content);

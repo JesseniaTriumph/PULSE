@@ -29,11 +29,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const categoryBadgeVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  Medical: "destructive",
-  Academic: "default",
-  "Personal/Family": "secondary",
-  "Technical/Other": "outline",
-  Unexcused: "secondary",
+  "Sick/Medical": "destructive",
+  Personal: "secondary",
+  "Program Event": "default",
+  "Technical Issue": "outline",
+  Other: "secondary",
+  Unexcused: "outline",
 };
 
 interface RecordsTableProps {
