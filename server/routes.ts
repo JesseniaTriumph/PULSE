@@ -1,18 +1,19 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import { storage } from "./storage";
 import { emailInputSchema, batchEmailInputSchema, excuseCategories } from "@shared/schema";
 import { categorizeExcuse } from "./openai";
 import { randomUUID } from "crypto";
+import { requireAuth } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
 
-  app.get("/api/records", async (_req, res) => {
+  app.get("/api/records", requireAuth, async (req, res) => {
     try {
-      const records = await storage.getAllRecords();
+      const records = await storage.getAllRecords(req.session.userId!);
       res.json(records);
     } catch (error) {
       console.error("Error fetching records:", error);
@@ -20,11 +21,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/records/:id", async (req, res) => {
+  app.get("/api/records/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const record = await storage.getRecordById(id);
-      if (!record) {
+      if (!record || record.userId !== req.session.userId!) {
         return res.status(404).json({ error: "Record not found" });
       }
       res.json(record);
@@ -34,9 +35,9 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats", async (_req, res) => {
+  app.get("/api/stats", requireAuth, async (_req, res) => {
     try {
-      const stats = await storage.getStats();
+      const stats = await storage.getStats(_req.session.userId!);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -44,7 +45,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/process-emails", async (req, res) => {
+  app.post("/api/process-emails", requireAuth, async (req, res) => {
     try {
       const parsed = batchEmailInputSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -53,6 +54,7 @@ export async function registerRoutes(
 
       const batchId = randomUUID();
       const { emails } = parsed.data;
+      const userId = req.session.userId!;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -74,6 +76,7 @@ export async function registerRoutes(
           const snippet = email.emailBody.substring(0, 150).replace(/\n/g, " ").trim();
 
           const record = await storage.createRecord({
+            userId,
             senderName: email.senderName,
             senderEmail: email.senderEmail,
             receivedAt: new Date(email.receivedAt),
@@ -112,17 +115,18 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/records/:id/category", async (req, res) => {
+  app.patch("/api/records/:id/category", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const record = await storage.getRecordById(id);
+      if (!record || record.userId !== req.session.userId!) {
+        return res.status(404).json({ error: "Record not found" });
+      }
       const { category } = req.body;
       if (!(excuseCategories as readonly string[]).includes(category)) {
         return res.status(400).json({ error: "Invalid category" });
       }
       const updated = await storage.updateRecordCategory(id, category);
-      if (!updated) {
-        return res.status(404).json({ error: "Record not found" });
-      }
       res.json(updated);
     } catch (error) {
       console.error("Error updating category:", error);
@@ -130,14 +134,15 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/records/:id/status", async (req, res) => {
+  app.patch("/api/records/:id/status", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status } = req.body;
-      const updated = await storage.updateRecordStatus(id, status);
-      if (!updated) {
+      const record = await storage.getRecordById(id);
+      if (!record || record.userId !== req.session.userId!) {
         return res.status(404).json({ error: "Record not found" });
       }
+      const { status } = req.body;
+      const updated = await storage.updateRecordStatus(id, status);
       res.json(updated);
     } catch (error) {
       console.error("Error updating status:", error);
@@ -145,9 +150,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/records/:id", async (req, res) => {
+  app.delete("/api/records/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const record = await storage.getRecordById(id);
+      if (!record || record.userId !== req.session.userId!) {
+        return res.status(404).json({ error: "Record not found" });
+      }
       await storage.deleteRecord(id);
       res.status(204).send();
     } catch (error) {
@@ -156,9 +165,9 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/records", async (_req, res) => {
+  app.delete("/api/records", requireAuth, async (req, res) => {
     try {
-      await storage.deleteAllRecords();
+      await storage.deleteAllRecords(req.session.userId!);
       res.status(204).send();
     } catch (error) {
       console.error("Error clearing records:", error);
@@ -166,9 +175,9 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/export/csv", async (_req, res) => {
+  app.get("/api/export/csv", requireAuth, async (req, res) => {
     try {
-      const records = await storage.getAllRecords();
+      const records = await storage.getAllRecords(req.session.userId!);
       const header = "Name,Email,Date,Excuse Category,Status,Message Snippet";
       const rows = records.map((r) => {
         const escapeCsv = (s: string) => `"${s.replace(/"/g, '""')}"`;
@@ -191,10 +200,10 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/export/doc", async (_req, res) => {
+  app.get("/api/export/doc", requireAuth, async (req, res) => {
     try {
       const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, HeadingLevel, BorderStyle } = await import("docx");
-      const records = await storage.getAllRecords();
+      const records = await storage.getAllRecords(req.session.userId!);
 
       const grouped: Record<string, typeof records> = {};
       for (const record of records) {

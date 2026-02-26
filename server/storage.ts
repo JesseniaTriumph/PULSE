@@ -1,23 +1,50 @@
 import { db } from "./db";
-import { attendanceRecords, type AttendanceRecord, type InsertAttendanceRecord } from "@shared/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { users, attendanceRecords, type User, type InsertUser, type AttendanceRecord, type InsertAttendanceRecord } from "@shared/schema";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
-  getAllRecords(): Promise<AttendanceRecord[]>;
+  createUser(user: InsertUser): Promise<User>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+
+  getAllRecords(userId: number): Promise<AttendanceRecord[]>;
   getRecordById(id: number): Promise<AttendanceRecord | undefined>;
-  getRecordsByBatchId(batchId: string): Promise<AttendanceRecord[]>;
+  getRecordsByBatchId(batchId: string, userId: number): Promise<AttendanceRecord[]>;
   createRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord>;
   createRecords(records: InsertAttendanceRecord[]): Promise<AttendanceRecord[]>;
   updateRecordCategory(id: number, category: string): Promise<AttendanceRecord | undefined>;
   updateRecordStatus(id: number, status: string): Promise<AttendanceRecord | undefined>;
   deleteRecord(id: number): Promise<void>;
-  deleteAllRecords(): Promise<void>;
-  getStats(): Promise<{ total: number; byCategory: Record<string, number> }>;
+  deleteAllRecords(userId: number): Promise<void>;
+  getStats(userId: number): Promise<{ total: number; byCategory: Record<string, number> }>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getAllRecords(): Promise<AttendanceRecord[]> {
-    return db.select().from(attendanceRecords).orderBy(desc(attendanceRecords.createdAt));
+  async createUser(user: InsertUser): Promise<User> {
+    const [created] = await db.insert(users).values(user).returning();
+    return created;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getAllRecords(userId: number): Promise<AttendanceRecord[]> {
+    return db.select().from(attendanceRecords)
+      .where(eq(attendanceRecords.userId, userId))
+      .orderBy(desc(attendanceRecords.createdAt));
   }
 
   async getRecordById(id: number): Promise<AttendanceRecord | undefined> {
@@ -25,8 +52,10 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async getRecordsByBatchId(batchId: string): Promise<AttendanceRecord[]> {
-    return db.select().from(attendanceRecords).where(eq(attendanceRecords.batchId, batchId)).orderBy(desc(attendanceRecords.createdAt));
+  async getRecordsByBatchId(batchId: string, userId: number): Promise<AttendanceRecord[]> {
+    return db.select().from(attendanceRecords)
+      .where(and(eq(attendanceRecords.batchId, batchId), eq(attendanceRecords.userId, userId)))
+      .orderBy(desc(attendanceRecords.createdAt));
   }
 
   async createRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord> {
@@ -61,12 +90,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(attendanceRecords).where(eq(attendanceRecords.id, id));
   }
 
-  async deleteAllRecords(): Promise<void> {
-    await db.delete(attendanceRecords);
+  async deleteAllRecords(userId: number): Promise<void> {
+    await db.delete(attendanceRecords).where(eq(attendanceRecords.userId, userId));
   }
 
-  async getStats(): Promise<{ total: number; byCategory: Record<string, number> }> {
-    const records = await db.select().from(attendanceRecords);
+  async getStats(userId: number): Promise<{ total: number; byCategory: Record<string, number> }> {
+    const records = await db.select().from(attendanceRecords)
+      .where(eq(attendanceRecords.userId, userId));
     const byCategory: Record<string, number> = {};
     for (const record of records) {
       byCategory[record.excuseCategory] = (byCategory[record.excuseCategory] || 0) + 1;

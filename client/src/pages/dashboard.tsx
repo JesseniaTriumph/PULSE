@@ -17,6 +17,7 @@ import {
   Plus,
   Trash2,
   RefreshCw,
+  LogOut,
 } from "lucide-react";
 import type { AttendanceRecord } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -24,6 +25,7 @@ import { AddEmailDialog } from "@/components/add-email-dialog";
 import { BatchUploadDialog } from "@/components/batch-upload-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 const categoryConfig: Record<
   string,
@@ -66,6 +68,7 @@ export default function Dashboard() {
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
     queryKey: ["/api/records"],
@@ -112,7 +115,7 @@ export default function Dashboard() {
                 Attendance Automator
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Process and categorize builder absence excuses
+                Welcome, {user?.displayName || "User"}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -132,6 +135,16 @@ export default function Dashboard() {
               >
                 <RefreshCw className="w-4 h-4 mr-1.5" />
                 Batch Process
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => logout.mutate()}
+                data-testid="button-logout"
+                disabled={logout.isPending}
+              >
+                <LogOut className="w-4 h-4 mr-1.5" />
+                Sign Out
               </Button>
             </div>
           </div>
