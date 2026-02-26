@@ -116,7 +116,7 @@ export async function registerRoutes(
     try {
       const id = parseInt(req.params.id);
       const { category } = req.body;
-      if (!excuseCategories.includes(category)) {
+      if (!(excuseCategories as readonly string[]).includes(category)) {
         return res.status(400).json({ error: "Invalid category" });
       }
       const updated = await storage.updateRecordCategory(id, category);
