@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Loader2 } from "lucide-react";
+import { ClipboardCheck, Loader2, Play } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const { login, register } = useAuth();
+  const { login, register, demo } = useAuth();
   const { toast } = useToast();
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
@@ -28,6 +29,18 @@ export default function AuthPage() {
       toast({
         title: "Login failed",
         description: error.message?.includes("401") ? "Invalid username or password" : "Something went wrong",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDemo = async () => {
+    try {
+      await demo.mutateAsync();
+    } catch {
+      toast({
+        title: "Demo failed",
+        description: "Something went wrong starting the demo",
         variant: "destructive",
       });
     }
@@ -204,6 +217,38 @@ export default function AuthPage() {
             )}
           </CardContent>
         </Card>
+
+        <div className="mt-4">
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 px-2 text-muted-foreground">
+                or
+              </span>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleDemo}
+            data-testid="button-demo"
+            disabled={demo.isPending}
+          >
+            {demo.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading demo...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                Try Demo (with sample data)
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

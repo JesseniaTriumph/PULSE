@@ -124,6 +124,107 @@ export function setupAuth(app: Express) {
     });
   });
 
+  app.post("/api/auth/demo", async (req, res) => {
+    try {
+      const demoUsername = "demo";
+      let user = await storage.getUserByUsername(demoUsername);
+
+      if (!user) {
+        const hashedPassword = await bcrypt.hash("demo123456", 10);
+        user = await storage.createUser({
+          username: demoUsername,
+          email: "demo@attendanceautomator.com",
+          password: hashedPassword,
+          displayName: "Demo User",
+        });
+
+        const now = new Date();
+        const seedRecords = [
+          {
+            userId: user.id,
+            senderName: "Maria Garcia",
+            senderEmail: "maria.garcia@university.edu",
+            receivedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+            emailBody: "Good morning, I woke up with a severe migraine and nausea this morning. I've already scheduled a doctor's appointment for 10 AM. I won't be able to make it to today's session. I'll make sure to review the materials and catch up with a classmate. Thank you for understanding.",
+            excuseCategory: "Sick/Medical",
+            messageSnippet: "Good morning, I woke up with a severe migraine and nausea this morning. I've already scheduled a doctor's appointment for 10 AM. I won't be able to make ...",
+            status: "processed",
+            batchId: "demo-batch-001",
+          },
+          {
+            userId: user.id,
+            senderName: "James Wilson",
+            senderEmail: "j.wilson@university.edu",
+            receivedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+            emailBody: "Hi, I have a program-wide networking event today that conflicts with the builder session. Our program director said attendance at the event is required for all participants. I'll be back for the next session.",
+            excuseCategory: "Program Event",
+            messageSnippet: "Hi, I have a program-wide networking event today that conflicts with the builder session. Our program director said attendance at the event is required fo...",
+            status: "processed",
+            batchId: "demo-batch-001",
+          },
+          {
+            userId: user.id,
+            senderName: "Aisha Patel",
+            senderEmail: "aisha.p@university.edu",
+            receivedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+            emailBody: "Hello, my grandmother is visiting from out of state and this is the only day our family can all get together. I have a family dinner tonight and need to help with preparations during the day. I apologize for the short notice.",
+            excuseCategory: "Personal",
+            messageSnippet: "Hello, my grandmother is visiting from out of state and this is the only day our family can all get together. I have a family dinner tonight and need to ...",
+            status: "processed",
+            batchId: "demo-batch-001",
+          },
+          {
+            userId: user.id,
+            senderName: "Tyler Brooks",
+            senderEmail: "tbrooks@university.edu",
+            receivedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+            emailBody: "My internet has been down since last night and the ISP says they can't send a technician until this afternoon. I've tried using my mobile hotspot but the connection keeps dropping. I won't be able to participate in today's remote session.",
+            excuseCategory: "Technical Issue",
+            messageSnippet: "My internet has been down since last night and the ISP says they can't send a technician until this afternoon. I've tried using my mobile hotspot but the...",
+            status: "processed",
+            batchId: "demo-batch-001",
+          },
+          {
+            userId: user.id,
+            senderName: "Sarah Chen",
+            senderEmail: "sarah.chen@university.edu",
+            receivedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+            emailBody: "Hi, I need to pick up a prescription and handle some errands that I've been putting off. I'll try to join the afternoon portion if possible.",
+            excuseCategory: "Other",
+            messageSnippet: "Hi, I need to pick up a prescription and handle some errands that I've been putting off. I'll try to join the afternoon portion if possible.",
+            status: "processed",
+            batchId: "demo-batch-001",
+          },
+          {
+            userId: user.id,
+            senderName: "Devon Kim",
+            senderEmail: "devon.kim@university.edu",
+            receivedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+            emailBody: "Hey, I just can't make it today. Something came up.",
+            excuseCategory: "Unexcused",
+            messageSnippet: "Hey, I just can't make it today. Something came up.",
+            status: "processed",
+            batchId: "demo-batch-001",
+          },
+        ];
+
+        await storage.createRecords(seedRecords as any);
+      }
+
+      req.session.userId = user.id;
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        displayName: user.displayName,
+      });
+    } catch (error) {
+      console.error("Error with demo login:", error);
+      res.status(500).json({ error: "Failed to start demo" });
+    }
+  });
+
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.userId) {
       return res.status(401).json({ error: "Not authenticated" });

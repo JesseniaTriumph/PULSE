@@ -41,6 +41,16 @@ export function useAuth() {
     },
   });
 
+  const demoMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/demo");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/auth/logout");
@@ -57,6 +67,7 @@ export function useAuth() {
     isAuthenticated: !!user,
     login: loginMutation,
     register: registerMutation,
+    demo: demoMutation,
     logout: logoutMutation,
   };
 }
