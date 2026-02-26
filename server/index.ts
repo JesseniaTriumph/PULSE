@@ -60,6 +60,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  if (process.env.NODE_ENV !== "production") {
+    const { seedDatabase } = await import("./seed");
+    await seedDatabase();
+  }
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
