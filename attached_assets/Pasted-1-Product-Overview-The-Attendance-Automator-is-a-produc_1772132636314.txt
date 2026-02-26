@@ -1,0 +1,34 @@
+1.⁠ ⁠Product Overview
+The Attendance Automator is a productivity tool designed to bridge the gap between Gmail and administrative reporting. It scans emails labeled "Builder Attendance," extracts key metadata, and uses AI to categorize the reason for absence, ultimately generating a structured report for bulk system updates.
+2.⁠ ⁠Target User
+•⁠  ⁠Instructors/Program Managers: Who need to process high volumes of student ("Builder") excuses and update external attendance databases.
+3.⁠ ⁠User Stories
+•⁠  ⁠As an Instructor, I want to extract student names and emails from labeled messages so I don't have to copy-paste them manually.
+•⁠  ⁠As an Instructor, I want the tool to identify the type of excuse so I can prioritize or filter them based on program policy.
+•⁠  ⁠As an Instructor, I want a downloadable CSV or Doc so I can perform bulk uploads into the attendance agent.
+4.⁠ ⁠Functional Requirements
+4.1 Gmail Integration & Scraping
+•⁠  ⁠Label Targeting: The tool must specifically target threads with the Gmail label Builder Attendance.
+•⁠  ⁠Data Extraction: For every email in the label, the tool must scrape:
+•⁠  ⁠Sender Name: Extracted from the "From" header.
+•⁠  ⁠Email Address: Extracted from the "From" header.
+•⁠  ⁠Timestamp: The date/time the email was received.
+•⁠  ⁠Email Body: The raw text for excuse categorization.
+4.2 Excuse Categorization (NLP)
+The tool must parse the email body and assign one of the following four categories:
+1.⁠ ⁠Medical: Illness, doctor appointments, or emergencies.
+2.⁠ ⁠Academic: Conflict with exams, classes, or tutoring.
+3.⁠ ⁠Personal/Family: Travel, family events, or personal obligations.
+4.⁠ ⁠Technical/Other: Internet issues, transport problems, or miscellaneous.
+4.3 Report Generation
+The tool must provide two export formats:
+•⁠  ⁠CSV: A flat file with columns: Name, Email, Date, Excuse Category, and Original Message Snippet.
+•⁠  ⁠DOC (Formatted Table): A clean document organized by category or date for easy reading and submission.
+
+Success Metrics
+•⁠  ⁠Time Savings: Reduction in time spent per attendance cycle (from hours to minutes).
+•⁠  ⁠Accuracy: High correlation between the AI-assigned category and the actual email content.
+•⁠  ⁠Bulk Update Success: The CSV format remains compatible with the "agent" system for easy uploads.
+7.⁠ ⁠Future Considerations
+•⁠  ⁠Auto-Archive: Option to automatically archive emails once they have been successfully added to a report.
+•⁠  ⁠Direct API Integration: Instead of a CSV, directly pushing the "Excused" status to the attendance agent via webhook
