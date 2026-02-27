@@ -9,6 +9,7 @@ import bcrypt from "bcrypt";
 declare module "express-session" {
   interface SessionData {
     userId: number;
+    oauthState?: string;
   }
 }
 
@@ -240,6 +241,7 @@ export function setupAuth(app: Express) {
       username: user.username,
       email: user.email,
       displayName: user.displayName,
+      googleId: user.googleId || null,
     });
   });
 }

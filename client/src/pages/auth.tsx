@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Play, Zap } from "lucide-react";
+import { Loader2, Play, Zap, Chrome } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { StarField } from "@/components/star-field";
 
@@ -232,7 +232,7 @@ export default function AuthPage() {
           </CardContent>
         </Card>
 
-        <div className="mt-4">
+        <div className="mt-4 space-y-3">
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <Separator className="w-full" />
@@ -243,6 +243,15 @@ export default function AuthPage() {
               </span>
             </div>
           </div>
+          <Button
+            variant="outline"
+            className="w-full border-violet-500/30 hover:bg-violet-500/10 hover:border-violet-500/50"
+            onClick={() => { window.location.href = "/api/auth/google"; }}
+            data-testid="button-google-signin"
+          >
+            <Chrome className="mr-2 h-4 w-4" />
+            Sign in with Google
+          </Button>
           <Button
             variant="outline"
             className="w-full border-violet-500/30 hover:bg-violet-500/10 hover:border-violet-500/50"

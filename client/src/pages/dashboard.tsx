@@ -20,11 +20,13 @@ import {
   LogOut,
   Printer,
   Zap,
+  Mail,
 } from "lucide-react";
 import type { AttendanceRecord } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
 import { AddEmailDialog } from "@/components/add-email-dialog";
 import { BatchUploadDialog } from "@/components/batch-upload-dialog";
+import { GmailFetchDialog } from "@/components/gmail-fetch-dialog";
 import { StarField } from "@/components/star-field";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -114,6 +116,7 @@ const categoryConfig: Record<
 export default function Dashboard() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+  const [gmailDialogOpen, setGmailDialogOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const { toast } = useToast();
@@ -218,6 +221,18 @@ export default function Dashboard() {
                 <RefreshCw className="w-4 h-4 mr-1.5" />
                 Batch Process
               </Button>
+              {user?.googleId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setGmailDialogOpen(true)}
+                  data-testid="button-gmail-fetch"
+                  className="border-violet-500/30 hover:bg-violet-500/10"
+                >
+                  <Mail className="w-4 h-4 mr-1.5" />
+                  Gmail
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -435,6 +450,7 @@ export default function Dashboard() {
 
       <AddEmailDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
       <BatchUploadDialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen} />
+      <GmailFetchDialog open={gmailDialogOpen} onOpenChange={setGmailDialogOpen} />
     </div>
   );
 }

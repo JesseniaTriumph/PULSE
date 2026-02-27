@@ -6,6 +6,7 @@ interface AuthUser {
   username: string;
   email: string;
   displayName: string;
+  googleId?: string | null;
 }
 
 export function useAuth() {

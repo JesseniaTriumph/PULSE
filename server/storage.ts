@@ -7,6 +7,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void>;
 
   getAllRecords(userId: number): Promise<AttendanceRecord[]>;
   getRecordById(id: number): Promise<AttendanceRecord | undefined>;
@@ -39,6 +41,19 @@ export class DatabaseStorage implements IStorage {
   async getUserById(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.googleId, googleId));
+    return user;
+  }
+
+  async updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void> {
+    const updateData: Record<string, string> = { googleAccessToken: accessToken };
+    if (refreshToken) {
+      updateData.googleRefreshToken = refreshToken;
+    }
+    await db.update(users).set(updateData).where(eq(users.id, userId));
   }
 
   async getAllRecords(userId: number): Promise<AttendanceRecord[]> {
