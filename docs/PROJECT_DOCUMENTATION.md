@@ -808,8 +808,8 @@ Filtering is applied against the `receivedAt` field of each attendance record. B
 |---|---|---|---|
 | `DATABASE_URL` | Runtime-managed | Yes | PostgreSQL connection string (auto-provisioned by Replit) |
 | `SESSION_SECRET` | Secret | Yes | Signs and verifies session cookies |
-| `GOOGLE_CLIENT_ID` | Secret | Planned | Google OAuth client ID for Gmail integration |
-| `GOOGLE_CLIENT_SECRET` | Secret | Planned | Google OAuth client secret for Gmail integration |
+| `PULSE_GOOGLE_CLIENT_ID` | Secret | Planned | Google OAuth client ID for Gmail integration (PULSE-specific) |
+| `PULSE_GOOGLE_CLIENT_SECRET` | Secret | Planned | Google OAuth client secret for Gmail integration (PULSE-specific) |
 | `AI_INTEGRATIONS_OPENAI_API_KEY` | Runtime-managed | Yes | OpenAI API key (auto-set by Replit AI Integrations) |
 | `AI_INTEGRATIONS_OPENAI_BASE_URL` | Runtime-managed | Yes | OpenAI proxy URL (auto-set by Replit AI Integrations) |
 
@@ -1424,7 +1424,7 @@ PULSE is a production-ready, space-themed, multi-user web application that autom
 
 | Feature | Description | Dependency |
 |---|---|---|
-| Google OAuth Login | Sign in with Google account instead of username/password | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET |
+| Google OAuth Login | Sign in with Google account instead of username/password | PULSE_GOOGLE_CLIENT_ID, PULSE_GOOGLE_CLIENT_SECRET |
 | Gmail Integration | Pull absence excuse emails directly from user's Gmail inbox | Google OAuth + Gmail API scope (gmail.readonly) |
 | Auto-archive | Automatically archive/label processed emails in Gmail | Gmail Integration |
 | Webhook/API Integration | Direct integration with external attendance tracking systems | API specification from target system |
