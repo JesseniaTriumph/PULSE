@@ -28,20 +28,21 @@ import { excuseCategories } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-const categoryBadgeVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  "Sick/Medical": "destructive",
-  Personal: "secondary",
-  "Program Event": "default",
-  "Technical Issue": "outline",
-  Other: "secondary",
-  Unexcused: "outline",
+const categoryBadgeColors: Record<string, string> = {
+  "Sick/Medical": "bg-rose-500/20 text-rose-300 border-rose-500/30",
+  Personal: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  "Program Event": "bg-sky-500/20 text-sky-300 border-sky-500/30",
+  "Technical Issue": "bg-violet-500/20 text-violet-300 border-violet-500/30",
+  Other: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
 };
 
 interface RecordsTableProps {
   records: AttendanceRecord[];
+  timePeriod?: string;
 }
 
-export function RecordsTable({ records }: RecordsTableProps) {
+export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
   const [viewRecord, setViewRecord] = useState<AttendanceRecord | null>(null);
   const { toast } = useToast();
 
@@ -69,21 +70,28 @@ export function RecordsTable({ records }: RecordsTableProps) {
 
   return (
     <>
-      <div className="rounded-md border bg-card">
-        <Table>
+      <div className="print-header" style={{ display: "none" }}>
+        <h1 style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "4px" }}>PULSE - Attendance Report</h1>
+        <p style={{ fontSize: "13px", color: "#666" }}>
+          Period: {timePeriod || "All Time"} | Total Records: {records.length} | Generated: {new Date().toLocaleDateString()}
+        </p>
+      </div>
+
+      <div className="rounded-md border border-violet-500/10 bg-card/60 backdrop-blur-sm">
+        <Table className="print-table">
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-violet-500/10 hover:bg-transparent">
               <TableHead className="w-[180px]">Name</TableHead>
               <TableHead className="w-[200px] hidden md:table-cell">Email</TableHead>
               <TableHead className="w-[100px]">Date</TableHead>
               <TableHead className="w-[170px]">Category</TableHead>
               <TableHead className="hidden lg:table-cell">Snippet</TableHead>
-              <TableHead className="w-[90px] text-right">Actions</TableHead>
+              <TableHead className="w-[90px] text-right no-print">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {records.map((record) => (
-              <TableRow key={record.id} data-testid={`row-record-${record.id}`}>
+              <TableRow key={record.id} data-testid={`row-record-${record.id}`} className="border-violet-500/10 hover:bg-violet-500/5">
                 <TableCell className="font-medium" data-testid={`text-name-${record.id}`}>
                   {record.senderName}
                 </TableCell>
@@ -94,34 +102,38 @@ export function RecordsTable({ records }: RecordsTableProps) {
                   {new Date(record.receivedAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  <Select
-                    value={record.excuseCategory}
-                    onValueChange={(val) => handleCategoryChange(record.id, val)}
-                  >
-                    <SelectTrigger className="h-8 w-[150px]" data-testid={`select-category-${record.id}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {excuseCategories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          <Badge variant={categoryBadgeVariant[cat] || "outline"} className="text-xs">
-                            {cat}
-                          </Badge>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="no-print">
+                    <Select
+                      value={record.excuseCategory}
+                      onValueChange={(val) => handleCategoryChange(record.id, val)}
+                    >
+                      <SelectTrigger className="h-8 w-[150px] border-violet-500/20" data-testid={`select-category-${record.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {excuseCategories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            <Badge className={`text-xs border ${categoryBadgeColors[cat] || ""}`}>
+                              {cat}
+                            </Badge>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <span className="hidden print-category">{record.excuseCategory}</span>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell text-sm text-muted-foreground max-w-[300px] truncate">
                   {record.messageSnippet}
                 </TableCell>
-                <TableCell>
+                <TableCell className="no-print">
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => setViewRecord(record)}
                       data-testid={`button-view-${record.id}`}
+                      className="hover:bg-violet-500/10"
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -130,6 +142,7 @@ export function RecordsTable({ records }: RecordsTableProps) {
                       variant="ghost"
                       onClick={() => handleDelete(record.id)}
                       data-testid={`button-delete-${record.id}`}
+                      className="hover:bg-rose-500/10 hover:text-rose-400"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -142,7 +155,7 @@ export function RecordsTable({ records }: RecordsTableProps) {
       </div>
 
       <Dialog open={!!viewRecord} onOpenChange={() => setViewRecord(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg border-violet-500/20 bg-card/95 backdrop-blur-md">
           <DialogHeader>
             <DialogTitle>Email Details</DialogTitle>
           </DialogHeader>
@@ -177,7 +190,7 @@ export function RecordsTable({ records }: RecordsTableProps) {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                     Category
                   </p>
-                  <Badge variant={categoryBadgeVariant[viewRecord.excuseCategory] || "outline"}>
+                  <Badge className={`border ${categoryBadgeColors[viewRecord.excuseCategory] || ""}`}>
                     {viewRecord.excuseCategory}
                   </Badge>
                 </div>
@@ -186,7 +199,7 @@ export function RecordsTable({ records }: RecordsTableProps) {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                   Full Email Body
                 </p>
-                <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap max-h-60 overflow-auto" data-testid="text-detail-body">
+                <div className="rounded-md bg-background/60 border border-violet-500/10 p-3 text-sm whitespace-pre-wrap max-h-60 overflow-auto" data-testid="text-detail-body">
                   {viewRecord.emailBody}
                 </div>
               </div>

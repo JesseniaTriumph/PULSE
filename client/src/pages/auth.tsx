@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ClipboardCheck, Loader2, Play } from "lucide-react";
+import { Loader2, Play, Zap } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { StarField } from "@/components/star-field";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -66,17 +67,24 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <StarField />
+      <div className="absolute inset-0 bg-gradient-to-b from-violet-950/20 via-transparent to-indigo-950/30 pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
         <div className="flex flex-col items-center mb-8">
-          <div className="h-14 w-14 bg-primary rounded-xl flex items-center justify-center mb-4">
-            <ClipboardCheck className="h-8 w-8 text-primary-foreground" />
+          <div className="h-16 w-16 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-violet-500/30 animate-float">
+            <Zap className="h-9 w-9 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="text-app-title">Attendance Automator</h1>
-          <p className="text-muted-foreground mt-1">Process and categorize absence excuses</p>
+          <h1 className="text-4xl font-bold tracking-tight pulse-glow" data-testid="text-app-title">
+            PULSE
+          </h1>
+          <p className="text-muted-foreground mt-2 text-center">
+            AI-Powered Attendance Tracking System
+          </p>
         </div>
 
-        <Card>
+        <Card className="border-violet-500/20 bg-card/80 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle>{mode === "login" ? "Sign In" : "Create Account"}</CardTitle>
             <CardDescription>
@@ -97,6 +105,7 @@ export default function AuthPage() {
                     onChange={(e) => setLoginForm((f) => ({ ...f, username: e.target.value }))}
                     placeholder="Enter your username"
                     required
+                    className="bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -109,11 +118,12 @@ export default function AuthPage() {
                     onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
                     placeholder="Enter your password"
                     required
+                    className="bg-background/50"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
                   data-testid="button-login"
                   disabled={login.isPending}
                 >
@@ -131,7 +141,7 @@ export default function AuthPage() {
                   <button
                     type="button"
                     data-testid="link-switch-to-register"
-                    className="text-primary hover:underline font-medium"
+                    className="text-violet-400 hover:text-violet-300 hover:underline font-medium"
                     onClick={() => setMode("register")}
                   >
                     Create one
@@ -149,6 +159,7 @@ export default function AuthPage() {
                     onChange={(e) => setRegisterForm((f) => ({ ...f, displayName: e.target.value }))}
                     placeholder="Your full name"
                     required
+                    className="bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -161,6 +172,7 @@ export default function AuthPage() {
                     onChange={(e) => setRegisterForm((f) => ({ ...f, email: e.target.value }))}
                     placeholder="your@email.com"
                     required
+                    className="bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -172,6 +184,7 @@ export default function AuthPage() {
                     onChange={(e) => setRegisterForm((f) => ({ ...f, username: e.target.value }))}
                     placeholder="Choose a username"
                     required
+                    className="bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
@@ -185,11 +198,12 @@ export default function AuthPage() {
                     placeholder="At least 6 characters"
                     required
                     minLength={6}
+                    className="bg-background/50"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
                   data-testid="button-register"
                   disabled={register.isPending}
                 >
@@ -207,7 +221,7 @@ export default function AuthPage() {
                   <button
                     type="button"
                     data-testid="link-switch-to-login"
-                    className="text-primary hover:underline font-medium"
+                    className="text-violet-400 hover:text-violet-300 hover:underline font-medium"
                     onClick={() => setMode("login")}
                   >
                     Sign in
@@ -224,14 +238,14 @@ export default function AuthPage() {
               <Separator className="w-full" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 px-2 text-muted-foreground">
+              <span className="bg-background px-2 text-muted-foreground">
                 or
               </span>
             </div>
           </div>
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full border-violet-500/30 hover:bg-violet-500/10 hover:border-violet-500/50"
             onClick={handleDemo}
             data-testid="button-demo"
             disabled={demo.isPending}
