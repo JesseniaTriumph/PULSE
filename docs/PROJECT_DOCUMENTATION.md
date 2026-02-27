@@ -1,4 +1,4 @@
-# Attendance Automator - Complete Project Documentation
+# PULSE - Complete Project Documentation
 
 ---
 
@@ -18,7 +18,7 @@
 ## 1. Product Requirements Document (PRD)
 
 ### 1.1 Product Overview
-**Attendance Automator** is a multi-user web application designed for organizational staff to process builder/student absence excuse emails, automatically categorize them using AI, and generate exportable reports (CSV and DOCX) for bulk attendance system updates.
+**PULSE** is a space-themed, multi-user web application designed for organizational staff to process builder/student absence excuse emails, automatically categorize them using AI, and generate exportable reports (CSV and DOCX) for bulk attendance system updates. Records can be filtered by time period (Day, Week, Month, Quarter, Year) and printed directly from the browser.
 
 ### 1.2 Problem Statement
 Staff members manually read and categorize dozens of absence excuse emails daily, then manually enter them into attendance systems. This process is time-consuming, error-prone, and inconsistent across staff members.
@@ -58,8 +58,12 @@ Staff members manually read and categorize dozens of absence excuse emails daily
 | FR-15 | Export records as CSV | Done |
 | FR-16 | Export records as formatted DOCX (grouped by category) | Done |
 | FR-17 | Each user only sees their own records (data isolation) | Done |
-| FR-18 | Google OAuth login | Planned |
-| FR-19 | Pull emails directly from Gmail inbox | Planned |
+| FR-18 | Filter records by time period: Day, Week, Month, Quarter, Year | Done |
+| FR-19 | Print filtered records via browser print dialog | Done |
+| FR-20 | Space-themed dark UI with animated star field and violet/indigo branding | Done |
+| FR-21 | Stat cards dynamically update counts based on selected time period | Done |
+| FR-22 | Google OAuth login | Planned |
+| FR-23 | Pull emails directly from Gmail inbox | Planned |
 
 ### 1.6 Non-Functional Requirements
 
@@ -71,6 +75,8 @@ Staff members manually read and categorize dozens of absence excuse emails daily
 | NFR-04 | Record ownership enforced on all CRUD operations |
 | NFR-05 | Responsive UI that works on desktop and mobile |
 | NFR-06 | AI categorization validates output against allowed categories |
+| NFR-07 | Dark space-themed aesthetic with Space Grotesk typography |
+| NFR-08 | Print-friendly layout hides interactive elements and star field |
 
 ---
 
@@ -113,14 +119,17 @@ React App (Vite SPA)
 |   +-- Toaster (notification system)
 |   +-- Router (wouter)
 |       +-- AuthPage (unauthenticated users)
+|       |   +-- StarField (animated background)
 |       |   +-- Login Form
 |       |   +-- Register Form
 |       |   +-- Demo Button
 |       +-- Dashboard (authenticated users)
-|           +-- Header (title, user greeting, action buttons)
-|           +-- Stat Cards (6 categories, clickable filters)
-|           +-- Action Bar (export CSV, export DOC, clear all)
-|           +-- RecordsTable (sortable, inline edit, view detail)
+|           +-- StarField (animated background)
+|           +-- Header (PULSE logo, user greeting, action buttons)
+|           +-- TimePeriodFilter (All Time, Day, Week, Month, Quarter, Year)
+|           +-- Stat Cards (6 categories, clickable filters, period-aware counts)
+|           +-- Action Bar (print, export CSV, export DOC, clear all)
+|           +-- RecordsTable (print-friendly, inline edit, view detail)
 |           +-- AddEmailDialog (single email form)
 |           +-- BatchUploadDialog (JSON/CSV upload + SSE progress)
 ```
@@ -173,6 +182,18 @@ Express Server (server/index.ts)
 | REST (JSON) | All CRUD operations, auth, stats, single email processing |
 | SSE (Server-Sent Events) | Batch email processing - streams progress for each email as AI categorizes it |
 | File Download | CSV and DOCX exports served as file attachment responses |
+| Browser Print | window.print() triggers print dialog for time-filtered records |
+
+### 2.5 Theme & Branding
+
+| Aspect | Implementation |
+|---|---|
+| Color Palette | Deep navy background (hsl 230 25% 7%), violet/indigo accents (hsl 265 80% 60%) |
+| Typography | Space Grotesk (primary), Space Mono (monospace) |
+| Visual Effects | Animated star field (80 stars, CSS twinkle animation), floating logo, purple glow text |
+| Category Colors | Rose (Sick/Medical), Amber (Personal), Sky (Program Event), Violet (Technical Issue), Emerald (Other), Slate (Unexcused) |
+| Cards/Panels | Semi-transparent backgrounds (bg-card/60), backdrop blur, violet-tinted borders |
+| Buttons | Violet-to-indigo gradients for primary actions, violet-bordered outlines for secondary |
 
 ---
 
@@ -265,6 +286,7 @@ CONSTRAINTS:
 | Routing | wouter | latest | Lightweight client-side routing |
 | Data Fetching | TanStack React Query | v5 | Server state management + caching |
 | Icons | lucide-react | latest | UI icons |
+| Date Utilities | date-fns | latest | Time-period calculations (startOfDay, startOfWeek, etc.) |
 | Backend Framework | Express.js | 5.0.1 | HTTP server + API routing |
 | Runtime | Node.js | 20+ | Server runtime |
 | Database | PostgreSQL (Neon) | managed | Data persistence |
@@ -374,6 +396,7 @@ Success Response: 200
 
 Scope: Returns only records where userId matches session user
 Sort: Descending by createdAt
+Note: Time-period filtering is applied client-side using date-fns
 ```
 
 **GET /api/records/:id**
@@ -398,6 +421,8 @@ Success Response: 200
   }
 
 Scope: Counts only the authenticated user's records
+Note: When a time period filter is active, stats are recomputed client-side
+      from the time-filtered records (periodStats) for accurate card counts
 ```
 
 **POST /api/process-emails**
@@ -466,7 +491,7 @@ Response: File download
   Content-Type: text/csv
   Filename: attendance_report.csv
   Columns: Name, Email, Date, Excuse Category, Status, Message Snippet
-  Scope: Only authenticated user's records
+  Scope: Only authenticated user's records (all records, not time-filtered)
 ```
 
 **GET /api/export/doc**
@@ -475,7 +500,7 @@ Response: File download
   Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
   Filename: attendance_report.docx
   Format: Title page, records grouped by category in tables
-  Scope: Only authenticated user's records
+  Scope: Only authenticated user's records (all records, not time-filtered)
 ```
 
 ### 4.3 Data Validation Schemas (Zod)
@@ -518,6 +543,28 @@ excuseCategories (constant enum):
 | Auth Middleware | requireAuth middleware returns 401 for unauthenticated requests on all data endpoints |
 | Credential Handling | Session secret stored as environment secret, never hardcoded |
 
+### 4.5 Time-Period Filtering (Client-Side)
+
+| Period | Label | Date Range (computed via date-fns) |
+|---|---|---|
+| all | All Time | No filter applied, shows all records |
+| day | Today | startOfDay(now) to endOfDay(now) |
+| week | This Week | startOfWeek(now, Mon) to endOfWeek(now, Mon) |
+| month | This Month | startOfMonth(now) to endOfMonth(now) |
+| quarter | This Quarter | startOfQuarter(now) to endOfQuarter(now) |
+| year | This Year | startOfYear(now) to endOfYear(now) |
+
+Filtering is applied against the `receivedAt` field of each attendance record. Both the records table and the stat card counts update to reflect the selected time period.
+
+### 4.6 Print Functionality
+
+| Aspect | Implementation |
+|---|---|
+| Trigger | Print button in action bar calls window.print() |
+| Hidden Elements | Star field, navigation header, time-period buttons, action buttons, category dropdowns, action column (all use .no-print CSS class) |
+| Visible in Print | Print header (PULSE - Attendance Report, period, count, date), records table with Name, Email, Date, Category (text), Snippet columns |
+| Styling | White background, black text, bordered table cells, centered header |
+
 ---
 
 ## 5. Wireframes
@@ -525,12 +572,14 @@ excuseCategories (constant enum):
 ### 5.1 Auth Page - Login Mode
 ```
 +--------------------------------------------------------------+
+|  [* * * * * * * * animated star field background * * * * * *] |
 |                                                              |
-|                    [Clipboard Icon]                           |
-|               Attendance Automator                           |
-|        Process and categorize absence excuses                |
+|                    [Zap Icon - floating]                      |
+|                     PULSE (glowing)                          |
+|          AI-Powered Attendance Tracking System               |
 |                                                              |
 |  +--------------------------------------------------------+  |
+|  | (semi-transparent card, backdrop blur)                  |  |
 |  |                                                        |  |
 |  |  Sign In                                               |  |
 |  |  Enter your credentials to access your dashboard       |  |
@@ -546,17 +595,17 @@ excuseCategories (constant enum):
 |  |  +--------------------------------------------------+  |  |
 |  |                                                        |  |
 |  |  +--------------------------------------------------+  |  |
-|  |  |              Sign In                             |  |  |
+|  |  | [violet-indigo gradient]  Sign In                 |  |  |
 |  |  +--------------------------------------------------+  |  |
 |  |                                                        |  |
-|  |  Don't have an account? [Create one]                   |  |
+|  |  Don't have an account? [Create one] (violet link)     |  |
 |  |                                                        |  |
 |  +--------------------------------------------------------+  |
 |                                                              |
 |  ----------------------- or -------------------------        |
 |                                                              |
 |  +--------------------------------------------------------+  |
-|  |  > Try Demo (with sample data)                         |  |
+|  | [violet border]  > Try Demo (with sample data)         |  |
 |  +--------------------------------------------------------+  |
 |                                                              |
 +--------------------------------------------------------------+
@@ -565,39 +614,24 @@ excuseCategories (constant enum):
 ### 5.2 Auth Page - Register Mode
 ```
 +--------------------------------------------------------------+
+|  [* * * * * * * * animated star field background * * * * * *] |
 |                                                              |
-|                    [Clipboard Icon]                           |
-|               Attendance Automator                           |
-|        Process and categorize absence excuses                |
+|                    [Zap Icon - floating]                      |
+|                     PULSE (glowing)                          |
+|          AI-Powered Attendance Tracking System               |
 |                                                              |
 |  +--------------------------------------------------------+  |
+|  | (semi-transparent card, backdrop blur)                  |  |
 |  |                                                        |  |
 |  |  Create Account                                        |  |
 |  |  Create an account to start processing attendance      |  |
 |  |                                                        |  |
-|  |  Full Name                                             |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |                                                  |  |  |
-|  |  +--------------------------------------------------+  |  |
+|  |  Full Name    [________________________]               |  |
+|  |  Email        [________________________]               |  |
+|  |  Username     [________________________]               |  |
+|  |  Password     [________________________]               |  |
 |  |                                                        |  |
-|  |  Email                                                 |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |                                                  |  |  |
-|  |  +--------------------------------------------------+  |  |
-|  |                                                        |  |
-|  |  Username                                              |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |                                                  |  |  |
-|  |  +--------------------------------------------------+  |  |
-|  |                                                        |  |
-|  |  Password                                              |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |                                                  |  |  |
-|  |  +--------------------------------------------------+  |  |
-|  |                                                        |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |           Create Account                         |  |  |
-|  |  +--------------------------------------------------+  |  |
+|  |  [violet-indigo gradient] Create Account               |  |
 |  |                                                        |  |
 |  |  Already have an account? [Sign in]                    |  |
 |  |                                                        |  |
@@ -605,7 +639,7 @@ excuseCategories (constant enum):
 |                                                              |
 |  ----------------------- or -------------------------        |
 |  +--------------------------------------------------------+  |
-|  |  > Try Demo (with sample data)                         |  |
+|  | [violet border]  > Try Demo (with sample data)         |  |
 |  +--------------------------------------------------------+  |
 |                                                              |
 +--------------------------------------------------------------+
@@ -614,49 +648,77 @@ excuseCategories (constant enum):
 ### 5.3 Dashboard
 ```
 +--------------------------------------------------------------------------+
-|  Attendance Automator              [+ Add Email] [Batch Process] [Sign Out]|
-|  Welcome, Demo User                                                       |
+| [* * * * * * * * * animated star field (behind content) * * * * * * * * *]|
+|                                                                          |
+| [Zap] PULSE (glow)          [+ Add Email] [Batch Process] [Sign Out]     |
+| Welcome, Demo User                                                       |
 +--------------------------------------------------------------------------+
 |                                                                          |
-| +------------+ +------------+ +------------+ +------------+ +----------+ |
-| | Total      | | Sick/Med   | | Personal   | | Program    | | Tech     | |
-| | [count]    | | [count]    | | [count]    | | Event      | | Issue    | |
-| |            | |            | |            | | [count]    | | [count]  | |
-| +------------+ +------------+ +------------+ +------------+ +----------+ |
-|                              +------------+ +------------+               |
-|                              | Other      | | Unexcused  |               |
-|                              | [count]    | | [count]    |               |
-|                              +------------+ +------------+               |
+| [All Time] [Today] [This Week] [This Month] [This Quarter] [This Year]  |
+|  (active=violet gradient, inactive=violet border outline)                |
 |                                                                          |
-| Showing: [All / filtered category]                                       |
-| [Export CSV] [Export DOC] [Clear All Records]                             |
+| +----------+ +----------+ +----------+ +----------+ +--------+ +------+ |
+| | Total    | | Sick/Med | | Personal | | Program  | | Tech   | |      | |
+| | [count]  | | [count]  | | [count]  | | Event    | | Issue  | |      | |
+| | (violet) | | (rose)   | | (amber)  | | (sky)    | | (violet| |      | |
+| +----------+ +----------+ +----------+ +----------+ +--------+ +------+ |
+|                              +----------+ +----------+                   |
+|                              | Other     | | Unexcused|                  |
+|                              | (emerald) | | (slate)  |                  |
+|                              +----------+ +----------+                   |
+|                                                                          |
+| Records [Sick/Medical] (badge)    [count]                                |
+| Feb 1, 2026 - Feb 28, 2026   [Print] [CSV] [DOC] [Clear]               |
 |                                                                          |
 | +----------------------------------------------------------------------+ |
 | | Name          | Email              | Date     | Category     |Actions| |
 | +----------------------------------------------------------------------+ |
-| | Maria Garcia  | maria.garcia@...   | 2/24/26  | [Sick/Med  v]| [i]  | |
-| | James Wilson  | j.wilson@...       | 2/24/26  | [Program   v]| [i]  | |
-| | Aisha Patel   | aisha.p@...        | 2/23/26  | [Personal  v]| [i]  | |
-| | Tyler Brooks  | tbrooks@...        | 2/25/26  | [Tech Iss  v]| [i]  | |
-| | Sarah Chen    | sarah.chen@...     | 2/25/26  | [Other     v]| [i]  | |
-| | Devon Kim     | devon.kim@...      | 2/25/26  | [Unexcused v]| [i]  | |
+| | Maria Garcia  | maria.garcia@...   | 2/24/26  | [Sick/Med  v]| [o][x]| |
+| | James Wilson  | j.wilson@...       | 2/24/26  | [Program   v]| [o][x]| |
+| | Aisha Patel   | aisha.p@...        | 2/23/26  | [Personal  v]| [o][x]| |
+| | Tyler Brooks  | tbrooks@...        | 2/25/26  | [Tech Iss  v]| [o][x]| |
+| | Sarah Chen    | sarah.chen@...     | 2/25/26  | [Other     v]| [o][x]| |
+| | Devon Kim     | devon.kim@...      | 2/25/26  | [Unexcused v]| [o][x]| |
 | +----------------------------------------------------------------------+ |
 |                                                                          |
-| [i] = View full email detail    [v] = Dropdown to change category        |
+| [o] = View full email    [x] = Delete record    [v] = Category dropdown |
 +--------------------------------------------------------------------------+
 ```
 
-### 5.4 Add Email Dialog
+### 5.4 Print View (browser print dialog output)
+```
++--------------------------------------------------------------+
+|                                                              |
+|              PULSE - Attendance Report                       |
+|  Period: This Month | Total Records: 6 | Generated: 2/27/26 |
+|                                                              |
+| +----------------------------------------------------------+|
+| | Name          | Email              | Date     | Category  ||
+| +----------------------------------------------------------+|
+| | Maria Garcia  | maria.garcia@...   | 2/24/26  | Sick/Med  ||
+| | James Wilson  | j.wilson@...       | 2/24/26  | Program   ||
+| | Aisha Patel   | aisha.p@...        | 2/23/26  | Personal  ||
+| | Tyler Brooks  | tbrooks@...        | 2/25/26  | Tech Iss  ||
+| | Sarah Chen    | sarah.chen@...     | 2/25/26  | Other     ||
+| | Devon Kim     | devon.kim@...      | 2/25/26  | Unexcused ||
+| +----------------------------------------------------------+|
+|                                                              |
++--------------------------------------------------------------+
+(No star field, no buttons, no dropdowns - clean printable table)
+```
+
+### 5.5 Add Email Dialog
 ```
 +------------------------------------------------------+
 |  Add Email for Processing                       [X]  |
+|  (violet-bordered dialog, backdrop blur)             |
 |                                                      |
-|  Sender Name                                         |
+|  Student Name                                        |
 |  +------------------------------------------------+  |
 |  |                                                |  |
 |  +------------------------------------------------+  |
 |                                                      |
-|  Sender Email                                        |
+|  Student Email                                       |
 |  +------------------------------------------------+  |
 |  |                                                |  |
 |  +------------------------------------------------+  |
@@ -673,17 +735,17 @@ excuseCategories (constant enum):
 |  |                                                |  |
 |  +------------------------------------------------+  |
 |                                                      |
-|              [Cancel]    [Process with AI]            |
+|              [Cancel]    [Process]                    |
 +------------------------------------------------------+
 ```
 
-### 5.5 Batch Upload Dialog
+### 5.6 Batch Upload Dialog
 ```
 +------------------------------------------------------+
 |  Batch Process Emails                           [X]  |
 |                                                      |
 |  +----------+  +----------+                          |
-|  | JSON Tab |  | CSV Tab  |                          |
+|  | Paste JSON|  | Upload File|                       |
 |  +----------+  +----------+                          |
 |                                                      |
 |  Paste JSON array or upload a file:                  |
@@ -703,37 +765,28 @@ excuseCategories (constant enum):
 |  |====================>                           |  |
 |  +================================================+  |
 |                                                      |
-|  [done] Maria Garcia - Sick/Medical                  |
-|  [done] James Wilson - Program Event                 |
-|  [...]  Aisha Patel  - Processing...                 |
-|  [    ] Tyler Brooks - Waiting...                    |
-|  [    ] Sarah Chen   - Waiting...                    |
-|  [    ] Devon Kim    - Waiting...                    |
-|                                                      |
-|              [Cancel]    [Start Processing]           |
+|              [Cancel]    [Process Emails]             |
 +------------------------------------------------------+
 ```
 
-### 5.6 View Email Detail Dialog
+### 5.7 View Email Detail Dialog
 ```
 +------------------------------------------------------+
 |  Email Details                                  [X]  |
+|  (violet-bordered dialog, backdrop blur)             |
 |                                                      |
-|  From:     Maria Garcia                              |
+|  Name:     Maria Garcia                              |
 |  Email:    maria.garcia@university.edu               |
 |  Date:     2/24/2026                                 |
-|  Category: [Sick/Medical]                            |
+|  Category: [Sick/Medical] (colored badge)            |
 |                                                      |
-|  -------------------------------------------------- |
+|  Full Email Body                                     |
+|  +------------------------------------------------+  |
+|  | Good morning, I woke up with a severe migraine  |  |
+|  | and nausea this morning. I've already scheduled |  |
+|  | a doctor's appointment for 10 AM...             |  |
+|  +------------------------------------------------+  |
 |                                                      |
-|  Good morning, I woke up with a severe migraine      |
-|  and nausea this morning. I've already scheduled     |
-|  a doctor's appointment for 10 AM. I won't be        |
-|  able to make it to today's session. I'll make       |
-|  sure to review the materials and catch up with      |
-|  a classmate. Thank you for understanding.           |
-|                                                      |
-|                                       [Close]        |
 +------------------------------------------------------+
 ```
 
@@ -791,7 +844,7 @@ excuseCategories (constant enum):
 | Radix UI primitives | Accessible UI foundations (Dialog, Select, Tabs, etc.) |
 | recharts | Data visualization charts |
 | framer-motion | UI animations and transitions |
-| date-fns | Date formatting and manipulation |
+| date-fns | Time-period filtering (startOfDay, startOfWeek, startOfMonth, startOfQuarter, startOfYear + end* variants) |
 
 #### Dev Tools
 | Package | Purpose |
@@ -860,22 +913,27 @@ excuseCategories (constant enum):
 ```
 [Dashboard loaded]
    |
-   +----> [View Stats] 
-   |         6 category cards show counts
-   |         Click any card to filter table
+   +----> [Select Time Period]
+   |         Click any period button (All Time, Today, This Week, etc.)
+   |         Records and stat cards filter to matching date range
+   |         Period description shown below records heading
+   |
+   +----> [View Stats]
+   |         6 category cards show counts for selected time period
+   |         Click any card to filter table by that category
    |
    +----> [Add Single Email]
    |         Click "Add Email" button
    |         Fill form (name, email, date, body)
-   |         Click "Process with AI"
+   |         Click "Process"
    |         AI categorizes -> record created
    |         Table refreshes
    |
    +----> [Batch Process]
    |         Click "Batch Process" button
-   |         Choose JSON or CSV tab
+   |         Choose Paste JSON or Upload File tab
    |         Paste text or upload file
-   |         Click "Start Processing"
+   |         Click "Process Emails"
    |         Watch real-time progress (SSE)
    |         All records created
    |         Table refreshes
@@ -895,16 +953,22 @@ excuseCategories (constant enum):
    |         Record removed
    |
    +----> [Clear All]
-   |         Click "Clear All" button
+   |         Click "Clear" button
    |         Confirmation dialog
    |         All user's records deleted
    |
+   +----> [Print Records]
+   |         Click "Print" button
+   |         Browser print dialog opens
+   |         Shows clean table with header, period, and record count
+   |         Star field, buttons, dropdowns all hidden
+   |
    +----> [Export CSV]
-   |         Click "Export CSV"
+   |         Click "CSV" button
    |         Browser downloads attendance_report.csv
    |
    +----> [Export DOCX]
-   |         Click "Export DOC"
+   |         Click "DOC" button
    |         Browser downloads attendance_report.docx
    |
    +----> [Sign Out]
@@ -913,13 +977,45 @@ excuseCategories (constant enum):
             Redirected to Auth Page
 ```
 
-### 7.3 Batch Processing Detail Flow
+### 7.3 Time-Period Filtering Flow
+
+```
+[User clicks time period button]
+        |
+        v
+[setTimePeriod(period)]
+        |
+        v
+[getTimePeriodRange(period)]
+        |
+   +----+----+
+   |         |
+ "all"     other
+   |         |
+   v         v
+[null     [{ start: startOfPeriod(now),
+ range]     end: endOfPeriod(now) }]
+   |         |
+   v         v
+[timeFilteredRecords = records.filter(r =>
+   period === "all" || (r.receivedAt >= start && r.receivedAt <= end))]
+        |
+        v
+[periodStats = recompute counts from timeFilteredRecords]
+        |
+        v
+[Stat cards show periodStats counts]
+[Table shows timeFilteredRecords (+ optional category filter)]
+[Print button prints currently visible filtered records]
+```
+
+### 7.4 Batch Processing Detail Flow
 
 ```
 [User clicks "Batch Process"]
         |
         v
-[Dialog opens with JSON/CSV tabs]
+[Dialog opens with Paste JSON / Upload File tabs]
         |
    +----+----+
    |         |
@@ -935,7 +1031,7 @@ excuseCategories (constant enum):
         |
   [Validate: array of emails, min 1]
         |
-  [Click "Start Processing"]
+  [Click "Process Emails"]
         |
         v
   [POST /api/process-emails]
@@ -1131,7 +1227,72 @@ excuseCategories (constant enum):
               confidence }]   confidence: 0 }]
 ```
 
-### 8.4 Email Input Decision Tree
+### 8.4 Time-Period Filter Decision Tree
+
+```
+[User clicks a time period button]
+        |
+        v
+[timePeriod state updated]
+        |
+        v
+[Is period "all"?]
+   |         |
+  YES        NO
+   |         |
+   v         v
+[Return   [Compute date range using date-fns:]
+ all         |
+ records]    +-- "day"     -> startOfDay(now) .. endOfDay(now)
+             +-- "week"    -> startOfWeek(now, Mon) .. endOfWeek(now, Mon)
+             +-- "month"   -> startOfMonth(now) .. endOfMonth(now)
+             +-- "quarter" -> startOfQuarter(now) .. endOfQuarter(now)
+             +-- "year"    -> startOfYear(now) .. endOfYear(now)
+                  |
+                  v
+             [Filter records where receivedAt >= start && receivedAt <= end]
+                  |
+                  v
+             [Recompute periodStats from filtered records]
+                  |
+                  v
+             [Update stat card counts]
+             [Update table display]
+             [Apply any active category filter on top]
+```
+
+### 8.5 Print Decision Tree
+
+```
+[User clicks Print button]
+        |
+        v
+[window.print() called]
+        |
+        v
+[@media print CSS activates]
+        |
+        +----> [.no-print elements hidden:]
+        |         Star field, header nav, time period buttons,
+        |         action buttons, category dropdowns, action column
+        |
+        +----> [.print-header shown:]
+        |         "PULSE - Attendance Report"
+        |         Period name | Record count | Generated date
+        |
+        +----> [.print-table styled:]
+        |         White background, black text, bordered cells
+        |         Category shown as plain text (not dropdown)
+        |
+        +----> [.print-category shown:]
+                  Hidden span with category text becomes visible
+                  Replaces the interactive Select dropdown
+        |
+        v
+[Browser print dialog opens with clean formatted table]
+```
+
+### 8.6 Email Input Decision Tree
 
 ```
 [User wants to process emails]
@@ -1170,8 +1331,8 @@ excuseCategories (constant enum):
    |    |         |
    |    v         v
    |  [Enable   [Show validation errors]
-   |   "Start    [Button stays disabled]
-   |   Processing"]
+   |   "Process  [Button stays disabled]
+   |   Emails"]
    |    |
    +----+
         |
@@ -1188,7 +1349,7 @@ excuseCategories (constant enum):
 [Dashboard refreshes]
 ```
 
-### 8.5 Export Decision Tree
+### 8.7 Export Decision Tree
 
 ```
 [User clicks export button]
@@ -1240,7 +1401,7 @@ excuseCategories (constant enum):
 ## 9. Full Project Report
 
 ### 9.1 Executive Summary
-Attendance Automator is a production-ready multi-user web application that automates the processing of builder/student absence excuse emails. It uses AI (OpenAI GPT via Replit AI Integrations) to categorize excuses into 6 predefined categories, provides a dashboard for review and editing, and generates exportable reports in CSV and DOCX formats. The tool is designed for organizational co-workers who each maintain their own isolated set of attendance records.
+PULSE is a production-ready, space-themed, multi-user web application that automates the processing of builder/student absence excuse emails. It uses AI (OpenAI GPT via Replit AI Integrations) to categorize excuses into 6 predefined categories, provides a dashboard for review and editing with time-period filtering and print capabilities, and generates exportable reports in CSV and DOCX formats. The tool is designed for organizational co-workers who each maintain their own isolated set of attendance records.
 
 ### 9.2 Current State (As Built)
 
@@ -1252,9 +1413,12 @@ Attendance Automator is a production-ready multi-user web application that autom
 | Batch Processing | Complete | JSON paste, JSON file upload, CSV file upload with SSE progress |
 | AI Categorization | Complete | OpenAI GPT categorizes into 6 excuse types |
 | Dashboard | Complete | Stats cards, filterable table, inline category editing |
+| Time-Period Filtering | Complete | Day, Week, Month, Quarter, Year filters with dynamic stat updates |
+| Print Functionality | Complete | Print button generates clean, formatted printable report |
 | Data Export | Complete | CSV and formatted DOCX report generation |
 | Data Isolation | Complete | Each user's data completely isolated |
 | Record Management | Complete | View, edit category, delete individual, clear all |
+| Space Theme | Complete | Dark navy background, star field, violet/indigo accents, Space Grotesk font |
 
 ### 9.3 Planned Features
 
@@ -1272,6 +1436,7 @@ Attendance Automator is a production-ready multi-user web application that autom
 4. No admin role or user management dashboard
 5. Batch emails are processed sequentially (one at a time) to manage AI API rate limits
 6. No email deduplication - the same email can be processed multiple times
+7. CSV/DOCX exports include all records regardless of active time-period filter (print respects the filter)
 
 ### 9.5 Infrastructure Summary
 
@@ -1300,19 +1465,21 @@ Attendance Automator is a production-ready multi-user web application that autom
 | `server/static.ts` | Production static file serving |
 | `client/src/main.tsx` | React app entry point |
 | `client/src/App.tsx` | Root component with auth gate, providers, routing |
-| `client/src/pages/auth.tsx` | Login, Register, and Demo mode page |
-| `client/src/pages/dashboard.tsx` | Main dashboard with stats, table, actions |
+| `client/src/pages/auth.tsx` | Login/Register page with space theme and star field |
+| `client/src/pages/dashboard.tsx` | Main dashboard with time-period filter, stats, table, print |
 | `client/src/pages/not-found.tsx` | 404 error page |
 | `client/src/hooks/use-auth.ts` | Auth state management hook (login/register/demo/logout) |
 | `client/src/hooks/use-toast.ts` | Toast notification hook |
-| `client/src/components/records-table.tsx` | Attendance records data table with inline editing |
+| `client/src/components/star-field.tsx` | Animated star field background (80 memoized stars) |
+| `client/src/components/records-table.tsx` | Attendance records data table with inline editing and print support |
 | `client/src/components/add-email-dialog.tsx` | Single email entry dialog |
 | `client/src/components/batch-upload-dialog.tsx` | Batch upload dialog with SSE progress tracking |
 | `client/src/lib/queryClient.ts` | TanStack Query client config and API request helper |
-| `client/src/index.css` | Global styles, Tailwind config, CSS variables |
+| `client/src/index.css` | Global styles, space theme CSS variables, print styles, star field animations |
 | `drizzle.config.ts` | Drizzle ORM configuration |
 | `vite.config.ts` | Vite build configuration |
 | `tailwind.config.ts` | Tailwind CSS configuration |
 | `tsconfig.json` | TypeScript configuration |
 | `package.json` | Dependencies and scripts |
 | `replit.md` | Project overview and architecture reference |
+| `docs/PROJECT_DOCUMENTATION.md` | This file - complete project documentation |
