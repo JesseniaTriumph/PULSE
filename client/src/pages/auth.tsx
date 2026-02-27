@@ -75,13 +75,14 @@ export default function AuthPage() {
 
       <Button
         size="sm"
-        variant="ghost"
+        variant="outline"
         onClick={toggleTheme}
         data-testid="button-auth-theme-toggle"
-        className="absolute top-4 right-4 z-20 hover:bg-violet-500/10"
+        className="absolute top-4 right-4 z-20 border-violet-500/30 hover:bg-violet-500/10"
         aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       >
-        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {theme === "dark" ? <Sun className="w-4 h-4 mr-1.5" /> : <Moon className="w-4 h-4 mr-1.5" />}
+        {theme === "dark" ? "Light" : "Dark"}
       </Button>
 
       <div className="w-full max-w-md relative z-10">

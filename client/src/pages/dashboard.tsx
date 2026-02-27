@@ -189,7 +189,7 @@ export default function Dashboard() {
     <div className="flex flex-col h-full relative">
       <StarField />
 
-      <div className="border-b border-violet-500/10 bg-background/80 backdrop-blur-md sticky top-0 z-10 no-print">
+      <div className="border-b border-violet-500/10 bg-background/60 backdrop-blur-sm sticky top-0 z-10 no-print">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -239,13 +239,14 @@ export default function Dashboard() {
               )}
               <Button
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 onClick={toggleTheme}
                 data-testid="button-theme-toggle"
-                className="hover:bg-violet-500/10"
+                className="border-violet-500/30 hover:bg-violet-500/10"
                 aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               >
-                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === "dark" ? <Sun className="w-4 h-4 mr-1.5" /> : <Moon className="w-4 h-4 mr-1.5" />}
+                {theme === "dark" ? "Light" : "Dark"}
               </Button>
               <Button
                 size="sm"
