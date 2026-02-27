@@ -28,6 +28,10 @@ export function setupGoogleAuth(app: Express) {
     const state = crypto.randomBytes(16).toString("hex");
     req.session.oauthState = state;
 
+    console.log("[Google OAuth] Redirect URI:", redirectUri);
+    console.log("[Google OAuth] Client ID prefix:", GOOGLE_CLIENT_ID?.substring(0, 20) + "...");
+    console.log("[Google OAuth] Headers - host:", req.headers.host, "x-forwarded-host:", req.headers["x-forwarded-host"], "x-forwarded-proto:", req.headers["x-forwarded-proto"]);
+
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,
