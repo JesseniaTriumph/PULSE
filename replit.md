@@ -8,7 +8,7 @@ PULSE is a space-themed, multi-user AI-powered attendance email processing tool 
 - **Backend**: Express.js + PostgreSQL (Drizzle ORM) + OpenAI AI Integrations
 - **AI**: Uses Replit AI Integrations (OpenAI gpt-5.2) for excuse categorization
 - **Auth**: Session-based auth with bcrypt password hashing, express-session + connect-pg-simple; Google OAuth for sign-in + Gmail access
-- **Theme**: Dark space theme with animated star field, violet/indigo gradients, Space Grotesk font
+- **Theme**: Dark/light mode with ThemeProvider (localStorage persistence); dark mode: full star field (120 stars), light mode: subtle corner sparkles (20 sparkles); CSS variables in :root (light) and .dark (dark); Tailwind darkMode: ["class"]
 
 ## Key Features
 - User registration and login (session-based authentication)
@@ -37,7 +37,8 @@ client/src/hooks/use-auth.ts    - Auth hook (login, register, logout, user state
 client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign-in)
 client/src/pages/dashboard.tsx  - Main dashboard with time filters, stats, table, Gmail
 client/src/pages/not-found.tsx  - 404 error page
-client/src/components/star-field.tsx       - Animated star background
+client/src/components/star-field.tsx       - Animated star background (adapts to theme)
+client/src/components/theme-provider.tsx   - Dark/light mode context + useTheme hook
 client/src/components/records-table.tsx    - Records data table (print-friendly)
 client/src/components/add-email-dialog.tsx - Single email form
 client/src/components/batch-upload-dialog.tsx - Batch processing

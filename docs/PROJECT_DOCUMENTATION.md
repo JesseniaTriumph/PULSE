@@ -1,11 +1,16 @@
-# PULSE - Complete Project Documentation
+# PULSE — Project Documentation
+
+**Attendance Automation Tool**
+**Version:** 1.0
+**Last Updated:** February 27, 2026
 
 ---
 
 ## Table of Contents
+
 1. [Product Requirements Document (PRD)](#1-product-requirements-document-prd)
-2. [System Architecture](#2-system-architecture)
-3. [Entity Relationship Diagram (ERD)](#3-entity-relationship-diagram-erd)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Entity-Relationship Diagram (ERD)](#3-entity-relationship-diagram-erd)
 4. [Technical Requirements Document (TRD)](#4-technical-requirements-document-trd)
 5. [Wireframes](#5-wireframes)
 6. [System Tools & Requirements](#6-system-tools--requirements)
@@ -18,946 +23,511 @@
 ## 1. Product Requirements Document (PRD)
 
 ### 1.1 Product Overview
-**PULSE** is a space-themed, multi-user web application designed for organizational staff to process builder/student absence excuse emails, automatically categorize them using AI, and generate exportable reports (CSV and DOCX) for bulk attendance system updates. Users can sign in with username/password or Google OAuth; Google-authenticated users can fetch emails directly from their Gmail inbox for AI processing. Records can be filtered by time period (Day, Week, Month, Quarter, Year) and printed directly from the browser.
+
+PULSE is a space-themed, multi-user attendance automation tool designed for program administrators, instructors, and team leads. It processes builder/student absence excuse emails, categorizes them via OpenAI into six predefined categories, and generates printable CSV/DOCX reports. The application features Google OAuth integration for Gmail inbox fetching, time-period filtering, WCAG 2 accessibility, and a dark/light mode toggle with animated star sparkles.
 
 ### 1.2 Problem Statement
-Staff members manually read and categorize dozens of absence excuse emails daily, then manually enter them into attendance systems. This process is time-consuming, error-prone, and inconsistent across staff members.
+
+Manually reviewing and categorizing student absence excuse emails is time-consuming and error-prone. Administrators need an automated, AI-powered system that can ingest emails (manually, in batch, or directly from Gmail), categorize the excuse type, and produce organized reports for record-keeping and auditing.
 
 ### 1.3 Target Users
-- Program coordinators and administrative staff responsible for tracking builder/student attendance
-- Multiple co-workers within the same organization, each with their own login
 
-### 1.4 Excuse Categories (6 Total)
-| Category | Description |
-|---|---|
-| **Sick/Medical** | Illness, doctor appointments, medical emergencies, hospital visits |
-| **Personal** | Travel, family events, personal obligations, non-medical personal matters |
-| **Program Event** | Program-related events, workshops, conferences, required organization activities |
-| **Technical Issue** | Internet outages, equipment failures, transport problems, connectivity issues |
-| **Other** | Miscellaneous reasons that don't fit the above categories |
-| **Unexcused** | No valid reason provided, vague excuses, insufficient explanation |
+- Program administrators managing builder/student attendance
+- Instructors tracking class participation
+- Team leads monitoring team member availability
+- Any user who needs to process and categorize absence excuses at scale
 
-### 1.5 Functional Requirements
+### 1.4 Functional Requirements
 
 | ID | Requirement | Status |
-|---|---|---|
-| FR-01 | Users can register with username, email, password, and display name | Done |
+|----|------------|--------|
+| FR-01 | Users can register with username, email, display name, and password | Done |
 | FR-02 | Users can log in with username and password | Done |
-| FR-03 | Users can log out, clearing their session | Done |
-| FR-04 | Demo mode with pre-loaded sample data for 6 categories | Done |
-| FR-05 | Manually enter a single email for AI categorization | Done |
-| FR-06 | Batch upload emails via JSON or CSV for AI categorization | Done |
-| FR-07 | AI categorizes each email into one of 6 excuse categories | Done |
-| FR-08 | Real-time progress streaming during batch processing (SSE) | Done |
-| FR-09 | View all attendance records in a sortable table | Done |
-| FR-10 | Filter records by clicking category stat cards | Done |
-| FR-11 | Inline edit category via dropdown in the records table | Done |
-| FR-12 | View full email body in a detail dialog | Done |
-| FR-13 | Delete individual records | Done |
-| FR-14 | Clear all records for the user | Done |
-| FR-15 | Export records as CSV | Done |
-| FR-16 | Export records as formatted DOCX (grouped by category) | Done |
-| FR-17 | Each user only sees their own records (data isolation) | Done |
-| FR-18 | Filter records by time period: Day, Week, Month, Quarter, Year | Done |
-| FR-19 | Print filtered records via browser print dialog | Done |
-| FR-20 | Space-themed dark UI with animated star field and violet/indigo branding | Done |
-| FR-21 | Stat cards dynamically update counts based on selected time period | Done |
-| FR-22 | Google OAuth sign-in (userinfo.email, userinfo.profile scopes) | Done |
-| FR-23 | Pull emails directly from Gmail inbox (gmail.readonly scope) | Done |
-| FR-24 | Gmail email search with customizable query and max results | Done |
-| FR-25 | Select/deselect individual Gmail emails before AI processing | Done |
-| FR-26 | Automatic OAuth token refresh when access token expires | Done |
-| FR-27 | Link existing username/password accounts to Google identity | Done |
+| FR-03 | Users can log out, destroying their session | Done |
+| FR-04 | A demo account is available with pre-seeded data | Done |
+| FR-05 | Users can manually add a single email for AI categorization | Done |
+| FR-06 | Users can batch-upload emails via JSON paste or JSON/CSV file upload | Done |
+| FR-07 | AI categorizes each email into one of 6 categories | Done |
+| FR-08 | Batch processing provides real-time progress via Server-Sent Events | Done |
+| FR-09 | Dashboard displays category-based statistics cards | Done |
+| FR-10 | Users can filter records by time period (Day, Week, Month, Quarter, Year) | Done |
+| FR-11 | Users can filter records by clicking a category card | Done |
+| FR-12 | Users can manually override an AI-assigned category | Done |
+| FR-13 | Users can update a record's status (pending, approved, denied) | Done |
+| FR-14 | Users can delete individual records | Done |
+| FR-15 | Users can clear all records at once | Done |
+| FR-16 | Users can export all records to CSV | Done |
+| FR-17 | Users can export all records to DOCX (grouped by category) | Done |
+| FR-18 | Users can print filtered records with a print-optimized layout | Done |
+| FR-19 | The app displays an animated star field background in dark mode | Done |
+| FR-20 | Light mode displays subtle corner sparkles instead of full star field | Done |
+| FR-21 | Users can toggle between dark and light mode with persistence | Done |
+| FR-22 | Users can sign in with Google OAuth | Done |
+| FR-23 | Google OAuth links to existing accounts by email if found | Done |
+| FR-24 | Google OAuth stores access and refresh tokens for Gmail access | Done |
+| FR-25 | Users with Google accounts can search their Gmail inbox | Done |
+| FR-26 | Users can select fetched Gmail emails and process them with AI | Done |
+| FR-27 | Gmail token refresh is handled automatically on expiration | Done |
 
-### 1.6 Non-Functional Requirements
+### 1.5 Non-Functional Requirements
 
-| ID | Requirement |
-|---|---|
-| NFR-01 | Passwords hashed with bcrypt (10 salt rounds) before storage |
-| NFR-02 | Sessions stored server-side in PostgreSQL with 7-day expiry |
-| NFR-03 | All API endpoints require authentication (except auth routes) |
-| NFR-04 | Record ownership enforced on all CRUD operations |
-| NFR-05 | Responsive UI that works on desktop and mobile |
-| NFR-06 | AI categorization validates output against allowed categories |
-| NFR-07 | Dark space-themed aesthetic with Space Grotesk typography |
-| NFR-08 | Print-friendly layout hides interactive elements and star field |
-| NFR-09 | Google OAuth tokens stored securely in database, auto-refreshed on expiry |
-| NFR-10 | CSRF protection on OAuth via state parameter validation |
+| ID | Requirement | Status |
+|----|------------|--------|
+| NFR-01 | WCAG 2 accessibility (semantic HTML, ARIA labels, keyboard navigation) | Done |
+| NFR-02 | Responsive design (mobile-friendly via Tailwind breakpoints) | Done |
+| NFR-03 | Data isolation — each user only sees their own records | Done |
+| NFR-04 | Sessions persisted in PostgreSQL (survive server restarts) | Done |
+| NFR-05 | All passwords hashed with bcrypt (10 rounds) | Done |
+| NFR-06 | CSRF protection via OAuth state parameter | Done |
+| NFR-07 | Print stylesheet hides UI chrome and optimizes table layout | Done |
+| NFR-08 | `data-testid` attributes on all interactive and display elements | Done |
+
+### 1.6 Excuse Categories
+
+1. **Sick/Medical** — Illness, doctor appointments, medical emergencies, health-related issues
+2. **Personal** — Travel, family events, personal obligations, family emergencies
+3. **Program Event** — Conflict with program-related events, workshops, conferences, or scheduled activities
+4. **Technical Issue** — Internet issues, transport problems, equipment failures, software problems
+5. **Other** — Miscellaneous reasons that provide a valid excuse but do not fit the specific categories above
+6. **Unexcused** — No valid reason provided, vague excuses, or the message does not contain an actual excuse
 
 ---
 
-## 2. System Architecture
+## 2. Architecture Overview
 
 ### 2.1 High-Level Architecture
 
+PULSE follows a monolithic full-stack JavaScript architecture with a clear client-server separation served from a single Express process.
+
 ```
-+------------------+         +-------------------+         +------------------+
-|                  |  HTTP   |                   |  SQL    |                  |
-|   React Frontend | ------> |  Express Backend  | ------> | PostgreSQL (Neon)|
-|   (Vite + SPA)   | <------ |  (Node.js)        | <------ |                  |
-|                  |  JSON   |                   |         +------------------+
-+------------------+  + SSE  +-------------------+
-                              |         |         |
-                              |         |         | HTTPS (OAuth + Gmail API)
-                              |         |         v
-                              |         |  +------------------+
-                              |         |  | Google APIs      |
-                              |         |  | - OAuth 2.0      |
-                              |         |  | - Gmail API      |
-                              |         |  | - UserInfo API   |
-                              |         |  +------------------+
-                              |         |
-                              |         | HTTPS (API call)
-                              |         v
-                              |  +------------------+
-                              |  | OpenAI (GPT)     |
-                              |  | via Replit AI     |
-                              |  | Integrations     |
-                              |  +------------------+
-                              |
-                              | Session Store
-                              v
-                      +------------------+
-                      | PostgreSQL       |
-                      | (session table)  |
-                      +------------------+
+┌────────────────────────────────────────────────────────────────────┐
+│                          Browser (Client)                         │
+│                                                                   │
+│  React 18 + Vite + TanStack Query + wouter + Tailwind CSS         │
+│  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │ Auth Page │  │ Dashboard │  │ Dialogs  │  │ Theme / StarField│  │
+│  └──────────┘  └───────────┘  └──────────┘  └──────────────────┘  │
+└────────────────────────────────────────────────────────────────────┘
+                              │  HTTP / SSE
+                              ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                       Express 5 Server                            │
+│                                                                   │
+│  ┌────────────┐  ┌────────────┐  ┌──────────────┐  ┌───────────┐ │
+│  │ auth.ts    │  │ routes.ts  │  │ google-auth.ts│  │ openai.ts │ │
+│  │ (session,  │  │ (CRUD,     │  │ (OAuth,       │  │ (GPT cat- │ │
+│  │  register, │  │  process,  │  │  Gmail fetch, │  │  egorize) │ │
+│  │  login)    │  │  export)   │  │  token mgmt)  │  │           │ │
+│  └────────────┘  └────────────┘  └──────────────┘  └───────────┘ │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────────┐│
+│  │ storage.ts (IStorage interface → DatabaseStorage via Drizzle) ││
+│  └────────────────────────────────────────────────────────────────┘│
+└────────────────────────────────────────────────────────────────────┘
+                              │  SQL (Drizzle ORM)
+                              ▼
+                    ┌──────────────────┐
+                    │   PostgreSQL DB  │
+                    │   (Replit-hosted) │
+                    └──────────────────┘
 ```
 
 ### 2.2 Frontend Architecture
 
-```
-React App (Vite SPA)
-|
-+-- App.tsx (Root - Auth gate + Providers)
-|   +-- QueryClientProvider (TanStack Query v5)
-|   +-- TooltipProvider (Radix UI)
-|   +-- Toaster (notification system)
-|   +-- Router (wouter)
-|       +-- AuthPage (unauthenticated users)
-|       |   +-- StarField (animated background)
-|       |   +-- Login Form
-|       |   +-- Register Form
-|       |   +-- Google Sign-In Button
-|       |   +-- Demo Button
-|       +-- Dashboard (authenticated users)
-|           +-- StarField (animated background)
-|           +-- Header (PULSE logo, user greeting, action buttons, Gmail button)
-|           +-- TimePeriodFilter (All Time, Day, Week, Month, Quarter, Year)
-|           +-- Stat Cards (6 categories, clickable filters, period-aware counts)
-|           +-- Action Bar (print, export CSV, export DOC, clear all)
-|           +-- RecordsTable (print-friendly, inline edit, view detail)
-|           +-- AddEmailDialog (single email form)
-|           +-- BatchUploadDialog (JSON/CSV upload + SSE progress)
-|           +-- GmailFetchDialog (search inbox, select emails, process with AI)
-```
+- **Framework:** React 18 with Vite build tool
+- **Routing:** wouter (lightweight client-side router)
+- **State/Data:** TanStack React Query v5 for server state; React useState/useMemo for local state
+- **Styling:** Tailwind CSS with shadcn/ui component library (Radix UI primitives)
+- **Icons:** lucide-react for action icons; react-icons for brand logos
+- **Theming:** Custom ThemeProvider context with localStorage persistence; CSS custom properties in `:root` (light) and `.dark` (dark)
 
 ### 2.3 Backend Architecture
 
+- **Runtime:** Node.js 20 with TypeScript (tsx for development)
+- **Framework:** Express 5
+- **ORM:** Drizzle ORM with drizzle-zod for schema validation
+- **Database:** PostgreSQL via `@neondatabase/serverless` driver
+- **Session Store:** connect-pg-simple (sessions in PostgreSQL `session` table)
+- **Authentication:** Custom session-based auth (bcrypt for passwords) + Google OAuth 2.0 (manual implementation)
+- **AI Integration:** OpenAI GPT (via Replit AI Integrations) for excuse categorization
+- **Document Generation:** `docx` library for DOCX exports
+- **Real-time Updates:** Server-Sent Events (SSE) for batch processing progress
+
+### 2.4 Shared Layer
+
+- `shared/schema.ts` — Drizzle table definitions, Zod insert schemas, TypeScript types, and validation schemas shared between client and server
+
+### 2.5 File Structure
+
 ```
-Express Server (server/index.ts)
-|
-+-- Middleware Stack
-|   +-- express.json() (body parser)
-|   +-- express.urlencoded()
-|   +-- express-session (connect-pg-simple store)
-|   +-- Request logger
-|
-+-- Auth Routes (server/auth.ts)
-|   +-- POST /api/auth/register
-|   +-- POST /api/auth/login
-|   +-- POST /api/auth/logout
-|   +-- POST /api/auth/demo
-|   +-- GET  /api/auth/me
-|
-+-- Google OAuth Routes (server/google-auth.ts)
-|   +-- GET  /api/auth/google          (initiate OAuth flow)
-|   +-- GET  /api/auth/google/callback  (handle OAuth callback)
-|   +-- GET  /api/auth/google/status    (check connection status)
-|   +-- POST /api/gmail/fetch           (search + fetch Gmail emails)
-|
-+-- API Routes (server/routes.ts) [all protected by requireAuth]
-|   +-- GET    /api/records
-|   +-- GET    /api/records/:id
-|   +-- GET    /api/stats
-|   +-- POST   /api/process-emails (SSE stream)
-|   +-- PATCH  /api/records/:id/category
-|   +-- PATCH  /api/records/:id/status
-|   +-- DELETE /api/records/:id
-|   +-- DELETE /api/records
-|   +-- GET    /api/export/csv
-|   +-- GET    /api/export/doc
-|
-+-- Storage Layer (server/storage.ts)
-|   +-- DatabaseStorage class (Drizzle ORM queries)
-|   +-- IStorage interface with Google user methods
-|
-+-- AI Layer (server/openai.ts)
-|   +-- categorizeExcuse() -> OpenAI GPT
-|
-+-- Static/Vite
-    +-- Dev: Vite middleware (HMR)
-    +-- Prod: Static file serving
+├── client/
+│   ├── index.html
+│   └── src/
+│       ├── App.tsx                     # Root component with ThemeProvider + Router
+│       ├── main.tsx                    # React entry point
+│       ├── index.css                   # Global styles, star animations, CSS variables
+│       ├── components/
+│       │   ├── add-email-dialog.tsx    # Single email manual entry dialog
+│       │   ├── batch-upload-dialog.tsx # Batch JSON/CSV upload dialog
+│       │   ├── gmail-fetch-dialog.tsx  # Gmail inbox search + select dialog
+│       │   ├── records-table.tsx       # Attendance records data table
+│       │   ├── star-field.tsx          # Animated star/sparkle background
+│       │   ├── theme-provider.tsx      # Light/dark mode context + toggle hook
+│       │   └── ui/                     # shadcn/ui primitives (30+ components)
+│       ├── hooks/
+│       │   ├── use-auth.ts            # Authentication hook (login/register/logout/demo)
+│       │   ├── use-mobile.tsx         # Responsive breakpoint hook
+│       │   └── use-toast.ts           # Toast notification hook
+│       ├── lib/
+│       │   ├── queryClient.ts         # TanStack Query client + apiRequest helper
+│       │   └── utils.ts               # Tailwind merge utility
+│       └── pages/
+│           ├── auth.tsx               # Login / Register / Demo / Google Sign-In page
+│           ├── dashboard.tsx          # Main dashboard with stats, filters, table, exports
+│           └── not-found.tsx          # 404 page
+├── server/
+│   ├── index.ts                       # Express app bootstrap
+│   ├── auth.ts                        # Session setup, login/register/demo routes, requireAuth
+│   ├── google-auth.ts                 # Google OAuth routes, Gmail fetch, token refresh
+│   ├── openai.ts                      # OpenAI excuse categorization function
+│   ├── routes.ts                      # CRUD routes, batch processing SSE, exports
+│   ├── storage.ts                     # IStorage interface + DatabaseStorage implementation
+│   ├── db.ts                          # Database connection (pool + Drizzle instance)
+│   ├── seed.ts                        # Demo account seed data
+│   ├── static.ts                      # Static file serving for production
+│   └── vite.ts                        # Vite dev server middleware
+├── shared/
+│   ├── schema.ts                      # Drizzle schema, Zod schemas, types, constants
+│   └── models/
+│       └── chat.ts                    # Conversations/messages tables (AI integrations)
+├── docs/
+│   └── PROJECT_DOCUMENTATION.md       # This document
+├── tailwind.config.ts
+├── vite.config.ts
+├── drizzle.config.ts
+├── tsconfig.json
+├── package.json
+└── replit.md
 ```
-
-### 2.4 Communication Patterns
-
-| Pattern | Use Case |
-|---|---|
-| REST (JSON) | All CRUD operations, auth, stats, single email processing |
-| SSE (Server-Sent Events) | Batch email processing - streams progress for each email as AI categorizes it |
-| File Download | CSV and DOCX exports served as file attachment responses |
-| Browser Print | window.print() triggers print dialog for time-filtered records |
-| OAuth 2.0 Redirect | Google sign-in flow (redirect to Google consent screen, callback with auth code) |
-| Gmail API (HTTPS) | Server-side calls to Gmail API to search and fetch user emails |
-
-### 2.5 Theme & Branding
-
-| Aspect | Implementation |
-|---|---|
-| Color Palette | Deep navy background (hsl 230 25% 7%), violet/indigo accents (hsl 265 80% 60%) |
-| Typography | Space Grotesk (primary), Space Mono (monospace) |
-| Visual Effects | Animated star field (80 stars, CSS twinkle animation), floating logo, purple glow text |
-| Category Colors | Rose (Sick/Medical), Amber (Personal), Sky (Program Event), Violet (Technical Issue), Emerald (Other), Slate (Unexcused) |
-| Cards/Panels | Semi-transparent backgrounds (bg-card/60), backdrop blur, violet-tinted borders |
-| Buttons | Violet-to-indigo gradients for primary actions, violet-bordered outlines for secondary |
 
 ---
 
-## 3. Entity Relationship Diagram (ERD)
+## 3. Entity-Relationship Diagram (ERD)
 
-```
-+---------------------------+          +------------------------------------+
-|         users              |          |       attendance_records           |
-+---------------------------+          +------------------------------------+
-| PK  id          SERIAL    |----+     | PK  id              SERIAL        |
-|     username    TEXT [UQ]  |    |     | FK  user_id          INTEGER [NN] |
-|     email       TEXT [UQ]  |    +----<|     sender_name      TEXT    [NN] |
-|     password    TEXT [NN]  |          |     sender_email     TEXT    [NN] |
-|     display_name TEXT [NN] |          |     received_at      TIMESTAMP[NN]|
-|     google_id   TEXT [UQ]  |          |     email_body       TEXT    [NN] |
-|     google_access_token    |          |     excuse_category  TEXT    [NN] |
-|                 TEXT       |          |     message_snippet  TEXT    [NN] |
-|     google_refresh_token   |          |     status           TEXT    [NN] |
-|                 TEXT       |          |     batch_id         TEXT         |
-|     created_at  TIMESTAMP  |          |     created_at       TIMESTAMP    |
-+---------------------------+          +------------------------------------+
+### 3.1 Tables
 
-+---------------------------+
-|         session            |
-+---------------------------+
-| PK  sid         VARCHAR    |
-|     sess        JSON       |
-|     expire      TIMESTAMP  |
-+---------------------------+
-(auto-managed by connect-pg-simple)
+#### `users`
 
-RELATIONSHIPS:
-  users.id  ---(1 to Many)---  attendance_records.user_id
-  One user has many attendance records.
-  Each attendance record belongs to exactly one user.
-
-CONSTRAINTS:
-  users.username               UNIQUE, NOT NULL
-  users.email                  UNIQUE, NOT NULL
-  users.password               NOT NULL (bcrypt hashed)
-  users.display_name           NOT NULL
-  users.google_id              UNIQUE (nullable - only set for Google-authenticated users)
-  users.google_access_token    nullable (OAuth access token, refreshable)
-  users.google_refresh_token   nullable (OAuth refresh token, long-lived)
-  attendance_records.user_id   REFERENCES users(id), NOT NULL
-  attendance_records.status    DEFAULT 'pending'
-  attendance_records.excuse_category must be one of:
-    'Sick/Medical', 'Personal', 'Program Event',
-    'Technical Issue', 'Other', 'Unexcused'
-```
-
-### Column Details
-
-#### users
 | Column | Type | Constraints | Description |
-|---|---|---|---|
-| id | SERIAL | PRIMARY KEY | Auto-incrementing unique identifier |
-| username | TEXT | UNIQUE, NOT NULL | Login username (min 3 chars) |
-| email | TEXT | UNIQUE, NOT NULL | User email address |
-| password | TEXT | NOT NULL | bcrypt-hashed password (min 6 chars raw) |
-| display_name | TEXT | NOT NULL | User's display name shown in UI |
-| google_id | TEXT | UNIQUE | Google account ID (set when user signs in via Google OAuth) |
-| google_access_token | TEXT | NULLABLE | Google OAuth access token for Gmail API calls |
-| google_refresh_token | TEXT | NULLABLE | Google OAuth refresh token for obtaining new access tokens |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Account creation time |
+|--------|------|-------------|-------------|
+| `id` | serial | PK | Auto-incrementing user ID |
+| `username` | text | NOT NULL, UNIQUE | Login username |
+| `email` | text | NOT NULL, UNIQUE | User email address |
+| `password` | text | NOT NULL | Bcrypt-hashed password |
+| `display_name` | text | NOT NULL | Display name shown in UI |
+| `google_id` | text | UNIQUE | Google OAuth subject ID (nullable) |
+| `google_access_token` | text | | Google API access token (nullable) |
+| `google_refresh_token` | text | | Google API refresh token (nullable) |
+| `created_at` | timestamp | NOT NULL, DEFAULT NOW | Account creation timestamp |
 
-#### attendance_records
+#### `attendance_records`
+
 | Column | Type | Constraints | Description |
-|---|---|---|---|
-| id | SERIAL | PRIMARY KEY | Auto-incrementing unique identifier |
-| user_id | INTEGER | FK -> users(id), NOT NULL | Owner of this record |
-| sender_name | TEXT | NOT NULL | Name of the person who sent the excuse email |
-| sender_email | TEXT | NOT NULL | Email address of the sender |
-| received_at | TIMESTAMP | NOT NULL | When the excuse email was received |
-| email_body | TEXT | NOT NULL | Full text of the excuse email |
-| excuse_category | TEXT | NOT NULL | AI-assigned category (one of 6) |
-| message_snippet | TEXT | NOT NULL | First 150 characters of email body |
-| status | TEXT | NOT NULL, DEFAULT 'pending' | Processing status (pending/processed) |
-| batch_id | TEXT | NULLABLE | Groups records from same batch upload |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
+|--------|------|-------------|-------------|
+| `id` | serial | PK | Auto-incrementing record ID |
+| `user_id` | integer | NOT NULL, FK → users.id | Owning user |
+| `sender_name` | text | NOT NULL | Name of the person who sent the excuse |
+| `sender_email` | text | NOT NULL | Email of the sender |
+| `received_at` | timestamp | NOT NULL | Date the excuse email was received |
+| `email_body` | text | NOT NULL | Full text of the excuse email |
+| `excuse_category` | text | NOT NULL | AI-assigned category (one of 6) |
+| `message_snippet` | text | NOT NULL | Truncated preview of the email body |
+| `status` | text | NOT NULL, DEFAULT "pending" | Review status (pending/approved/denied) |
+| `batch_id` | text | | Batch processing group ID (nullable) |
+| `created_at` | timestamp | NOT NULL, DEFAULT NOW | Record creation timestamp |
 
-#### session (auto-managed)
+#### `session` (auto-created by connect-pg-simple)
+
 | Column | Type | Description |
-|---|---|---|
-| sid | VARCHAR | Session ID (PRIMARY KEY) |
-| sess | JSON | Serialized session data (contains userId) |
-| expire | TIMESTAMP | Session expiration time |
+|--------|------|-------------|
+| `sid` | varchar | Session ID (PK) |
+| `sess` | json | Session data (contains userId, oauthState) |
+| `expire` | timestamp | Session expiration time |
+
+#### `conversations` (AI Integrations)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PK | Conversation ID |
+| `title` | text | NOT NULL | Conversation title |
+| `created_at` | timestamp | NOT NULL, DEFAULT NOW | Creation timestamp |
+
+#### `messages` (AI Integrations)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PK | Message ID |
+| `conversation_id` | integer | NOT NULL, FK → conversations.id (CASCADE) | Parent conversation |
+| `role` | text | NOT NULL | Message role (user/assistant/system) |
+| `content` | text | NOT NULL | Message content |
+| `created_at` | timestamp | NOT NULL, DEFAULT NOW | Creation timestamp |
+
+### 3.2 Relationships Diagram
+
+```
+┌───────────┐       1:N       ┌─────────────────────┐
+│   users   │────────────────▶│  attendance_records  │
+│           │                 │                       │
+│ id (PK)   │                 │ user_id (FK → users)  │
+│ username  │                 │ sender_name           │
+│ email     │                 │ sender_email          │
+│ password  │                 │ excuse_category       │
+│ google_id │                 │ status                │
+└───────────┘                 └───────────────────────┘
+
+┌───────────────┐     1:N     ┌────────────────┐
+│ conversations │────────────▶│   messages     │
+│               │             │                │
+│ id (PK)       │             │ conversation_id│
+│ title         │             │ (FK, CASCADE)  │
+└───────────────┘             └────────────────┘
+```
 
 ---
 
 ## 4. Technical Requirements Document (TRD)
 
-### 4.1 Tech Stack
-
-| Layer | Technology | Version | Purpose |
-|---|---|---|---|
-| Frontend | React | 18.x | UI framework (SPA) |
-| Frontend Build | Vite | 5.x | Dev server + bundler with HMR |
-| Frontend Routing | wouter | 3.x | Lightweight client-side router |
-| State Management | TanStack Query | v5 | Server state caching, mutations, invalidation |
-| Styling | Tailwind CSS | 3.x | Utility-first CSS framework |
-| UI Components | Shadcn/Radix UI | latest | Accessible component primitives |
-| Backend | Express | 5.x | HTTP server framework |
-| ORM | Drizzle ORM | latest | Type-safe PostgreSQL queries |
-| Database | PostgreSQL (Neon) | 16.x | Serverless relational database |
-| Auth | express-session + bcrypt | latest | Session-based auth with password hashing |
-| OAuth | Google OAuth 2.0 | - | Google sign-in and Gmail API authorization |
-| AI | OpenAI GPT (gpt-5.2) | latest | Excuse email categorization via Replit AI Integrations |
-| DOCX Generation | docx | latest | Word document report creation |
-
-### 4.2 API Endpoint Specifications
-
-#### Authentication Endpoints (No auth required)
-
-**POST /api/auth/register**
-```
-Request Body:
-  {
-    username: string (min 3 chars),
-    email: string (valid email),
-    password: string (min 6 chars),
-    displayName: string (min 1 char)
-  }
-
-Success Response: 201
-  { id: number, username: string, email: string, displayName: string }
-
-Error Responses:
-  400 - Invalid input (validation failed)
-  409 - Username already taken
-  409 - Email already registered
-  500 - Server error
-
-Side Effect: Creates session cookie
-```
-
-**POST /api/auth/login**
-```
-Request Body:
-  { username: string (min 1 char), password: string (min 6 chars) }
-
-Success Response: 200
-  { id: number, username: string, email: string, displayName: string }
-
-Error Responses:
-  400 - Invalid input
-  401 - Invalid username or password
-  500 - Server error
-
-Side Effect: Creates session cookie
-```
-
-**POST /api/auth/logout**
-```
-Request Body: (none)
-
-Success Response: 200
-  { message: "Logged out" }
-
-Side Effect: Destroys session, clears cookie
-```
-
-**POST /api/auth/demo**
-```
-Request Body: (none)
-
-Success Response: 200
-  { id: number, username: string, email: string, displayName: string }
-
-Side Effect:
-  - Creates "demo" user if not exists
-  - Seeds 6 sample attendance records (one per category) if new
-  - Creates session cookie
-```
-
-**GET /api/auth/me**
-```
-Success Response: 200
-  { id: number, username: string, email: string, displayName: string, googleId: string | null }
-
-Error Responses:
-  401 - Not authenticated
-```
-
-#### Google OAuth Endpoints (No auth required)
-
-**GET /api/auth/google**
-```
-Action: Redirects user to Google OAuth consent screen
-Scopes: openid, userinfo.email, userinfo.profile, gmail.readonly
-State: Random hex string stored in session for CSRF protection
-Access Type: offline (requests refresh token)
-
-Side Effect: Sets oauth_state in session
-```
-
-**GET /api/auth/google/callback**
-```
-Query Parameters:
-  code: string (authorization code from Google)
-  state: string (CSRF protection token)
-
-Success: Redirects to / with session established
-Errors:
-  400 - State mismatch (CSRF protection)
-  500 - Token exchange or profile fetch failure
-
-Side Effects:
-  - Exchanges code for access + refresh tokens
-  - Creates new user or links to existing user (by google_id or email)
-  - Stores google_access_token and google_refresh_token in users table
-  - Sets userId in session
-```
-
-**GET /api/auth/google/status**
-```
-Success Response: 200
-  { connected: boolean, email: string | null }
-
-Requires: Authentication
-```
-
-#### Gmail Endpoints (Require authentication + Google connection)
-
-**POST /api/gmail/fetch**
-```
-Request Body:
-  {
-    query: string (Gmail search query, default: "subject:(absent OR excuse OR sick OR cannot attend OR won't be able)"),
-    maxResults: number (default: 10)
-  }
-
-Success Response: 200
-  [
-    {
-      id: string,
-      senderName: string,
-      senderEmail: string,
-      subject: string,
-      receivedAt: string (ISO timestamp),
-      body: string,
-      snippet: string
-    }
-  ]
-
-Error Responses:
-  401 - Not connected to Google / token expired and refresh failed
-  500 - Gmail API error
-
-Side Effects:
-  - If access token is expired (401 from Gmail), attempts automatic refresh
-  - Updates google_access_token in database if refreshed
-```
-
-#### Record Endpoints (All require authentication via requireAuth middleware)
-
-**GET /api/records**
-```
-Success Response: 200
-  [
-    {
-      id: number,
-      userId: number,
-      senderName: string,
-      senderEmail: string,
-      receivedAt: string (ISO timestamp),
-      emailBody: string,
-      excuseCategory: string,
-      messageSnippet: string,
-      status: string,
-      batchId: string | null,
-      createdAt: string (ISO timestamp)
-    }
-  ]
-
-Scope: Returns only records where userId matches session user
-Sort: Descending by createdAt
-Note: Time-period filtering is applied client-side using date-fns
-```
-
-**GET /api/records/:id**
-```
-Success Response: 200  { ...record object }
-Error: 404 - Record not found or not owned by user
-```
-
-**GET /api/stats**
-```
-Success Response: 200
-  {
-    total: number,
-    byCategory: {
-      "Sick/Medical": number,
-      "Personal": number,
-      "Program Event": number,
-      "Technical Issue": number,
-      "Other": number,
-      "Unexcused": number
-    }
-  }
-
-Scope: Counts only the authenticated user's records
-Note: When a time period filter is active, stats are recomputed client-side
-      from the time-filtered records (periodStats) for accurate card counts
-```
-
-**POST /api/process-emails**
-```
-Request Body:
-  {
-    emails: [
-      {
-        senderName: string,
-        senderEmail: string (valid email),
-        receivedAt: string (date string),
-        emailBody: string
-      }
-    ]
-  }
-
-Response: SSE (text/event-stream)
-  Event sequence:
-    data: { type: "started", total: number, batchId: string }
-    data: { type: "processing", index: number, name: string }
-    data: { type: "progress", index: number, record: object, categorization: object }
-    ... (repeats for each email)
-    data: { type: "complete", total: number, processed: number, batchId: string }
-
-  On per-email error:
-    data: { type: "error", index: number, name: string, error: string }
-
-Side Effect: Creates attendance_records in DB with userId from session
-```
-
-**PATCH /api/records/:id/category**
-```
-Request Body: { category: string }
-  category must be one of: "Sick/Medical", "Personal", "Program Event",
-                            "Technical Issue", "Other", "Unexcused"
-
-Success Response: 200  { ...updated record }
-Errors: 400 (invalid category), 404 (not found/not owned)
-Authorization: Checks record.userId === session.userId
-```
-
-**PATCH /api/records/:id/status**
-```
-Request Body: { status: string }
-Success Response: 200  { ...updated record }
-Errors: 404 (not found/not owned)
-Authorization: Checks record.userId === session.userId
-```
-
-**DELETE /api/records/:id**
-```
-Success Response: 204 (no content)
-Errors: 404 (not found/not owned)
-Authorization: Checks record.userId === session.userId
-```
-
-**DELETE /api/records**
-```
-Success Response: 204 (no content)
-Effect: Deletes ALL records for the authenticated user only
-```
-
-**GET /api/export/csv**
-```
-Response: File download
-  Content-Type: text/csv
-  Filename: attendance_report.csv
-  Columns: Name, Email, Date, Excuse Category, Status, Message Snippet
-  Scope: Only authenticated user's records (all records, not time-filtered)
-```
-
-**GET /api/export/doc**
-```
-Response: File download
-  Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-  Filename: attendance_report.docx
-  Format: Title page, records grouped by category in tables
-  Scope: Only authenticated user's records (all records, not time-filtered)
-```
-
-### 4.3 Data Validation Schemas (Zod)
-
-```
-loginSchema:
-  username: string, min 1 character
-  password: string, min 6 characters
-
-registerSchema:
-  username:    string, min 3 characters
-  email:       string, valid email format
-  password:    string, min 6 characters
-  displayName: string, min 1 character
-
-emailInputSchema:
-  senderName:  string, min 1 character
-  senderEmail: string, valid email format
-  receivedAt:  string (ISO date string)
-  emailBody:   string, min 1 character
-
-batchEmailInputSchema:
-  emails: array of emailInputSchema, min 1 item
-
-excuseCategories (constant enum):
-  "Sick/Medical" | "Personal" | "Program Event" |
-  "Technical Issue" | "Other" | "Unexcused"
-```
-
-### 4.4 Security Model
-
-| Concern | Implementation |
-|---|---|
-| Password Storage | bcrypt hash with 10 salt rounds, never stored in plain text |
-| Session Management | Server-side sessions in PostgreSQL via connect-pg-simple, 7-day max age, httpOnly cookies |
-| Cookie Security | secure=true in production, sameSite=lax, httpOnly=true |
-| Data Isolation | Every database query filters by userId; ownership checked before update/delete |
-| Input Validation | Zod schemas validate all request bodies before processing |
-| AI Output Validation | AI response validated against 6 allowed categories, falls back to "Unexcused" on invalid |
-| Auth Middleware | requireAuth middleware returns 401 for unauthenticated requests on all data endpoints |
-| Credential Handling | Session secret stored as environment secret, never hardcoded |
-| OAuth State | Random hex state parameter stored in session, verified on callback to prevent CSRF |
-| Token Storage | Google OAuth tokens stored in database, refresh tokens used to obtain new access tokens automatically |
-| Google Token Refresh | Automatic token refresh when Gmail API returns 401; updated tokens persisted to database |
-
-### 4.5 Time-Period Filtering (Client-Side)
-
-| Period | Label | Date Range (computed via date-fns) |
-|---|---|---|
-| all | All Time | No filter applied, shows all records |
-| day | Today | startOfDay(now) to endOfDay(now) |
-| week | This Week | startOfWeek(now, Mon) to endOfWeek(now, Mon) |
-| month | This Month | startOfMonth(now) to endOfMonth(now) |
-| quarter | This Quarter | startOfQuarter(now) to endOfQuarter(now) |
-| year | This Year | startOfYear(now) to endOfYear(now) |
-
-Filtering is applied against the `receivedAt` field of each attendance record. Both the records table and the stat card counts update to reflect the selected time period.
-
-### 4.6 Print Functionality
-
-| Aspect | Implementation |
-|---|---|
-| Trigger | Print button in action bar calls window.print() |
-| Hidden Elements | Star field, navigation header, time-period buttons, action buttons, category dropdowns, action column (all use .no-print CSS class) |
-| Visible in Print | Print header (PULSE - Attendance Report, period, count, date), records table with Name, Email, Date, Category (text), Snippet columns |
-| Styling | White background, black text, bordered table cells, centered header |
-
-### 4.7 Google OAuth Flow
-
-| Step | Action |
-|---|---|
-| 1 | User clicks "Sign in with Google" on auth page |
-| 2 | Backend generates random state, stores in session, redirects to Google consent screen |
-| 3 | User approves scopes (openid, profile, email, gmail.readonly) |
-| 4 | Google redirects to /api/auth/google/callback with authorization code + state |
-| 5 | Backend verifies state matches session, exchanges code for access/refresh tokens |
-| 6 | Backend fetches user profile from Google UserInfo API |
-| 7 | Backend finds/creates user (by google_id, then by email, then creates new) |
-| 8 | Tokens stored in users table, session established, redirect to dashboard |
+### 4.1 Technology Stack
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Frontend Framework | React | 18.x |
+| Build Tool | Vite | Latest |
+| Styling | Tailwind CSS | 4.x |
+| UI Components | shadcn/ui (Radix UI) | Latest |
+| Client Routing | wouter | Latest |
+| Server State | TanStack React Query | 5.x |
+| Form Handling | react-hook-form + @hookform/resolvers | Latest |
+| Date Utilities | date-fns | 3.x |
+| Backend Framework | Express | 5.x |
+| Runtime | Node.js | 20.x |
+| Language | TypeScript | Latest |
+| ORM | Drizzle ORM | 0.39.x |
+| Schema Validation | drizzle-zod + Zod | Latest |
+| Database | PostgreSQL | (Replit-managed) |
+| Session Store | connect-pg-simple | 10.x |
+| Password Hashing | bcrypt | 6.x |
+| AI Service | OpenAI GPT (via Replit AI Integrations) | Latest |
+| Document Export | docx | 9.x |
+| Icons | lucide-react | 0.453.x |
+
+### 4.2 Authentication Requirements
+
+- **Session-based** authentication using express-session
+- Sessions stored in PostgreSQL via connect-pg-simple for persistence across server restarts
+- Session cookie: `httpOnly: true`, `secure: true` in production, `maxAge: 7 days`
+- Passwords hashed with bcrypt (10 salt rounds)
+- Google OAuth 2.0 with scopes: `openid`, `email`, `profile`, `gmail.readonly`
+- OAuth state parameter for CSRF protection
+- Automatic token refresh on Gmail API 401 responses
+
+### 4.3 API Endpoints
+
+#### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user (validates against registerSchema) |
+| POST | `/api/auth/login` | Login with username/password |
+| POST | `/api/auth/logout` | Destroy session and clear cookie |
+| POST | `/api/auth/demo` | Login as demo user (creates + seeds if needed) |
+| GET | `/api/auth/me` | Get current authenticated user |
+| GET | `/api/auth/google` | Initiate Google OAuth flow |
+| GET | `/api/auth/google/callback` | Handle Google OAuth callback |
+
+#### Records Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/records` | Get all records for authenticated user |
+| GET | `/api/records/:id` | Get a specific record (ownership verified) |
+| PATCH | `/api/records/:id/category` | Update record's excuse category |
+| PATCH | `/api/records/:id/status` | Update record's review status |
+| DELETE | `/api/records/:id` | Delete a specific record |
+| DELETE | `/api/records` | Delete all records for authenticated user |
+
+#### Processing & Stats
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/stats` | Get category counts for authenticated user |
+| POST | `/api/process-emails` | Process batch of emails via SSE stream |
+
+#### Exports
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/export/csv` | Download all records as CSV file |
+| GET | `/api/export/doc` | Download all records as DOCX file |
+
+#### Gmail Integration
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/gmail/fetch` | Search Gmail inbox and return email list |
+
+### 4.4 API Security
+
+- All data routes protected by `requireAuth` middleware
+- All database queries scoped to `req.session.userId` for multi-tenant data isolation
+- Request body validation using Zod schemas before database operations
+- Google tokens stored server-side only (never sent to client)
+
+### 4.5 AI Integration Requirements
+
+- Model: OpenAI GPT (configured via Replit AI Integrations environment variables)
+- Response format: JSON object with `category`, `confidence` (0-1), and `reasoning`
+- Fallback: Defaults to "Unexcused" with confidence 0 if AI response is malformed or category is invalid
+- Max tokens: 256 per categorization request
+
+### 4.6 Export Requirements
+
+- **CSV**: Flat file with columns: Name, Email, Date, Excuse Category, Status, Message Snippet. All user records included regardless of active filters.
+- **DOCX**: Formatted Word document with title, generation metadata, and records grouped by category in tables. All user records included regardless of active filters.
+- **Print**: Browser print dialog renders filtered records only. Print CSS hides navigation, star field, and action buttons. Shows print-specific header with filter context.
+
+### 4.7 Accessibility Requirements (WCAG 2)
+
+- Semantic HTML elements (`nav`, `main`, `header`, `section`, `table`)
+- ARIA labels on interactive elements
+- Keyboard-navigable UI (tab order, focus management)
+- Sufficient color contrast in both light and dark modes
+- `data-testid` attributes on all interactive and data-display elements for automated testing
+
+### 4.8 Theming Requirements
+
+- Dark mode: Deep space background (hsl 230 25% 7%), light text (hsl 220 20% 93%), violet accents (hsl 265 80% 60%), 120 animated stars across the full viewport
+- Light mode: Near-white background (hsl 230 25% 97%), dark text (hsl 230 20% 12%), violet accents (hsl 265 80% 55%), 20 subtle corner sparkles only
+- Toggle persisted in localStorage under key `pulse-theme`
+- Dark mode applied via `.dark` class on `<html>` element (Tailwind `darkMode: ["class"]`)
+- CSS custom properties in `:root` for light mode, `.dark` for dark mode
 
 ---
 
 ## 5. Wireframes
 
-### 5.1 Auth Page - Login Mode
+### 5.1 Auth Page Layout
+
 ```
-+--------------------------------------------------------------+
-|  [* * * * * * * * animated star field background * * * * * *] |
-|                                                              |
-|                    [Zap Icon - floating]                      |
-|                     PULSE (glowing)                          |
-|          AI-Powered Attendance Tracking System               |
-|                                                              |
-|  +--------------------------------------------------------+  |
-|  | (semi-transparent card, backdrop blur)                  |  |
-|  |                                                        |  |
-|  |  Sign In                                               |  |
-|  |  Enter your credentials to access your dashboard       |  |
-|  |                                                        |  |
-|  |  Username                                              |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |                                                  |  |  |
-|  |  +--------------------------------------------------+  |  |
-|  |                                                        |  |
-|  |  Password                                              |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  |                                                  |  |  |
-|  |  +--------------------------------------------------+  |  |
-|  |                                                        |  |
-|  |  +--------------------------------------------------+  |  |
-|  |  | [violet-indigo gradient]  Sign In                 |  |  |
-|  |  +--------------------------------------------------+  |  |
-|  |                                                        |  |
-|  |  Don't have an account? [Create one] (violet link)     |  |
-|  |                                                        |  |
-|  +--------------------------------------------------------+  |
-|                                                              |
-|  ----------------------- or -------------------------        |
-|                                                              |
-|  +--------------------------------------------------------+  |
-|  | [Chrome icon]  Sign in with Google                     |  |
-|  +--------------------------------------------------------+  |
-|                                                              |
-|  +--------------------------------------------------------+  |
-|  | [violet border]  > Try Demo (with sample data)         |  |
-|  +--------------------------------------------------------+  |
-|                                                              |
-+--------------------------------------------------------------+
+┌──────────────────────────────────────────────────────────┐
+│                    [Star Field Background]                │
+│                                                          │
+│              ┌────────────────────────────┐               │
+│              │         ⚡ PULSE           │  [☀/🌙 Toggle]│
+│              │  Attendance Automation     │               │
+│              │                            │               │
+│              │  ┌──────────┬───────────┐  │               │
+│              │  │  Login   │ Register  │  │               │
+│              │  └──────────┴───────────┘  │               │
+│              │                            │               │
+│              │  Username: [___________]   │               │
+│              │  Password: [___________]   │               │
+│              │                            │               │
+│              │  [     Sign In        ]    │               │
+│              │                            │               │
+│              │  ── or continue with ──    │               │
+│              │  [G  Sign in with Google]  │               │
+│              │                            │               │
+│              │  [     Try Demo       ]    │               │
+│              └────────────────────────────┘               │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Auth Page - Register Mode
+### 5.2 Dashboard Layout
+
 ```
-+--------------------------------------------------------------+
-|  [* * * * * * * * animated star field background * * * * * *] |
-|                                                              |
-|                    [Zap Icon - floating]                      |
-|                     PULSE (glowing)                          |
-|          AI-Powered Attendance Tracking System               |
-|                                                              |
-|  +--------------------------------------------------------+  |
-|  | (semi-transparent card, backdrop blur)                  |  |
-|  |                                                        |  |
-|  |  Create Account                                        |  |
-|  |  Create an account to start processing attendance      |  |
-|  |                                                        |  |
-|  |  Full Name    [________________________]               |  |
-|  |  Email        [________________________]               |  |
-|  |  Username     [________________________]               |  |
-|  |  Password     [________________________]               |  |
-|  |                                                        |  |
-|  |  [violet-indigo gradient] Create Account               |  |
-|  |                                                        |  |
-|  |  Already have an account? [Sign in]                    |  |
-|  |                                                        |  |
-|  +--------------------------------------------------------+  |
-|                                                              |
-|  ----------------------- or -------------------------        |
-|                                                              |
-|  +--------------------------------------------------------+  |
-|  | [Chrome icon]  Sign in with Google                     |  |
-|  +--------------------------------------------------------+  |
-|                                                              |
-|  +--------------------------------------------------------+  |
-|  | [violet border]  > Try Demo (with sample data)         |  |
-|  +--------------------------------------------------------+  |
-|                                                              |
-+--------------------------------------------------------------+
+┌──────────────────────────────────────────────────────────┐
+│ ⚡ PULSE                    [Add Email] [Batch Process]   │
+│ Welcome, User               [Gmail] [☀/🌙] [Sign Out]   │
+├──────────────────────────────────────────────────────────┤
+│ [Day] [Week] [Month] [Quarter] [Year]                    │
+│                                                          │
+│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌───────┐ │
+│ │Total │ │Sick/ │ │Perso-│ │Prog. │ │Tech  │ │Other  │ │
+│ │  24  │ │Med 8 │ │nal 5 │ │Evt 3 │ │Iss 4 │ │   4   │ │
+│ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └───────┘ │
+│                                                          │
+│ Records ─────────────── [CSV] [DOC] [Print] [Clear All]  │
+│ ┌────────────────────────────────────────────────────────┐│
+│ │ Name     │ Email        │ Date  │ Category  │ Status  ││
+│ ├──────────┼──────────────┼───────┼───────────┼─────────┤│
+│ │ Jane Doe │ jane@ex.com  │ 02/27 │ Sick/Med  │ Pending ││
+│ │ John S.  │ john@ex.com  │ 02/26 │ Personal  │Approved ││
+│ │ ...      │ ...          │ ...   │ ...       │ ...     ││
+│ └────────────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Dashboard
+### 5.3 Add Email Dialog
+
 ```
-+--------------------------------------------------------------------------+
-| [* * * * * * * * * animated star field (behind content) * * * * * * * * *]|
-|                                                                          |
-| [Zap] PULSE (glow)  [+ Add Email] [Batch Process] [Gmail] [Sign Out]    |
-| Welcome, Demo User                                                       |
-+--------------------------------------------------------------------------+
-|                                                                          |
-| [All Time] [Today] [This Week] [This Month] [This Quarter] [This Year]  |
-|  (active=violet gradient, inactive=violet border outline)                |
-|                                                                          |
-| +----------+ +----------+ +----------+ +----------+ +--------+ +------+ |
-| | Total    | | Sick/Med | | Personal | | Program  | | Tech   | |      | |
-| | [count]  | | [count]  | | [count]  | | Event    | | Issue  | |      | |
-| | (violet) | | (rose)   | | (amber)  | | (sky)    | | (violet| |      | |
-| +----------+ +----------+ +----------+ +----------+ +--------+ +------+ |
-|                              +----------+ +----------+                   |
-|                              | Other     | | Unexcused|                  |
-|                              | (emerald) | | (slate)  |                  |
-|                              +----------+ +----------+                   |
-|                                                                          |
-| Records [Sick/Medical] (badge)    [count]                                |
-| Feb 1, 2026 - Feb 28, 2026   [Print] [CSV] [DOC] [Clear]               |
-|                                                                          |
-| +----------------------------------------------------------------------+ |
-| | Name          | Email              | Date     | Category     |Actions| |
-| +----------------------------------------------------------------------+ |
-| | Maria Garcia  | maria.garcia@...   | 2/24/26  | [Sick/Med  v]| [o][x]| |
-| | James Wilson  | j.wilson@...       | 2/24/26  | [Program   v]| [o][x]| |
-| | Aisha Patel   | aisha.p@...        | 2/23/26  | [Personal  v]| [o][x]| |
-| | Tyler Brooks  | tbrooks@...        | 2/25/26  | [Tech Iss  v]| [o][x]| |
-| | Sarah Chen    | sarah.chen@...     | 2/25/26  | [Other     v]| [o][x]| |
-| | Devon Kim     | devon.kim@...      | 2/25/26  | [Unexcused v]| [o][x]| |
-| +----------------------------------------------------------------------+ |
-|                                                                          |
-| [o] = View full email    [x] = Delete record    [v] = Category dropdown |
-| [Gmail] button only visible for Google-connected users                   |
-+--------------------------------------------------------------------------+
+┌─────────────────────────────────┐
+│ Add Absence Email          [X]  │
+│                                 │
+│ Sender Name: [______________]   │
+│ Sender Email: [_____________]   │
+│ Date Received: [____________]   │
+│ Email Body:                     │
+│ ┌─────────────────────────────┐ │
+│ │                             │ │
+│ │                             │ │
+│ └─────────────────────────────┘ │
+│                                 │
+│ [Cancel]          [Process]     │
+└─────────────────────────────────┘
 ```
 
-### 5.4 Print View (browser print dialog output)
+### 5.4 Batch Upload Dialog
+
 ```
-+--------------------------------------------------------------+
-|                                                              |
-|              PULSE - Attendance Report                       |
-|  Period: This Month | Total Records: 6 | Generated: 2/27/26 |
-|                                                              |
-| +----------------------------------------------------------+|
-| | Name          | Email              | Date     | Category  ||
-| +----------------------------------------------------------+|
-| | Maria Garcia  | maria.garcia@...   | 2/24/26  | Sick/Med  ||
-| | James Wilson  | j.wilson@...       | 2/24/26  | Program   ||
-| | Aisha Patel   | aisha.p@...        | 2/23/26  | Personal  ||
-| | Tyler Brooks  | tbrooks@...        | 2/25/26  | Tech Iss  ||
-| | Sarah Chen    | sarah.chen@...     | 2/25/26  | Other     ||
-| | Devon Kim     | devon.kim@...      | 2/25/26  | Unexcused ||
-| +----------------------------------------------------------+|
-|                                                              |
-+--------------------------------------------------------------+
-(No star field, no buttons, no dropdowns - clean printable table)
+┌──────────────────────────────────────┐
+│ Batch Process Emails            [X]  │
+│                                      │
+│ ┌──────────┬───────────┐             │
+│ │  Paste   │  Upload   │             │
+│ └──────────┴───────────┘             │
+│                                      │
+│ Paste JSON array of emails:          │
+│ ┌──────────────────────────────────┐ │
+│ │ [{"senderName": "...", ...}]     │ │
+│ └──────────────────────────────────┘ │
+│                                      │
+│ Processing: 3 / 10  [████████░░]     │
+│                                      │
+│ [Cancel]          [Process All]      │
+└──────────────────────────────────────┘
 ```
 
-### 5.5 Add Email Dialog
-```
-+------------------------------------------------------+
-|  Add Email for Processing                       [X]  |
-|  (violet-bordered dialog, backdrop blur)             |
-|                                                      |
-|  Student Name                                        |
-|  +------------------------------------------------+  |
-|  |                                                |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|  Student Email                                       |
-|  +------------------------------------------------+  |
-|  |                                                |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|  Date Received                                       |
-|  +------------------------------------------------+  |
-|  |                                                |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|  Email Body                                          |
-|  +------------------------------------------------+  |
-|  |                                                |  |
-|  |                                                |  |
-|  |                                                |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|              [Cancel]    [Process]                    |
-+------------------------------------------------------+
-```
+### 5.5 Gmail Fetch Dialog
 
-### 5.6 Batch Upload Dialog
 ```
-+------------------------------------------------------+
-|  Batch Process Emails                           [X]  |
-|                                                      |
-|  +----------+  +----------+                          |
-|  | Paste JSON|  | Upload File|                       |
-|  +----------+  +----------+                          |
-|                                                      |
-|  Paste JSON array or upload a file:                  |
-|  +------------------------------------------------+  |
-|  | [                                              |  |
-|  |   { "senderName": "...", ... },                |  |
-|  |   { "senderName": "...", ... }                 |  |
-|  | ]                                              |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|  [Upload File]                                       |
-|                                                      |
-|  --- While Processing ---                            |
-|                                                      |
-|  Processing 3 of 6 emails...                         |
-|  +================================================+  |
-|  |====================>                           |  |
-|  +================================================+  |
-|                                                      |
-|              [Cancel]    [Process Emails]             |
-+------------------------------------------------------+
-```
-
-### 5.7 View Email Detail Dialog
-```
-+------------------------------------------------------+
-|  Email Details                                  [X]  |
-|  (violet-bordered dialog, backdrop blur)             |
-|                                                      |
-|  Name:     Maria Garcia                              |
-|  Email:    maria.garcia@university.edu               |
-|  Date:     2/24/2026                                 |
-|  Category: [Sick/Medical] (colored badge)            |
-|                                                      |
-|  Email Body:                                         |
-|  +------------------------------------------------+  |
-|  | Hi, I won't be able to attend today's session. |  |
-|  | I have a doctor's appointment this afternoon   |  |
-|  | for a follow-up on my recent illness. I've     |  |
-|  | been feeling much better but need to complete   |  |
-|  | the prescribed check-up...                     |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|  AI Reasoning: (italicized)                          |
-|  "Email mentions doctor's appointment and illness,   |
-|   clearly medical-related absence."                  |
-|                                                      |
-|                              [Close]                 |
-+------------------------------------------------------+
-```
-
-### 5.8 Gmail Fetch Dialog
-```
-+------------------------------------------------------+
-|  Fetch Emails from Gmail                        [X]  |
-|  (violet-bordered dialog, backdrop blur)             |
-|                                                      |
-|  --- Step 1: Search ---                              |
-|                                                      |
-|  Gmail Search Query                                  |
-|  +------------------------------------------------+  |
-|  | subject:(absent OR excuse OR sick)             |  |
-|  +------------------------------------------------+  |
-|                                                      |
-|  Max Results: [10]                                   |
-|                                                      |
-|              [Cancel]    [Fetch Emails]              |
-|                                                      |
-|  --- Step 2: Select Emails ---                       |
-|                                                      |
-|  [Select All] [Deselect All]                         |
-|                                                      |
-|  [x] From: Maria Garcia <maria@...>                 |
-|      Subject: Absent today - sick                    |
-|      Date: 2/24/2026                                 |
-|  [x] From: James Wilson <j.wilson@...>              |
-|      Subject: Cannot attend - conference             |
-|      Date: 2/24/2026                                 |
-|  [ ] From: Newsletter <news@company.com>            |
-|      Subject: Weekly Update                          |
-|      Date: 2/23/2026                                 |
-|                                                      |
-|  2 emails selected                                   |
-|              [Back]    [Process Selected]             |
-+------------------------------------------------------+
+┌──────────────────────────────────────┐
+│ Fetch from Gmail               [X]  │
+│                                      │
+│ Search Query: [absent OR excuse___]  │
+│ Max Results:  [20___]                │
+│ [    Search Gmail    ]               │
+│                                      │
+│ Select All  │  Deselect All          │
+│ ┌──────────────────────────────────┐ │
+│ │ ☑ From: Jane — Subject: Sick    │ │
+│ │ ☑ From: John — Subject: Away    │ │
+│ │ ☐ From: Alex — Subject: Meeting │ │
+│ └──────────────────────────────────┘ │
+│                                      │
+│ [Cancel]      [Process with AI]      │
+└──────────────────────────────────────┘
 ```
 
 ---
@@ -965,819 +535,428 @@ Filtering is applied against the `receivedAt` field of each attendance record. B
 ## 6. System Tools & Requirements
 
 ### 6.1 Runtime Environment
+
 | Component | Requirement |
-|---|---|
-| Platform | Replit (NixOS-based Linux container) |
-| Node.js | v20+ |
-| PostgreSQL | Neon Serverless (managed, via DATABASE_URL) |
-| AI Service | Replit AI Integrations (OpenAI proxy, billed to Replit credits) |
-| Google APIs | OAuth 2.0 + Gmail API (requires Google Cloud Console project) |
+|-----------|-------------|
+| Operating System | Linux (NixOS via Replit) |
+| Node.js | v20.x |
+| Package Manager | npm |
+| Database | PostgreSQL (Replit-managed, via `DATABASE_URL`) |
 
 ### 6.2 Environment Variables
 
-| Variable | Type | Required | Purpose |
-|---|---|---|---|
-| `DATABASE_URL` | Runtime-managed | Yes | PostgreSQL connection string (auto-provisioned by Replit) |
-| `SESSION_SECRET` | Secret | Yes | Signs and verifies session cookies |
-| `PULSE_GOOGLE_CLIENT_ID` | Secret | Yes | Google OAuth client ID for sign-in and Gmail integration |
-| `PULSE_GOOGLE_CLIENT_SECRET` | Secret | Yes | Google OAuth client secret for sign-in and Gmail integration |
-| `AI_INTEGRATIONS_OPENAI_API_KEY` | Runtime-managed | Yes | OpenAI API key (auto-set by Replit AI Integrations) |
-| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Runtime-managed | Yes | OpenAI proxy URL (auto-set by Replit AI Integrations) |
+| Variable | Source | Purpose |
+|----------|--------|---------|
+| `DATABASE_URL` | Replit (auto) | PostgreSQL connection string |
+| `PULSE_GOOGLE_CLIENT_ID` | Secret | Google OAuth client ID |
+| `PULSE_GOOGLE_CLIENT_SECRET` | Secret | Google OAuth client secret |
+| `SESSION_SECRET` | Secret | Express session signing key |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | Replit AI Integrations (auto) | OpenAI API key |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | Replit AI Integrations (auto) | OpenAI API base URL |
 
-### 6.3 Google Cloud Console Setup
+### 6.3 Key Dependencies
 
-| Setting | Value |
-|---|---|
-| OAuth Consent Screen | External (or Internal for organization) |
-| Scopes | openid, userinfo.email, userinfo.profile, gmail.readonly |
-| Authorized redirect URI | `https://{REPLIT_DOMAIN}/api/auth/google/callback` |
-| APIs Enabled | Gmail API |
-| Application Type | Web application |
+**Runtime Dependencies:**
 
-### 6.4 NPM Dependencies
-
-#### Backend / Core
 | Package | Purpose |
-|---|---|
-| express | Web server framework (v5) |
-| express-session | Session middleware for cookie-based auth |
-| connect-pg-simple | Stores sessions in PostgreSQL |
-| bcrypt | Password hashing (10 salt rounds) |
-| drizzle-orm | Type-safe ORM for PostgreSQL |
-| drizzle-zod | Bridge between Drizzle schemas and Zod validation |
-| @neondatabase/serverless | Neon PostgreSQL driver (WebSocket-based) |
-| pg | PostgreSQL client library |
-| zod | Runtime schema validation for request bodies |
-| openai | OpenAI SDK for AI categorization |
-| docx | Generates Word (.docx) documents for export |
-| ws | WebSocket library (required by Neon driver) |
+|---------|---------|
+| `react`, `react-dom` | UI rendering |
+| `vite`, `@vitejs/plugin-react` | Build tooling and HMR |
+| `express` | HTTP server framework |
+| `express-session` | Session middleware |
+| `connect-pg-simple` | PostgreSQL session store |
+| `bcrypt` | Password hashing |
+| `drizzle-orm`, `drizzle-zod` | ORM and schema validation |
+| `@neondatabase/serverless` | PostgreSQL driver |
+| `openai` | OpenAI API client |
+| `docx` | DOCX document generation |
+| `@tanstack/react-query` | Server state management |
+| `wouter` | Client-side routing |
+| `date-fns` | Date manipulation and formatting |
+| `zod` | Runtime schema validation |
+| `tailwind-merge`, `class-variance-authority`, `clsx` | Styling utilities |
+| `lucide-react` | Icon library |
+| `react-hook-form`, `@hookform/resolvers` | Form handling and validation |
+| `framer-motion` | Animation library |
+| `recharts` | Charting library |
 
-#### Frontend
+**Dev Dependencies:**
+
 | Package | Purpose |
-|---|---|
-| react, react-dom | UI rendering framework |
-| wouter | Lightweight client-side router |
-| @tanstack/react-query | Server state management, caching, mutations |
-| lucide-react | SVG icon components |
-| react-icons | Additional icons (brand logos via react-icons/si) |
-| tailwind-merge, clsx | CSS class composition utilities |
-| class-variance-authority | Component variant styling system |
-| Radix UI primitives | Accessible UI foundations (Dialog, Select, Tabs, etc.) |
-| recharts | Data visualization charts |
-| framer-motion | UI animations and transitions |
-| date-fns | Time-period filtering (startOfDay, startOfWeek, startOfMonth, startOfQuarter, startOfYear + end* variants) |
+|---------|---------|
+| `typescript` | Type checking |
+| `tsx` | TypeScript execution for development |
+| `drizzle-kit` | Database migration tooling |
+| `tailwindcss`, `autoprefixer`, `postcss` | CSS processing |
+| `@tailwindcss/typography` | Prose styling plugin |
+| `tailwindcss-animate` | Animation utilities |
 
-#### Dev Tools
-| Package | Purpose |
-|---|---|
-| typescript | Static type checking |
-| tsx | TypeScript execution for dev server |
-| vite | Frontend dev server and production bundler |
-| @vitejs/plugin-react | React JSX transform for Vite |
-| tailwindcss, postcss, autoprefixer | CSS processing pipeline |
-| drizzle-kit | Database schema push and migration tooling |
-| esbuild | Backend production build |
+### 6.4 Build & Run Commands
 
-### 6.5 Scripts
-| Script | Command | Purpose |
-|---|---|---|
-| `npm run dev` | `NODE_ENV=development tsx server/index.ts` | Start development server (backend + Vite HMR) |
-| `npm run build` | `tsx script/build.ts` | Build frontend and backend for production |
-| `npm start` | `NODE_ENV=production node dist/index.js` | Run production build |
-| `npm run db:push` | `drizzle-kit push` | Sync Drizzle schema to PostgreSQL database |
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server (Express + Vite HMR) |
+| `npm run db:push` | Push Drizzle schema changes to PostgreSQL |
+| `npm run build` | Build production frontend bundle |
+
+### 6.5 Google OAuth Setup Requirements
+
+1. Create a project in Google Cloud Console
+2. Enable Gmail API
+3. Configure OAuth consent screen (add test users while in "Testing" mode)
+4. Create OAuth 2.0 Client ID credentials (Web application type)
+5. Set authorized redirect URI to: `https://<replit-domain>/api/auth/google/callback`
+6. Store Client ID in `PULSE_GOOGLE_CLIENT_ID` secret
+7. Store Client Secret in `PULSE_GOOGLE_CLIENT_SECRET` secret
 
 ---
 
 ## 7. User Flow
 
-### 7.1 Complete User Journey
+### 7.1 Authentication Flow
 
 ```
-[User visits app URL]
-        |
-        v
-[Check authentication: GET /api/auth/me]
-        |
-   +----+----+
-   |         |
- 401       200
-(not auth) (authenticated)
-   |         |
-   v         v
-[Auth Page]  [Dashboard] -----> (see 7.2)
-   |
-   +--------+--------+---------+-----------+
-   |        |        |         |           |
-[Login]  [Register]  [Demo]   [Google]     |
-   |        |        |         |           |
-   v        v        v         v           |
-[Enter   [Enter    [Click    [Click        |
- username  name,    "Try      "Sign in     |
- password] email,   Demo"]    with Google"]|
-           username,    |         |        |
-           password]    |         v        |
-   |        |        |  [Redirect to      |
-   v        v        v   Google consent   |
-[POST      [POST    [POST  screen]        |
- /login]    /register] /demo]    |        |
-   |        |        |    [Approve scopes] |
-   +--------+--------+          |         |
-            |              [Callback with  |
-      [Session created]     auth code]     |
-            |                    |         |
-            |              [User created   |
-            |               or linked]     |
-            |                    |         |
-            |              [Session        |
-            |               created]       |
-            |                    |         |
-            v                    |         |
-      [Dashboard] <--------------+---------+
+User visits app
+    │
+    ├── Has session? ──Yes──▶ Dashboard
+    │
+    └── No session
+         │
+         ├── Click "Sign In"
+         │     │
+         │     ├── Enter username + password
+         │     │     │
+         │     │     ├── Valid? ──Yes──▶ Set session → Dashboard
+         │     │     └── Invalid? ──▶ Show error toast
+         │     │
+         │     └── Click "Sign in with Google"
+         │           │
+         │           ├── Redirect to Google consent screen
+         │           ├── User authorizes → Callback with code
+         │           ├── Exchange code for tokens
+         │           ├── Find/create/link user account
+         │           └── Set session → Dashboard
+         │
+         ├── Click "Register" tab
+         │     │
+         │     ├── Enter display name, username, password
+         │     ├── Validate inputs (Zod schema)
+         │     ├── Hash password → Create user
+         │     └── Set session → Dashboard
+         │
+         └── Click "Try Demo"
+               │
+               ├── Find or create "demo" user
+               ├── Seed 6 sample records (first time only)
+               └── Set session → Dashboard
 ```
 
-### 7.2 Dashboard Interactions
+### 7.2 Email Processing Flow
 
 ```
-[Dashboard loaded]
-   |
-   +----> [Select Time Period]
-   |         Click any period button (All Time, Today, This Week, etc.)
-   |         Records and stat cards filter to matching date range
-   |         Period description shown below records heading
-   |
-   +----> [View Stats]
-   |         6 category cards show counts for selected time period
-   |         Click any card to filter table by that category
-   |
-   +----> [Add Single Email]
-   |         Click "Add Email" button
-   |         Fill form (name, email, date, body)
-   |         Click "Process"
-   |         AI categorizes -> record created
-   |         Table refreshes
-   |
-   +----> [Batch Process]
-   |         Click "Batch Process" button
-   |         Choose Paste JSON or Upload File tab
-   |         Paste text or upload file
-   |         Click "Process Emails"
-   |         Watch real-time progress (SSE)
-   |         All records created
-   |         Table refreshes
-   |
-   +----> [Fetch from Gmail] (Google-connected users only)
-   |         Click "Gmail" button in header
-   |         Enter search query (or use default)
-   |         Click "Fetch Emails"
-   |         Review fetched emails with checkboxes
-   |         Select/deselect individual emails
-   |         Click "Process Selected"
-   |         AI categorizes selected emails (SSE progress)
-   |         Table refreshes with new records
-   |
-   +----> [Edit Category]
-   |         Click dropdown in table row
-   |         Select new category
-   |         PATCH request updates record
-   |         Stats refresh
-   |
-   +----> [View Email Detail]
-   |         Click eye icon in table row
-   |         Dialog shows full email body
-   |
-   +----> [Delete Record]
-   |         Click delete on table row
-   |         Record removed
-   |
-   +----> [Clear All]
-   |         Click "Clear" button
-   |         Confirmation dialog
-   |         All user's records deleted
-   |
-   +----> [Print Records]
-   |         Click "Print" button
-   |         Browser print dialog opens
-   |         Shows clean table with header, period, and record count
-   |         Star field, buttons, dropdowns all hidden
-   |
-   +----> [Export CSV]
-   |         Click "CSV" button
-   |         Browser downloads attendance_report.csv
-   |
-   +----> [Export DOCX]
-   |         Click "DOC" button
-   |         Browser downloads attendance_report.docx
-   |
-   +----> [Sign Out]
-            Click "Sign Out"
-            Session destroyed
-            Redirected to Auth Page
+User on Dashboard
+    │
+    ├── Click "Add Email"
+    │     │
+    │     ├── Fill in sender name, email, date, body
+    │     ├── Submit → POST /api/process-emails (single email array)
+    │     ├── SSE stream: AI categorizes → record created
+    │     └── Invalidate cache → table refreshes
+    │
+    ├── Click "Batch Process"
+    │     │
+    │     ├── Paste JSON array  ──OR──  Upload JSON/CSV file
+    │     ├── Submit → POST /api/process-emails (batch array)
+    │     ├── SSE stream: progress updates per email
+    │     │     ├── Success → record created, progress increments
+    │     │     └── Error → error logged, continue to next
+    │     └── Invalidate cache → table refreshes
+    │
+    └── Click "Gmail" (Google users only)
+          │
+          ├── Enter search query (or use default)
+          ├── POST /api/gmail/fetch → search Gmail inbox
+          ├── Display results with checkboxes
+          ├── User selects emails → Click "Process with AI"
+          ├── POST /api/process-emails (selected emails)
+          ├── SSE stream: progress updates per email
+          └── Invalidate cache → table refreshes
 ```
 
-### 7.3 Time-Period Filtering Flow
+### 7.3 Record Management Flow
 
 ```
-[User clicks time period button]
-        |
-        v
-[setTimePeriod(period)]
-        |
-        v
-[getTimePeriodRange(period)]
-        |
-   +----+----+
-   |         |
- "all"     other
-   |         |
-   v         v
-[null     [{ start: startOfPeriod(now),
- range]     end: endOfPeriod(now) }]
-   |         |
-   v         v
-[timeFilteredRecords = records.filter(r =>
-   period === "all" || (r.receivedAt >= start && r.receivedAt <= end))]
-        |
-        v
-[periodStats = recompute counts from timeFilteredRecords]
-        |
-        v
-[Stat cards show periodStats counts]
-[Table shows timeFilteredRecords (+ optional category filter)]
-[Print button prints currently visible filtered records]
+User views records table
+    │
+    ├── Click category dropdown → PATCH /api/records/:id/category
+    │     └── Update category → invalidate cache
+    │
+    ├── Click status badge → PATCH /api/records/:id/status
+    │     └── Cycle: pending → approved → denied → pending
+    │
+    ├── Click delete (trash icon) → DELETE /api/records/:id
+    │     └── Remove record → invalidate cache
+    │
+    ├── Click "Clear All" → DELETE /api/records
+    │     └── Remove all user records → invalidate cache
+    │
+    ├── Click CSV → window.open("/api/export/csv") → download
+    │
+    ├── Click DOC → window.open("/api/export/doc") → download
+    │
+    └── Click Print → window.print() → print filtered view
 ```
 
-### 7.4 Batch Processing Detail Flow
+### 7.4 Filtering Flow
 
 ```
-[User clicks "Batch Process"]
-        |
-        v
-[Dialog opens with Paste JSON / Upload File tabs]
-        |
-   +----+----+
-   |         |
-[JSON]    [CSV]
-   |         |
-[Paste    [Upload .csv file]
- JSON      |
- array]   [Parse CSV headers:
-   |       senderName, senderEmail,
-   |       receivedAt, emailBody]
-   |         |
-   +----+----+
-        |
-  [Validate: array of emails, min 1]
-        |
-  [Click "Process Emails"]
-        |
-        v
-  [POST /api/process-emails]
-        |
-        v
-  [Server generates batchId (UUID)]
-        |
-        v
-  [SSE stream begins]
-        |
-        +----> For EACH email (sequential):
-        |         |
-        |    [Event: "processing" { index, name }]
-        |    [Frontend: show "Processing {name}..."]
-        |         |
-        |    [Call OpenAI: categorizeExcuse(emailBody)]
-        |         |
-        |    [Validate AI response category]
-        |         |
-        |    [Create attendance_record in DB]
-        |         |
-        |    [Event: "progress" { index, record, categorization }]
-        |    [Frontend: show checkmark + assigned category]
-        |    [Frontend: update progress bar]
-        |
-        v
-  [Event: "complete" { total, processed, batchId }]
-        |
-        v
-  [Frontend: show summary]
-  [Invalidate /api/records and /api/stats cache]
-  [Dashboard table + stats refresh with new data]
-```
-
-### 7.5 Gmail Fetch Flow
-
-```
-[User clicks "Gmail" button in header]
-        |
-        v
-[GmailFetchDialog opens]
-        |
-        v
-[User is Google-connected? (user.googleId exists)]
-   |              |
-  YES             NO
-   |              |
-   v              v
-[Show search   [Show warning:
- form]          "Connect Google
-   |             account first"]
-   v
-[User enters query + maxResults (or uses defaults)]
-        |
-        v
-[Click "Fetch Emails"]
-        |
-        v
-[POST /api/gmail/fetch { query, maxResults }]
-        |
-        v
-[Server calls Gmail API with stored access token]
-        |
-   +----+----+
-   |         |
- 200       401 (token expired)
-   |         |
-   v         v
-[Return   [Call refreshAccessToken()]
- emails]       |
-   |      +----+----+
-   |      |         |
-   |    SUCCESS   FAIL
-   |      |         |
-   |      v         v
-   |   [Retry    [Return 401
-   |    with new  "Re-authenticate"]
-   |    token]
-   |      |
-   +------+
-        |
-        v
-[Frontend displays email list with checkboxes]
-        |
-        v
-[User selects/deselects individual emails]
-[Select All / Deselect All buttons available]
-        |
-        v
-[Click "Process Selected"]
-        |
-        v
-[Selected emails sent to POST /api/process-emails]
-        |
-        v
-[SSE stream: real-time AI categorization progress]
-        |
-        v
-[Records created, cache invalidated, dashboard refreshes]
+User on Dashboard
+    │
+    ├── Click time period button (Day/Week/Month/Quarter/Year)
+    │     │
+    │     ├── Calculate date range using date-fns
+    │     ├── Filter records array client-side
+    │     └── Update stats cards + table with filtered data
+    │
+    └── Click a category stat card
+          │
+          ├── Toggle category filter on/off
+          └── Further filter already time-filtered records
 ```
 
 ---
 
 ## 8. Conditional Logic Trees
 
-### 8.1 Authentication Decision Tree
+### 8.1 AI Categorization Logic
 
 ```
-[Any API request arrives]
-        |
-        v
-[Is path /api/auth/* ?]
-   |              |
-  YES             NO
-   |              |
-   v              v
-[Route to      [requireAuth middleware]
- auth handler]      |
-   |           [req.session.userId exists?]
-   |              |              |
-   |             YES             NO
-   |              |              |
-   |              v              v
-   |         [next()         [Return 401
-   |          continue]       { error: "Not authenticated" }]
-   |
-   +---> POST /api/auth/register
-   |        |
-   |   [registerSchema.safeParse(body)]
-   |        |--- FAIL --> 400 { error: "Invalid input" }
-   |        |
-   |   [storage.getUserByUsername(username)]
-   |        |--- FOUND --> 409 { error: "Username already taken" }
-   |        |
-   |   [storage.getUserByEmail(email)]
-   |        |--- FOUND --> 409 { error: "Email already registered" }
-   |        |
-   |   [bcrypt.hash(password, 10)]
-   |   [storage.createUser({...})]
-   |   [req.session.userId = user.id]
-   |        |
-   |        v
-   |   201 { id, username, email, displayName }
-   |
-   +---> POST /api/auth/login
-   |        |
-   |   [loginSchema.safeParse(body)]
-   |        |--- FAIL --> 400 { error: "Invalid input" }
-   |        |
-   |   [storage.getUserByUsername(username)]
-   |        |--- NOT FOUND --> 401 { error: "Invalid username or password" }
-   |        |
-   |   [bcrypt.compare(password, user.password)]
-   |        |--- FALSE --> 401 { error: "Invalid username or password" }
-   |        |
-   |   [req.session.userId = user.id]
-   |        |
-   |        v
-   |   200 { id, username, email, displayName }
-   |
-   +---> POST /api/auth/demo
-   |        |
-   |   [storage.getUserByUsername("demo")]
-   |        |
-   |   +----+----+
-   |   |         |
-   | FOUND    NOT FOUND
-   |   |         |
-   |   |    [Create demo user]
-   |   |    [bcrypt.hash("demo123456", 10)]
-   |   |    [storage.createUser({username:"demo",...})]
-   |   |    [Create 6 seed records:]
-   |   |      - Maria Garcia -> Sick/Medical
-   |   |      - James Wilson -> Program Event
-   |   |      - Aisha Patel  -> Personal
-   |   |      - Tyler Brooks -> Technical Issue
-   |   |      - Sarah Chen   -> Other
-   |   |      - Devon Kim    -> Unexcused
-   |   |         |
-   |   +----+----+
-   |        |
-   |   [req.session.userId = user.id]
-   |        v
-   |   200 { id, username, email, displayName }
-   |
-   +---> POST /api/auth/logout
-   |        |
-   |   [req.session.destroy()]
-   |   [res.clearCookie("connect.sid")]
-   |        v
-   |   200 { message: "Logged out" }
-   |
-   +---> GET /api/auth/me
-   |        |
-   |   [req.session.userId exists?]
-   |        |              |
-   |       YES             NO
-   |        |              |
-   |   [storage.getUserById(userId)]   401
-   |        |              |
-   |      FOUND         NOT FOUND
-   |        |              |
-   |   200 { id, ...,     401
-   |         googleId }
-   |
-   +---> GET /api/auth/google
-   |        |
-   |   [Generate random state hex]
-   |   [Store state in req.session.oauth_state]
-   |   [Build Google OAuth URL with scopes + state]
-   |        v
-   |   302 Redirect to Google consent screen
-   |
-   +---> GET /api/auth/google/callback
-            |
-       [req.query.state === req.session.oauth_state?]
-            |              |
-           YES             NO
-            |              |
-            v              v
-       [Exchange code   400 { error: "Invalid state" }
-        for tokens]
-            |
-       [Fetch Google user profile]
-            |
-       [Find user by google_id]
-            |
-       +----+----+
-       |         |
-     FOUND    NOT FOUND
-       |         |
-       |    [Find user by email]
-       |         |
-       |    +----+----+
-       |    |         |
-       |  FOUND    NOT FOUND
-       |    |         |
-       |    |    [Create new user
-       |    |     with Google profile]
-       |    |         |
-       +----+----+----+
-            |
-       [Update google_id, tokens]
-       [req.session.userId = user.id]
-            v
-       302 Redirect to /
+Input: emailBody (string)
+    │
+    ├── Send to OpenAI GPT with system prompt
+    │     │
+    │     ├── Response received
+    │     │     │
+    │     │     ├── Parse JSON response
+    │     │     │     │
+    │     │     │     ├── Valid JSON?
+    │     │     │     │     │
+    │     │     │     │     ├── Yes
+    │     │     │     │     │     │
+    │     │     │     │     │     ├── Category in valid list?
+    │     │     │     │     │     │     ├── Yes → Use parsed category
+    │     │     │     │     │     │     └── No → Default to "Unexcused"
+    │     │     │     │     │     │
+    │     │     │     │     │     ├── Confidence is number?
+    │     │     │     │     │     │     ├── Yes → Use parsed confidence
+    │     │     │     │     │     │     └── No → Default to 0.5
+    │     │     │     │     │     │
+    │     │     │     │     │     └── Return { category, confidence, reasoning }
+    │     │     │     │     │
+    │     │     │     │     └── No (JSON parse error)
+    │     │     │     │           └── Return { "Unexcused", 0, "Failed to parse" }
+    │     │     │     │
+    │     │     │     └── (handled by try/catch)
+    │     │     │
+    │     │     └── API error → throw (caught by route handler)
+    │     │
+    │     └── Network/timeout error → throw
+    │
+    └── Valid categories: Sick/Medical | Personal | Program Event |
+        Technical Issue | Other | Unexcused
 ```
 
-### 8.2 Record Ownership Authorization Tree
+### 8.2 Google OAuth Callback Logic
 
 ```
-[Authenticated request to read/modify/delete a record]
-        |
-        v
-[Parse record ID from req.params.id]
-        |
-        v
-[storage.getRecordById(id)]
-        |
-   +----+----+
-   |         |
-  null     record found
-   |         |
-   v         v
-  404    [record.userId === req.session.userId?]
-              |              |
-             YES             NO
-              |              |
-              v              v
-         [Proceed        404 { error: "Record not found" }
-          with            (same error to prevent
-          operation]       user ID enumeration)
+Callback received with ?code=...&state=...
+    │
+    ├── State matches session.oauthState?
+    │     │
+    │     ├── No → 403 "Invalid OAuth state"
+    │     │
+    │     └── Yes
+    │           │
+    │           ├── Exchange code for tokens
+    │           │     │
+    │           │     ├── Success → got access_token, refresh_token
+    │           │     └── Failure → 500 "Token exchange failed"
+    │           │
+    │           ├── Fetch Google user profile
+    │           │     │
+    │           │     └── Got { id, email, name }
+    │           │
+    │           ├── Find user by googleId?
+    │           │     │
+    │           │     ├── Found → Update tokens → Set session
+    │           │     │
+    │           │     └── Not found
+    │           │           │
+    │           │           ├── Find user by email?
+    │           │           │     │
+    │           │           │     ├── Found → Link Google account
+    │           │           │     │           Update tokens → Set session
+    │           │           │     │
+    │           │           │     └── Not found → Create new user
+    │           │           │                     (random password)
+    │           │           │                     Set session
+    │           │           │
+    │           │           └── (all paths) → Redirect to "/"
+    │           │
+    │           └── Session saved → Redirect to dashboard
 ```
 
-### 8.3 AI Categorization Decision Tree
+### 8.3 Gmail Fetch Logic
 
 ```
-[Email body text received]
-        |
-        v
-[Send to OpenAI GPT with system prompt]
-[Prompt instructs: categorize into exactly one of 6 categories]
-[Categories described with examples in prompt]
-[Response format: JSON with category, confidence, reasoning]
-        |
-        v
-[Receive AI JSON response]
-        |
-        v
-[JSON.parse(response)]
-        |
-   +----+----+
-   |         |
- FAIL      SUCCESS
-   |         |
-   v         v
-[Return   [Is response.category in excuseCategories array?]
- { category:    |              |
-   "Unexcused", YES             NO
-   confidence:  |              |
-   0,           v              v
-   reasoning:  [Return          [Override category to "Unexcused"]
-   "Failed     { category,     [Return { category: "Unexcused",
-    to parse"}] confidence,      confidence: 0 }]
-                reasoning }]
+POST /api/gmail/fetch { query?, maxResults? }
+    │
+    ├── Get user from session
+    │     │
+    │     ├── User has googleAccessToken?
+    │     │     │
+    │     │     ├── No → 400 "No Google account linked"
+    │     │     │
+    │     │     └── Yes
+    │     │           │
+    │     │           ├── Build search query
+    │     │           │     ├── User provided query? → Use it
+    │     │           │     └── No query → Default: "subject:(absent OR excuse
+    │     │           │           OR sick OR cannot attend OR won't be able)"
+    │     │           │
+    │     │           ├── Call Gmail API: list messages
+    │     │           │     │
+    │     │           │     ├── 200 OK → Got message IDs
+    │     │           │     │
+    │     │           │     ├── 401 Unauthorized
+    │     │           │     │     │
+    │     │           │     │     ├── Has refresh_token?
+    │     │           │     │     │     ├── Yes → Refresh access token → Retry
+    │     │           │     │     │     └── No → 401 "Token expired, re-auth needed"
+    │     │           │     │     │
+    │     │           │     │     └── Refresh succeeded? → Retry list call
+    │     │           │     │
+    │     │           │     └── Other error → 500 with error details
+    │     │           │
+    │     │           ├── For each message ID:
+    │     │           │     │
+    │     │           │     ├── Fetch full message (format=full)
+    │     │           │     ├── Parse headers (From, Subject, Date)
+    │     │           │     ├── Extract body:
+    │     │           │     │     ├── text/plain part? → Use directly
+    │     │           │     │     ├── text/html part? → Strip HTML tags
+    │     │           │     │     └── No body? → Use subject as body
+    │     │           │     └── Decode base64url content
+    │     │           │
+    │     │           └── Return array of { id, from, subject, date, body }
 ```
 
-### 8.4 Time-Period Filter Decision Tree
+### 8.4 Theme Toggle Logic
 
 ```
-[User clicks a time period button]
-        |
-        v
-[timePeriod state updated]
-        |
-        v
-[Is period "all"?]
-   |         |
-  YES        NO
-   |         |
-   v         v
-[Return   [Compute date range using date-fns:]
- all         |
- records]    +-- "day"     -> startOfDay(now) .. endOfDay(now)
-             +-- "week"    -> startOfWeek(now, Mon) .. endOfWeek(now, Mon)
-             +-- "month"   -> startOfMonth(now) .. endOfMonth(now)
-             +-- "quarter" -> startOfQuarter(now) .. endOfQuarter(now)
-             +-- "year"    -> startOfYear(now) .. endOfYear(now)
-                  |
-                  v
-             [Filter records where receivedAt >= start && receivedAt <= end]
-                  |
-                  v
-             [Recompute periodStats from filtered records]
-                  |
-                  v
-             [Update stat card counts]
-             [Update table display]
-             [Apply any active category filter on top]
+App loads
+    │
+    ├── Check localStorage("pulse-theme")
+    │     │
+    │     ├── "light" → Set theme to light, remove "dark" class
+    │     ├── "dark" → Set theme to dark, add "dark" class
+    │     └── Not set → Default to "dark", add "dark" class
+    │
+    ├── ThemeProvider wraps entire app
+    │     │
+    │     └── Provides { theme, toggleTheme } via React Context
+    │
+    └── User clicks toggle button
+          │
+          ├── theme === "dark"?
+          │     ├── Yes → Switch to "light"
+          │     │     ├── Remove "dark" class from <html>
+          │     │     ├── CSS variables switch to :root (light palette)
+          │     │     └── StarField renders 20 corner sparkles
+          │     │
+          │     └── No → Switch to "dark"
+          │           ├── Add "dark" class to <html>
+          │           ├── CSS variables switch to .dark (space palette)
+          │           └── StarField renders 120 full-viewport stars
+          │
+          └── Save to localStorage("pulse-theme")
 ```
 
-### 8.5 Print Decision Tree
+### 8.5 Batch Processing SSE Logic
 
 ```
-[User clicks Print button]
-        |
-        v
-[window.print() called]
-        |
-        v
-[@media print CSS activates]
-        |
-        +----> [.no-print elements hidden:]
-        |         Star field, header nav, time period buttons,
-        |         action buttons, category dropdowns, action column
-        |
-        +----> [.print-header shown:]
-        |         "PULSE - Attendance Report"
-        |         Period name | Record count | Generated date
-        |
-        +----> [.print-table styled:]
-        |         White background, black text, bordered cells
-        |         Category shown as plain text (not dropdown)
-        |
-        +----> [.print-category shown:]
-                  Hidden span with category text becomes visible
-                  Replaces the interactive Select dropdown
-        |
-        v
-[Browser print dialog opens with clean formatted table]
+POST /api/process-emails { emails: [...] }
+    │
+    ├── Set response headers for SSE
+    │     Content-Type: text/event-stream
+    │     Cache-Control: no-cache
+    │     Connection: keep-alive
+    │
+    ├── Generate batchId (random UUID)
+    │
+    ├── For each email in array (index i):
+    │     │
+    │     ├── Send SSE: { type: "progress", current: i+1, total: N }
+    │     │
+    │     ├── Call categorizeExcuse(email.emailBody)
+    │     │     │
+    │     │     ├── Success → { category, confidence, reasoning }
+    │     │     │     │
+    │     │     │     ├── Create record in database
+    │     │     │     │     userId, senderName, senderEmail, receivedAt,
+    │     │     │     │     emailBody, excuseCategory, messageSnippet, batchId
+    │     │     │     │
+    │     │     │     └── Send SSE: { type: "result", record: {...} }
+    │     │     │
+    │     │     └── Error
+    │     │           └── Send SSE: { type: "error", email: senderEmail,
+    │     │                           error: message }
+    │     │
+    │     └── Continue to next email
+    │
+    └── Send SSE: { type: "complete", batchId }
+        Close connection
 ```
 
-### 8.6 Email Input Decision Tree
+### 8.6 Export Logic
 
 ```
-[User wants to process emails]
-        |
-   +----+----+----------+
-   |         |           |
-[Single]  [Batch]     [Gmail]
-   |         |           |
-   v         v           v
-[Click     [Click      [Click "Gmail"
- "Add      "Batch       button]
- Email"]    Process"]      |
-   |         |           v
-   v         v         [GmailFetchDialog]
-[Dialog   [Dialog       (see 8.8)
- opens]    opens]
-   |         |
-   v      +--+--+
-[Fill:   |     |
- name,  [JSON] [CSV]
- email,   |     |
- date,  [Paste [Upload .csv file]
- body]  JSON     |
-   |   array]  [Parse CSV to array:
-   |     |      map headers to fields]
-   |     |     |
-   |     +--+--+
-   |        |
-   v        v
-[Validate [Validate each email object:
- single    senderName (required)
- email:    senderEmail (valid email)
- same      receivedAt (required)
- rules]    emailBody (required)]
-   |         |
-   |    +----+----+
-   |    |         |
-   |  VALID    INVALID
-   |    |         |
-   |    v         v
-   |  [Enable   [Show validation errors]
-   |   "Process  [Button stays disabled]
-   |   Emails"]
-   |    |
-   +----+
-        |
-        v
-[POST /api/process-emails]
-[Body: { emails: [...] }]
-        |
-        v
-[SSE stream: real-time progress per email]
-        |
-        v
-[Records created in DB]
-[Cache invalidated]
-[Dashboard refreshes]
-```
-
-### 8.7 Export Decision Tree
-
-```
-[User clicks export button]
-        |
-   +----+----+
-   |         |
- [CSV]    [DOCX]
-   |         |
-   v         v
-[GET /api/ [GET /api/
- export/    export/
- csv]       doc]
-   |         |
-   v         v
-[Fetch all [Fetch all user's records]
- user's        |
- records]      v
-   |      [Group records by excuseCategory]
-   v           |
-[Build CSV     v
- string:   [Build Document object:
- header +   - Paragraph: "Attendance Report" (H1)
- rows with   - Paragraph: date + total count
- escaped     - For each category:
- values]       - Paragraph: "{Category} ({count})" (H2)
-   |           - Table: Name | Email | Date | Snippet
-   v           ]
-[Set           |
- headers:      v
- Content-Type  [Packer.toBuffer(doc)]
- text/csv          |
- Content-         v
- Disposition  [Set headers:
- attachment]   Content-Type application/vnd...
-   |           Content-Disposition attachment]
-   v               |
-[Send CSV      v
- as response] [Send buffer as response]
-
-Note: Exports always include ALL records regardless of active time filter.
-      Print respects the active time filter.
-```
-
-### 8.8 Gmail Fetch Decision Tree
-
-```
-[User clicks "Gmail" button]
-        |
-        v
-[Is user.googleId set?]
-   |              |
-  YES             NO
-   |              |
-   v              v
-[Show search   [Show warning message:
- form with      "You need to connect
- query +        your Google account"]
- maxResults]
-   |
-   v
-[Click "Fetch Emails"]
-        |
-        v
-[POST /api/gmail/fetch { query, maxResults }]
-        |
-        v
-[Server: get user's googleAccessToken from DB]
-        |
-   +----+----+
-   |         |
- token     no token
- exists      |
-   |         v
-   |    [Return 401
-   |     "Not connected to Google"]
-   v
-[Call Gmail API: messages.list with query]
-        |
-   +----+----+
-   |         |
-  200      401 (expired)
-   |         |
-   v         v
-[For each  [Has refreshToken?]
- message:       |         |
- fetch        YES         NO
- details]      |          |
-   |           v          v
-   v      [POST Google  [Return 401
-[Extract   token URL     "Re-authenticate"]
- sender,   with refresh
- subject,  token]
- date,         |
- body       [Update DB with new accessToken]
- (decode     |
- Base64)]   [Retry Gmail API call]
-   |           |
-   v           v
-[Return    [Return emails array]
- emails
- array]
-        |
-        v
-[Frontend: show email list with checkboxes]
-        |
-        v
-[User selects emails]
-        |
-        v
-[Map selected emails to emailInput format]
-        |
-        v
-[POST /api/process-emails with selected emails]
-        |
-        v
-[SSE progress -> records created -> cache invalidated]
+User clicks export button
+    │
+    ├── CSV Export
+    │     │
+    │     ├── GET /api/export/csv
+    │     ├── Fetch ALL records for user (no filter)
+    │     ├── Build CSV string:
+    │     │     Header: Name,Email,Date,Excuse Category,Status,Message Snippet
+    │     │     Each row: escapeCsv(field) for proper quoting
+    │     ├── Set Content-Disposition: attachment; filename=attendance_report.csv
+    │     └── Send response (text/csv)
+    │
+    ├── DOCX Export
+    │     │
+    │     ├── GET /api/export/doc
+    │     ├── Fetch ALL records for user (no filter)
+    │     ├── Group records by excuseCategory
+    │     ├── Build Document:
+    │     │     ├── Title: "Attendance Report" (centered)
+    │     │     ├── Subtitle: generation date, total count
+    │     │     ├── For each category:
+    │     │     │     ├── Heading: "Category Name (count)"
+    │     │     │     └── Table: Name | Email | Date | Message Snippet
+    │     │     └── Pack to buffer
+    │     ├── Set Content-Disposition: attachment; filename=attendance_report.docx
+    │     └── Send response (application/vnd.openxmlformats-...)
+    │
+    └── Print View
+          │
+          ├── window.print() triggered
+          ├── @media print CSS activates:
+          │     ├── Hide: .star-field, .no-print (nav, buttons, filters)
+          │     ├── Show: .print-header (title, period, count)
+          │     ├── Style: white background, black text, bordered table
+          │     └── Show: .print-category (static text instead of dropdown)
+          └── Only filtered records are printed (time period + category)
 ```
 
 ---
@@ -1785,112 +964,121 @@ Note: Exports always include ALL records regardless of active time filter.
 ## 9. Full Project Report
 
 ### 9.1 Executive Summary
-PULSE is a production-ready, space-themed, multi-user web application that automates the processing of builder/student absence excuse emails. It uses AI (OpenAI GPT via Replit AI Integrations) to categorize excuses into 6 predefined categories, provides a dashboard for review and editing with time-period filtering and print capabilities, and generates exportable reports in CSV and DOCX formats. Users can sign in with username/password or Google OAuth, and Google-authenticated users can fetch emails directly from their Gmail inbox for processing. The tool is designed for organizational co-workers who each maintain their own isolated set of attendance records.
 
-### 9.2 Current State (As Built)
+PULSE is a production-ready, multi-user attendance automation tool that leverages AI to categorize student absence excuse emails. Built with a modern TypeScript stack (React + Express + PostgreSQL), it provides three email ingestion methods (manual, batch, Gmail), AI-powered categorization into six predefined categories, and multiple export formats (CSV, DOCX, print). The application features Google OAuth integration for Gmail access, a distinctive space-themed UI with animated star fields, and full dark/light mode support.
 
-| Area | Status | Details |
-|---|---|---|
-| Authentication | Complete | Username/password registration, login, logout, session management |
-| Google OAuth | Complete | Sign in with Google, automatic account linking by email, token storage |
-| Gmail Integration | Complete | Search inbox, select emails, process with AI, auto token refresh |
-| Demo Mode | Complete | One-click demo access with 6 pre-loaded sample records |
-| Single Email Processing | Complete | Manual entry form with AI categorization |
-| Batch Processing | Complete | JSON paste, JSON file upload, CSV file upload with SSE progress |
-| AI Categorization | Complete | OpenAI GPT categorizes into 6 excuse types with confidence + reasoning |
-| Dashboard | Complete | Stats cards, filterable table, inline category editing |
-| Time-Period Filtering | Complete | Day, Week, Month, Quarter, Year filters with dynamic stat updates |
-| Print Functionality | Complete | Print button generates clean, formatted printable report |
-| Data Export | Complete | CSV and formatted DOCX report generation |
-| Data Isolation | Complete | Each user's data completely isolated |
-| Record Management | Complete | View, edit category, delete individual, clear all |
-| Space Theme | Complete | Dark navy background, star field, violet/indigo accents, Space Grotesk font |
+### 9.2 Features Implemented
 
-### 9.3 Planned Features
+**Core Features:**
+- Multi-user authentication (username/password + Google OAuth)
+- Demo mode with pre-seeded sample data
+- Single email manual entry with AI categorization
+- Batch email processing via JSON paste or JSON/CSV file upload
+- Real-time batch processing progress via Server-Sent Events
+- Gmail inbox search and email selection for AI processing
+- Automatic token refresh for Gmail API access
+- Dashboard with category-based statistics cards
+- Time-period filtering (Day, Week, Month, Quarter, Year)
+- Category-based filtering via stat card clicks
+- Manual category override on any record
+- Record status management (pending/approved/denied)
+- Individual record deletion and bulk clear
+- CSV export (all records)
+- DOCX export (grouped by category, formatted tables)
+- Print view (filtered records, print-optimized CSS)
 
-| Feature | Description | Dependency |
-|---|---|---|
-| Auto-archive | Automatically archive/label processed emails in Gmail | Gmail Integration + gmail.modify scope |
-| Webhook/API Integration | Direct integration with external attendance tracking systems | API specification from target system |
-| Dark/Light Mode Toggle | User-switchable theme with subtle corner star sparkles | UI implementation |
-| WCAG 2 Accessibility | Full WCAG 2 compliance for all interactive elements | Accessibility audit |
+**UI/UX Features:**
+- Space-themed design with animated star field (120 stars, 4 animation types: twinkle-soft, twinkle-flash, twinkle-flicker, sparkle-cross)
+- Dark/light mode toggle with localStorage persistence
+- Light mode: subtle violet corner sparkles (20 sparkles in corners only)
+- Dark mode: full-viewport star field with varied colors (white, bluish, warm, cool, pinkish) and full-intensity sparkle with scale(2) and cross-shaped box-shadow
+- Responsive design via Tailwind CSS breakpoints
+- WCAG 2 accessibility compliance
+- shadcn/ui component library for consistent, accessible UI primitives
+- Toast notifications for user feedback
+- `data-testid` attributes on all interactive elements
 
-### 9.4 Known Limitations
-1. No multi-tenancy - all users share the same application instance
-2. No password reset flow (Google OAuth provides an alternative sign-in method)
-3. No admin role or user management dashboard
-4. Batch emails are processed sequentially (one at a time) to manage AI API rate limits
-5. No email deduplication - the same email can be processed multiple times
-6. CSV/DOCX exports include all records regardless of active time-period filter (print respects the filter)
-7. Gmail fetch requires user to have signed in with Google OAuth and granted gmail.readonly scope
+### 9.3 AI Categorization Details
 
-### 9.5 Infrastructure Summary
+The system uses OpenAI GPT via Replit AI Integrations with a structured system prompt. Each email body is sent with instructions to categorize into exactly one of six categories. The AI returns a JSON response with:
+- `category` — one of the six valid categories (exact string match)
+- `confidence` — a number between 0 and 1
+- `reasoning` — a brief one-sentence explanation
 
-| Component | Service | Details |
-|---|---|---|
-| Hosting | Replit | Development and production hosting |
-| Database | Neon PostgreSQL | Serverless, auto-scaling, WebSocket-based connection |
-| AI | Replit AI Integrations | OpenAI GPT proxy, billed to Replit credits |
-| OAuth Provider | Google Cloud | OAuth 2.0 for authentication and Gmail API access |
-| Domain | Replit-provided | .replit.dev domain (custom domain configurable on deploy) |
-| Sessions | PostgreSQL | Server-side session storage via connect-pg-simple |
+The system validates the response against the allowed category list and falls back to "Unexcused" with confidence 0 if the AI response is malformed, unparseable, or returns an invalid category. The `response_format: { type: "json_object" }` parameter enforces structured JSON output from the model.
 
-### 9.6 Project File Inventory
+### 9.4 Security Model
 
-| File | Purpose |
-|---|---|
-| `shared/schema.ts` | Database schema (Drizzle), Zod validation schemas, TypeScript types |
-| `shared/models/chat.ts` | Chat model schemas (unused, from template) |
-| `server/index.ts` | Express server setup, middleware stack, startup sequence |
-| `server/auth.ts` | Authentication routes, session config, demo mode with seed data |
-| `server/google-auth.ts` | Google OAuth routes (sign-in, callback, status) and Gmail fetch endpoint |
-| `server/routes.ts` | All protected API endpoints (records, stats, exports) |
-| `server/storage.ts` | Database access layer with IStorage interface and DatabaseStorage class |
-| `server/openai.ts` | AI categorization function using OpenAI GPT (gpt-5.2) |
-| `server/db.ts` | Database connection pool setup (Neon PostgreSQL) |
-| `server/seed.ts` | Empty seed file (demo data handled by /api/auth/demo) |
-| `server/vite.ts` | Vite dev server middleware setup |
-| `server/static.ts` | Production static file serving |
-| `client/src/main.tsx` | React app entry point |
-| `client/src/App.tsx` | Root component with auth gate, providers, routing |
-| `client/src/pages/auth.tsx` | Login/Register page with space theme, Google sign-in, and star field |
-| `client/src/pages/dashboard.tsx` | Main dashboard with time filters, stats, table, Gmail, print |
-| `client/src/pages/not-found.tsx` | 404 error page |
-| `client/src/hooks/use-auth.ts` | Auth state management hook (login/register/demo/logout) |
-| `client/src/hooks/use-toast.ts` | Toast notification hook |
-| `client/src/components/star-field.tsx` | Animated star field background (80 memoized stars) |
-| `client/src/components/records-table.tsx` | Attendance records data table with inline editing and print support |
-| `client/src/components/add-email-dialog.tsx` | Single email entry dialog |
-| `client/src/components/batch-upload-dialog.tsx` | Batch upload dialog with SSE progress tracking |
-| `client/src/components/gmail-fetch-dialog.tsx` | Gmail inbox search, email selection, and processing dialog |
-| `client/src/lib/queryClient.ts` | TanStack Query client config and API request helper |
-| `client/src/lib/utils.ts` | Tailwind CSS class merging utilities |
-| `client/src/index.css` | Global styles, space theme CSS variables, print styles, star field animations |
-| `drizzle.config.ts` | Drizzle ORM configuration |
-| `vite.config.ts` | Vite build configuration with path aliases |
-| `tailwind.config.ts` | Tailwind CSS configuration |
-| `tsconfig.json` | TypeScript configuration |
-| `package.json` | Dependencies and scripts |
-| `replit.md` | Project overview and architecture reference |
-| `docs/PROJECT_DOCUMENTATION.md` | This file - complete project documentation |
+- Passwords hashed with bcrypt (10 rounds)
+- Sessions stored server-side in PostgreSQL (not in cookies)
+- Session cookies: `httpOnly`, `secure` in production, 7-day expiry
+- Google OAuth state parameter for CSRF protection
+- All API routes require authentication via `requireAuth` middleware
+- All database queries scoped to the authenticated user's ID
+- Google tokens stored server-side only
+- Request body validation via Zod schemas
 
-### 9.7 Storage Interface Methods
+### 9.5 Data Model Summary
 
-| Method | Purpose |
-|---|---|
-| `createUser(user)` | Create a new user account |
-| `getUserByUsername(username)` | Find user by username (login) |
-| `getUserByEmail(email)` | Find user by email (registration check, Google OAuth linking) |
-| `getUserById(id)` | Find user by ID (session lookup) |
-| `getUserByGoogleId(googleId)` | Find user by Google account ID (OAuth callback) |
-| `updateUserGoogleTokens(userId, accessToken, refreshToken?)` | Store/update OAuth tokens |
-| `getAllRecords(userId)` | Get all attendance records for a user |
-| `getRecordById(id)` | Get a single record by ID |
-| `getRecordsByBatchId(batchId, userId)` | Get records from a specific batch |
-| `createRecord(record)` | Create a single attendance record |
-| `createRecords(records)` | Bulk create attendance records |
-| `updateRecordCategory(id, category)` | Change a record's category |
-| `updateRecordStatus(id, status)` | Change a record's processing status |
-| `deleteRecord(id)` | Delete a single record |
-| `deleteAllRecords(userId)` | Delete all records for a user |
-| `getStats(userId)` | Get category counts for a user |
+The application uses four primary tables:
+1. **users** — User accounts with optional Google OAuth linkage (9 columns)
+2. **attendance_records** — Processed absence excuse records (11 columns)
+3. **session** — Express session persistence (auto-managed by connect-pg-simple)
+4. **conversations/messages** — AI integrations support tables (Replit-managed)
+
+Key relationship: Each user has zero-to-many attendance records. Records are isolated per user via the `userId` foreign key, ensuring complete multi-tenant data separation.
+
+### 9.6 Storage Interface
+
+The `IStorage` interface in `server/storage.ts` defines all data access operations:
+
+**User Operations:**
+- `createUser(user)` — Create a new user account
+- `getUserByUsername(username)` — Look up user by username
+- `getUserByEmail(email)` — Look up user by email
+- `getUserById(id)` — Look up user by ID
+- `getUserByGoogleId(googleId)` — Look up user by Google OAuth ID
+- `updateUserGoogleTokens(userId, accessToken, refreshToken?)` — Update stored OAuth tokens
+
+**Record Operations:**
+- `getAllRecords(userId)` — Get all records for a user (ordered by creation date descending)
+- `getRecordById(id)` — Get a single record
+- `getRecordsByBatchId(batchId, userId)` — Get records from a specific batch
+- `createRecord(record)` — Create a single attendance record
+- `createRecords(records)` — Bulk create attendance records
+- `updateRecordCategory(id, category)` — Change a record's excuse category
+- `updateRecordStatus(id, status)` — Change a record's review status
+- `deleteRecord(id)` — Delete a single record
+- `deleteAllRecords(userId)` — Delete all records for a user
+- `getStats(userId)` — Get total count and per-category breakdown
+
+### 9.7 Performance Considerations
+
+- Client-side filtering avoids additional API calls for time-period and category filters
+- TanStack React Query provides automatic caching with targeted invalidation after mutations
+- Server-Sent Events provide streaming updates during batch processing (no polling)
+- Star field animations use CSS-only animations (no JavaScript animation loops)
+- Light mode reduces star count from 120 to 20 for minimal visual overhead
+- `useMemo` used for star generation and record filtering to avoid unnecessary recomputation
+
+### 9.8 Known Limitations
+
+1. CSV and DOCX exports always include all records regardless of active frontend filters
+2. Google OAuth requires the user's email to be added as a test user while the consent screen is in "Testing" mode
+3. Gmail fetch is limited to the `gmail.readonly` scope — no email modification
+4. AI categorization cost scales linearly with email count (one API call per email)
+5. No pagination on the records table (all records loaded at once)
+6. No real-time collaboration — each user manages their own independent record set
+
+### 9.9 Deployment
+
+The application runs on Replit with the following deployment configuration:
+- **Development:** `npm run dev` starts Express 5 with Vite middleware for HMR
+- **Production:** Built frontend served as static files by Express
+- **Database:** Replit-managed PostgreSQL accessed via `DATABASE_URL`
+- **Secrets:** Managed via Replit's environment secrets system
+- **AI:** OpenAI access via Replit AI Integrations (auto-configured environment variables)
+
+---
+
+*End of Documentation*

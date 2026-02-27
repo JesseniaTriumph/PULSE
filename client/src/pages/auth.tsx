@@ -5,14 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Play, Zap, Chrome } from "lucide-react";
+import { Loader2, Play, Zap, Chrome, Sun, Moon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { StarField } from "@/components/star-field";
+import { useTheme } from "@/components/theme-provider";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const { login, register, demo } = useAuth();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [registerForm, setRegisterForm] = useState({
@@ -69,7 +71,18 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       <StarField />
-      <div className="absolute inset-0 bg-gradient-to-b from-violet-950/20 via-transparent to-indigo-950/30 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-violet-950/20 via-transparent to-indigo-950/30 pointer-events-none dark:block hidden" />
+
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={toggleTheme}
+        data-testid="button-auth-theme-toggle"
+        className="absolute top-4 right-4 z-20 hover:bg-violet-500/10"
+        aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </Button>
 
       <div className="w-full max-w-md relative z-10">
         <div className="flex flex-col items-center mb-8">

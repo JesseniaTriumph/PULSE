@@ -21,6 +21,8 @@ import {
   Printer,
   Zap,
   Mail,
+  Sun,
+  Moon,
 } from "lucide-react";
 import type { AttendanceRecord } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -28,6 +30,7 @@ import { AddEmailDialog } from "@/components/add-email-dialog";
 import { BatchUploadDialog } from "@/components/batch-upload-dialog";
 import { GmailFetchDialog } from "@/components/gmail-fetch-dialog";
 import { StarField } from "@/components/star-field";
+import { useTheme } from "@/components/theme-provider";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -121,6 +124,7 @@ export default function Dashboard() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const { toast } = useToast();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
     queryKey: ["/api/records"],
@@ -233,6 +237,16 @@ export default function Dashboard() {
                   Gmail
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={toggleTheme}
+                data-testid="button-theme-toggle"
+                className="hover:bg-violet-500/10"
+                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
