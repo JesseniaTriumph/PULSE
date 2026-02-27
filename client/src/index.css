@@ -2,9 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+@keyframes twinkle-soft {
+  0%, 100% { opacity: var(--star-min-opacity, 0.2); transform: scale(1); }
+  50% { opacity: var(--star-max-opacity, 0.7); transform: scale(1); }
+}
+
+@keyframes twinkle-flash {
+  0%, 80%, 100% { opacity: var(--star-min-opacity, 0.15); transform: scale(1); }
+  85% { opacity: 1; transform: scale(1.8); }
+  90% { opacity: 0.6; transform: scale(1.2); }
+}
+
+@keyframes twinkle-flicker {
+  0%, 100% { opacity: var(--star-min-opacity, 0.2); }
+  20% { opacity: 0.8; }
+  25% { opacity: 0.3; }
+  40% { opacity: 0.9; }
+  45% { opacity: 0.2; }
+  70% { opacity: var(--star-max-opacity, 0.7); }
+  75% { opacity: 0.35; }
+}
+
+@keyframes sparkle-cross {
+  0%, 75%, 100% {
+    opacity: var(--star-min-opacity, 0.1);
+    box-shadow: none;
+    transform: scale(1);
+  }
+  78% {
+    opacity: 1;
+    box-shadow:
+      0 0 2px 1px rgba(200, 200, 255, 0.7),
+      0 -3px 1px -1px rgba(200, 200, 255, 0.4),
+      0 3px 1px -1px rgba(200, 200, 255, 0.4),
+      -3px 0 1px -1px rgba(200, 200, 255, 0.4),
+      3px 0 1px -1px rgba(200, 200, 255, 0.4);
+    transform: scale(1.4);
+  }
+  82% {
+    opacity: 0.4;
+    box-shadow: 0 0 1px rgba(200, 200, 255, 0.2);
+    transform: scale(1.1);
+  }
 }
 
 @keyframes float {
@@ -26,30 +65,51 @@
 .star {
   position: absolute;
   border-radius: 50%;
-  background: white;
 }
 
 .star-sm {
   width: 1px;
   height: 1px;
-  opacity: 0.4;
+  background: var(--star-color, white);
 }
 
 .star-md {
-  width: 2px;
-  height: 2px;
-  opacity: 0.6;
+  width: 1.5px;
+  height: 1.5px;
+  background: var(--star-color, white);
 }
 
 .star-lg {
-  width: 3px;
-  height: 3px;
-  opacity: 0.8;
-  box-shadow: 0 0 4px rgba(147, 130, 255, 0.6);
+  width: 2px;
+  height: 2px;
+  background: var(--star-color, white);
+  box-shadow: 0 0 3px var(--star-glow, rgba(180, 170, 255, 0.5));
 }
 
-.animate-twinkle {
-  animation: twinkle var(--twinkle-duration, 3s) ease-in-out infinite;
+.star-bright {
+  width: 2.5px;
+  height: 2.5px;
+  background: var(--star-color, white);
+  box-shadow: 0 0 6px 1px var(--star-glow, rgba(180, 170, 255, 0.6));
+}
+
+.anim-soft {
+  animation: twinkle-soft var(--twinkle-duration, 3s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+.anim-flash {
+  animation: twinkle-flash var(--twinkle-duration, 8s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+.anim-flicker {
+  animation: twinkle-flicker var(--twinkle-duration, 4s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+.anim-sparkle {
+  animation: sparkle-cross var(--twinkle-duration, 10s) ease-in-out infinite;
   animation-delay: var(--twinkle-delay, 0s);
 }
 
