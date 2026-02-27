@@ -20,36 +20,30 @@ function pickStarProps(i: number) {
   let minOpacity: number;
   let maxOpacity: number;
 
-  if (rand < 0.50) {
+  if (rand < 0.45) {
     size = "star-sm";
     anim = "anim-soft";
+    duration = `${3 + Math.random() * 5}s`;
+    minOpacity = 0.1 + Math.random() * 0.15;
+    maxOpacity = 0.4 + Math.random() * 0.2;
+  } else if (rand < 0.75) {
+    size = "star-md";
+    anim = Math.random() > 0.5 ? "anim-soft" : "anim-flicker";
+    duration = `${2.5 + Math.random() * 4}s`;
+    minOpacity = 0.15 + Math.random() * 0.15;
+    maxOpacity = 0.6 + Math.random() * 0.25;
+  } else if (rand < 0.9) {
+    size = "star-lg";
+    anim = Math.random() > 0.4 ? "anim-flicker" : "anim-flash";
     duration = `${4 + Math.random() * 6}s`;
     minOpacity = 0.1 + Math.random() * 0.15;
-    maxOpacity = 0.35 + Math.random() * 0.2;
-  } else if (rand < 0.78) {
-    size = "star-md";
-    anim = Math.random() > 0.6 ? "anim-flicker" : "anim-soft";
-    duration = `${3 + Math.random() * 5}s`;
-    minOpacity = 0.12 + Math.random() * 0.13;
-    maxOpacity = 0.5 + Math.random() * 0.2;
-  } else if (rand < 0.93) {
-    size = "star-lg";
-    anim = Math.random() > 0.6 ? "anim-flicker" : "anim-soft";
-    duration = `${4 + Math.random() * 5}s`;
-    minOpacity = 0.1 + Math.random() * 0.1;
-    maxOpacity = 0.6 + Math.random() * 0.2;
-  } else if (rand < 0.97) {
-    size = "star-lg";
-    anim = "anim-flash";
-    duration = `${8 + Math.random() * 10}s`;
-    minOpacity = 0.05 + Math.random() * 0.1;
-    maxOpacity = 0.8 + Math.random() * 0.2;
+    maxOpacity = 0.7 + Math.random() * 0.3;
   } else {
     size = "star-bright";
-    anim = "anim-sparkle";
-    duration = `${12 + Math.random() * 10}s`;
-    minOpacity = 0.03 + Math.random() * 0.07;
-    maxOpacity = 0.85 + Math.random() * 0.15;
+    anim = Math.random() > 0.5 ? "anim-sparkle" : "anim-flash";
+    duration = `${6 + Math.random() * 8}s`;
+    minOpacity = 0.05 + Math.random() * 0.1;
+    maxOpacity = 0.9 + Math.random() * 0.1;
   }
 
   return {
