@@ -16,7 +16,7 @@ PULSE is a space-themed, multi-user AI-powered attendance email processing tool 
 - Manual email entry with AI categorization
 - Batch processing (JSON or CSV upload)
 - Gmail email fetching (search inbox, select emails, process with AI)
-- 6 excuse categories: Sick/Medical, Personal, Program Event, Technical Issue, Other, Unexcused
+- 7 categories: Sick/Medical, Personal, Program Event, Technical Issue, Late/Tardy, Other, Unexcused
 - Time-period filtering: Day, Week, Month, Quarter, Year with print support
 - CSV and DOCX export (per-user data)
 - Category filtering and inline category editing

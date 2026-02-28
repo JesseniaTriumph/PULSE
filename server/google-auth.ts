@@ -183,7 +183,7 @@ export function setupGoogleAuth(app: Express) {
 
     try {
       const { maxResults = 20, query = "" } = req.body;
-      const searchQuery = query || "subject:(absent OR excuse OR sick OR cannot attend OR won't be able)";
+      const searchQuery = query || "subject:(absent OR excuse OR sick OR cannot attend OR won't be able OR late OR tardy OR running late OR delayed OR will be late)";
 
       const params = new URLSearchParams({
         maxResults: String(Math.min(maxResults, 50)),

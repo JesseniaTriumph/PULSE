@@ -8,6 +8,7 @@ export const excuseCategories = [
   "Personal",
   "Program Event",
   "Technical Issue",
+  "Late/Tardy",
   "Other",
   "Unexcused",
 ] as const;

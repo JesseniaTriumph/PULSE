@@ -24,6 +24,7 @@ import {
   Sun,
   Moon,
   Braces,
+  Clock,
 } from "lucide-react";
 import type { AttendanceRecord } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -102,6 +103,12 @@ const categoryConfig: Record<
     color: "text-violet-400",
     bgClass: "bg-violet-500/10 border-violet-500/20",
     glowClass: "shadow-violet-500/10",
+  },
+  "Late/Tardy": {
+    icon: Clock,
+    color: "text-orange-400",
+    bgClass: "bg-orange-500/10 border-orange-500/20",
+    glowClass: "shadow-orange-500/10",
   },
   Other: {
     icon: HelpCircle,
