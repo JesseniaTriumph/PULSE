@@ -9,11 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Calendar } from "lucide-react";
+import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Briefcase, Award, ArrowRightLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Student, Cohort, AttendanceRecord } from "@shared/schema";
+import { studentStatuses } from "@shared/schema";
 
 const categoryBadgeColors: Record<string, string> = {
   "Sick/Medical": "bg-rose-500/20 text-rose-300 border-rose-500/30",
@@ -30,13 +31,23 @@ const typeBadgeColors: Record<string, string> = {
   Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
 };
 
+const statusConfig: Record<string, { color: string; icon: typeof GraduationCap }> = {
+  Active: { color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon: GraduationCap },
+  Graduated: { color: "bg-violet-500/20 text-violet-300 border-violet-500/30", icon: Award },
+  Hired: { color: "bg-sky-500/20 text-sky-300 border-sky-500/30", icon: Briefcase },
+};
+
 export default function StudentsPage() {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [filterCohort, setFilterCohort] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [moveStudentId, setMoveStudentId] = useState<number | null>(null);
+  const [moveTarget, setMoveTarget] = useState("");
   const [newStudent, setNewStudent] = useState({ name: "", email: "", cohortId: "" });
 
   const { data: students = [], isLoading: studentsLoading } = useQuery<Student[]>({
@@ -55,7 +66,8 @@ export default function StudentsPage() {
   const filteredStudents = students.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.email.toLowerCase().includes(search.toLowerCase());
     const matchCohort = filterCohort === "all" || s.cohortId === parseInt(filterCohort);
-    return matchSearch && matchCohort;
+    const matchStatus = filterStatus === "all" || s.status === filterStatus;
+    return matchSearch && matchCohort && matchStatus;
   });
 
   const getCohortName = (cohortId: number) => cohorts.find(c => c.id === cohortId)?.name || "Unknown";
@@ -91,11 +103,48 @@ export default function StudentsPage() {
     }
   };
 
-  if (selectedStudent && studentProfile) {
+  const handleStatusChange = async (studentId: number, newStatus: string) => {
+    try {
+      await apiRequest("PATCH", `/api/students/${studentId}`, { status: newStatus });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/students", studentId] });
+      toast({ title: `Student marked as ${newStatus}` });
+    } catch {
+      toast({ title: "Failed to update status", variant: "destructive" });
+    }
+  };
+
+  const openMoveDialog = (studentId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setMoveStudentId(studentId);
+    setMoveTarget("");
+    setMoveDialogOpen(true);
+  };
+
+  const handleMoveStudent = async () => {
+    if (!moveStudentId || !moveTarget) return;
+    try {
+      await apiRequest("PATCH", `/api/students/${moveStudentId}`, { cohortId: parseInt(moveTarget) });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/students", moveStudentId] });
+      setMoveDialogOpen(false);
+      setMoveStudentId(null);
+      const targetName = getCohortName(parseInt(moveTarget));
+      toast({ title: `Student moved to ${targetName}` });
+    } catch {
+      toast({ title: "Failed to move student", variant: "destructive" });
+    }
+  };
+
+  const moveStudentObj = moveStudentId ? students.find(s => s.id === moveStudentId) : null;
+
+  const renderProfileView = () => {
+    if (!selectedStudent || !studentProfile) return null;
     const { student, records } = studentProfile;
     const absences = records.filter(r => r.attendanceType === "Absent").length;
     const tardies = records.filter(r => r.attendanceType === "Late/Tardy").length;
     const unexcused = records.filter(r => r.attendanceType === "Unexcused").length;
+    const sConfig = statusConfig[student.status] || statusConfig.Active;
 
     return (
       <div className="space-y-6">
@@ -109,12 +158,28 @@ export default function StudentsPage() {
           <div className="h-14 w-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">
             {student.name.charAt(0)}
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold" data-testid="text-student-name">{student.name}</h2>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {student.email}</span>
               <Badge variant="outline" className="border-violet-500/30">{getCohortName(student.cohortId)}</Badge>
+              <Badge className={`text-xs border ${sConfig.color}`} data-testid="badge-student-status">{student.status}</Badge>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={student.status} onValueChange={v => handleStatusChange(student.id, v)}>
+              <SelectTrigger className="w-[130px] border-violet-500/20 h-8 text-xs" data-testid="select-student-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {studentStatuses.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" onClick={() => openMoveDialog(student.id)} className="border-violet-500/20 h-8 text-xs" data-testid="button-move-student">
+              <ArrowRightLeft className="w-3.5 h-3.5 mr-1" /> Move
+            </Button>
           </div>
         </div>
 
@@ -184,6 +249,45 @@ export default function StudentsPage() {
         </Card>
       </div>
     );
+  };
+
+  if (selectedStudent && studentProfile) {
+    return (
+      <>
+        {renderProfileView()}
+        <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+          <DialogContent className="border-violet-500/20 bg-card/95 backdrop-blur-md">
+            <DialogHeader>
+              <DialogTitle>Move Student — {moveStudentObj?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Currently in <span className="font-medium text-foreground">{moveStudentObj ? getCohortName(moveStudentObj.cohortId) : ""}</span>. Select the class to move this student to.
+              </p>
+              <div>
+                <Label>Move to Class</Label>
+                <Select value={moveTarget} onValueChange={setMoveTarget}>
+                  <SelectTrigger className="border-violet-500/20" data-testid="select-move-target">
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.filter(c => c.id !== moveStudentObj?.cohortId).map(c => (
+                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMoveDialogOpen(false)} className="border-violet-500/20">Cancel</Button>
+              <Button onClick={handleMoveStudent} disabled={!moveTarget} data-testid="button-confirm-move" className="bg-gradient-to-r from-violet-600 to-indigo-600">
+                <ArrowRightLeft className="w-4 h-4 mr-1.5" /> Move Student
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
   }
 
   return (
@@ -220,6 +324,17 @@ export default function StudentsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[130px] border-violet-500/20" data-testid="select-filter-status">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            {studentStatuses.map(s => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {studentsLoading ? (
@@ -234,36 +349,52 @@ export default function StudentsPage() {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredStudents.map(student => (
-            <Card
-              key={student.id}
-              className="border-violet-500/10 bg-card/60 backdrop-blur-sm hover:bg-violet-500/5 cursor-pointer transition-all group"
-              onClick={() => setSelectedStudent(student.id)}
-              data-testid={`card-student-${student.id}`}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center text-sm font-bold flex-shrink-0">
-                  {student.name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{student.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{student.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="border-violet-500/30 text-xs">{getCohortName(student.cohortId)}</Badge>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 hover:text-rose-400 h-7 w-7"
-                    onClick={(e) => { e.stopPropagation(); handleDeleteStudent(student.id); }}
-                    data-testid={`button-delete-student-${student.id}`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {filteredStudents.map(student => {
+            const sConf = statusConfig[student.status] || statusConfig.Active;
+            return (
+              <Card
+                key={student.id}
+                className={`border-violet-500/10 bg-card/60 backdrop-blur-sm hover:bg-violet-500/5 cursor-pointer transition-all group ${student.status !== "Active" ? "opacity-70" : ""}`}
+                onClick={() => setSelectedStudent(student.id)}
+                data-testid={`card-student-${student.id}`}
+              >
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-500/30 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {student.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{student.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Badge variant="outline" className="border-violet-500/30 text-xs">{getCohortName(student.cohortId)}</Badge>
+                    <Badge className={`text-[10px] border ${sConf.color}`}>{student.status}</Badge>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="hover:bg-violet-500/10 h-6 w-6"
+                        onClick={(e) => openMoveDialog(student.id, e)}
+                        title="Move to another class"
+                        data-testid={`button-move-student-${student.id}`}
+                      >
+                        <ArrowRightLeft className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="hover:bg-rose-500/10 hover:text-rose-400 h-6 w-6"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteStudent(student.id); }}
+                        data-testid={`button-delete-student-${student.id}`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -298,6 +429,38 @@ export default function StudentsPage() {
           <DialogFooter>
             <Button onClick={handleAddStudent} data-testid="button-submit-student" className="bg-gradient-to-r from-violet-600 to-indigo-600">
               Add Student
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+        <DialogContent className="border-violet-500/20 bg-card/95 backdrop-blur-md">
+          <DialogHeader>
+            <DialogTitle>Move Student — {moveStudentObj?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Currently in <span className="font-medium text-foreground">{moveStudentObj ? getCohortName(moveStudentObj.cohortId) : ""}</span>. Select the class to move this student to.
+            </p>
+            <div>
+              <Label>Move to Class</Label>
+              <Select value={moveTarget} onValueChange={setMoveTarget}>
+                <SelectTrigger className="border-violet-500/20" data-testid="select-move-target">
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cohorts.filter(c => c.id !== moveStudentObj?.cohortId).map(c => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveDialogOpen(false)} className="border-violet-500/20">Cancel</Button>
+            <Button onClick={handleMoveStudent} disabled={!moveTarget} data-testid="button-confirm-move" className="bg-gradient-to-r from-violet-600 to-indigo-600">
+              <ArrowRightLeft className="w-4 h-4 mr-1.5" /> Move Student
             </Button>
           </DialogFooter>
         </DialogContent>

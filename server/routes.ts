@@ -141,7 +141,37 @@ export async function registerRoutes(
   app.patch("/api/students/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const updated = await storage.updateStudent(id, req.body);
+      const student = await storage.getStudentById(id);
+      if (!student) return res.status(404).json({ error: "Student not found" });
+
+      const user = await storage.getUserById(req.session.userId!);
+      if (user && user.role !== "admin") {
+        const userCohorts = await storage.getCohortsByInstructor(user.id);
+        const cohortIds = userCohorts.map(c => c.id);
+        if (!cohortIds.includes(student.cohortId)) {
+          return res.status(403).json({ error: "Not authorized to modify this student" });
+        }
+      }
+
+      const allowedFields: Record<string, boolean> = { status: true, cohortId: true, name: true, email: true };
+      const updateData: Record<string, any> = {};
+      for (const key of Object.keys(req.body)) {
+        if (!allowedFields[key]) continue;
+        updateData[key] = req.body[key];
+      }
+
+      const validStatuses = ["Active", "Graduated", "Hired"];
+      if (updateData.status && !validStatuses.includes(updateData.status)) {
+        return res.status(400).json({ error: "Invalid status. Must be Active, Graduated, or Hired" });
+      }
+      if (updateData.cohortId) {
+        const targetCohort = await storage.getCohortById(updateData.cohortId);
+        if (!targetCohort) {
+          return res.status(400).json({ error: "Target class does not exist" });
+        }
+      }
+
+      const updated = await storage.updateStudent(id, updateData);
       if (!updated) return res.status(404).json({ error: "Student not found" });
       res.json(updated);
     } catch (error) {
@@ -158,6 +188,39 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting student:", error);
       res.status(500).json({ error: "Failed to delete student" });
+    }
+  });
+
+  app.post("/api/cohorts/:id/promote", requireAdmin, async (req, res) => {
+    try {
+      const fromCohortId = parseInt(req.params.id);
+      const { targetCohortId } = req.body;
+      if (!targetCohortId) {
+        return res.status(400).json({ error: "Target class is required" });
+      }
+      const parsedTarget = parseInt(targetCohortId);
+      if (parsedTarget === fromCohortId) {
+        return res.status(400).json({ error: "Cannot promote to the same class" });
+      }
+      const sourceCohort = await storage.getCohortById(fromCohortId);
+      if (!sourceCohort) {
+        return res.status(404).json({ error: "Source class not found" });
+      }
+      const targetCohort = await storage.getCohortById(parsedTarget);
+      if (!targetCohort) {
+        return res.status(404).json({ error: "Target class not found" });
+      }
+      const studentsInCohort = await storage.getStudentsByCohort(fromCohortId);
+      const activeStudents = studentsInCohort.filter(s => s.status === "Active");
+      let promoted = 0;
+      for (const student of activeStudents) {
+        await storage.updateStudent(student.id, { cohortId: parseInt(targetCohortId) });
+        promoted++;
+      }
+      res.json({ promoted, targetCohort: targetCohort.name });
+    } catch (error) {
+      console.error("Error promoting class:", error);
+      res.status(500).json({ error: "Failed to promote class" });
     }
   });
 

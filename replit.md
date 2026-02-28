@@ -15,6 +15,8 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system. I
 - Multi-tenant with roles: Admin (sees all) and Instructor (sees own cohorts)
 - Cohort management: L1, L2, L3, L∞ with instructor assignments
 - Student roster with per-student attendance history and profile view
+- Student status tracking: Active, Graduated, Hired (status column on students table)
+- Class progression: bulk promote entire class (all active students move to target class), move individual students between classes
 - Class schedule management (weekly grid per cohort)
 - Dual classification: attendanceType (Absent/Late-Tardy/Unexcused) + excuseCategory (Sick-Medical/Personal/Program Event/Technical Issue/Other/None)
 - Alert system for emails needing response (urgency: low/medium/high), peer mentions (student-about-student), and school/program reports (about Pursuit, classes, curriculum, instructors)
@@ -66,8 +68,9 @@ client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign
 
 ### Cohorts & Students
 - `GET/POST/PATCH/DELETE /api/cohorts` - Cohort CRUD (admin: all, instructor: own)
-- `GET/POST/PATCH/DELETE /api/students` - Student CRUD (admin: all, instructor: own cohorts)
+- `GET/POST/PATCH/DELETE /api/students` - Student CRUD (admin: all, instructor: own cohorts); PATCH supports status and cohortId changes
 - `GET /api/students/:id` - Student profile with attendance records
+- `POST /api/cohorts/:id/promote` - Bulk promote all active students to target class (admin only)
 - `GET /api/instructors` - List all instructors (admin only)
 
 ### Schedules

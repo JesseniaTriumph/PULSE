@@ -46,11 +46,14 @@ export const cohorts = pgTable("cohorts", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const studentStatuses = ["Active", "Graduated", "Hired"] as const;
+
 export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   cohortId: integer("cohort_id").notNull().references(() => cohorts.id),
+  status: text("status").notNull().default("Active"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
