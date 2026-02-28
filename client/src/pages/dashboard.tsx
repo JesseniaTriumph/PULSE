@@ -22,6 +22,7 @@ import {
   Mail,
   Braces,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import type { AttendanceRecord, Cohort } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -160,14 +161,19 @@ export default function Dashboard() {
   }, [records, timePeriod]);
 
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterSource, setFilterSource] = useState<string>("all");
 
   const typeFilteredRecords = filterType === "all"
     ? timeFilteredRecords
     : timeFilteredRecords.filter((r) => r.attendanceType === filterType);
 
+  const sourceFilteredRecords = filterSource === "all"
+    ? typeFilteredRecords
+    : typeFilteredRecords.filter((r) => (r.source || "gmail") === filterSource);
+
   const filteredRecords = filterCategory
-    ? typeFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
-    : typeFilteredRecords;
+    ? sourceFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
+    : sourceFilteredRecords;
 
   const periodStats = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -388,6 +394,27 @@ export default function Dashboard() {
               className={filterType === "Unexcused" ? "bg-gradient-to-r from-slate-600 to-slate-500 h-7 text-xs" : "border-slate-500/30 hover:bg-slate-500/10 text-slate-400 h-7 text-xs"}
             >
               Unexcused ({timeFilteredRecords.filter(r => r.attendanceType === "Unexcused").length})
+            </Button>
+            <div className="w-px h-5 bg-violet-500/20 mx-1" />
+            <Button
+              size="sm"
+              variant={filterSource === "gmail" ? "default" : "outline"}
+              onClick={() => setFilterSource(filterSource === "gmail" ? "all" : "gmail")}
+              data-testid="button-source-gmail"
+              className={filterSource === "gmail" ? "bg-gradient-to-r from-blue-600 to-blue-500 h-7 text-xs" : "border-blue-500/30 hover:bg-blue-500/10 text-blue-400 h-7 text-xs"}
+            >
+              <Mail className="w-3 h-3 mr-1" />
+              Gmail ({timeFilteredRecords.filter(r => (r.source || "gmail") === "gmail").length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterSource === "slack" ? "default" : "outline"}
+              onClick={() => setFilterSource(filterSource === "slack" ? "all" : "slack")}
+              data-testid="button-source-slack"
+              className={filterSource === "slack" ? "bg-gradient-to-r from-green-600 to-green-500 h-7 text-xs" : "border-green-500/30 hover:bg-green-500/10 text-green-400 h-7 text-xs"}
+            >
+              <MessageSquare className="w-3 h-3 mr-1" />
+              Slack ({timeFilteredRecords.filter(r => r.source === "slack").length})
             </Button>
           </div>
           <Badge variant="outline" className="border-violet-500/30">{filteredRecords.length}</Badge>

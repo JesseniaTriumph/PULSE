@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye } from "lucide-react";
+import { Trash2, Eye, Mail, MessageSquare, Hash } from "lucide-react";
 import type { AttendanceRecord } from "@shared/schema";
 import { excuseCategories } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -88,7 +88,8 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
         <Table className="print-table">
           <TableHeader>
             <TableRow className="border-violet-500/10 hover:bg-transparent">
-              <TableHead className="w-[160px]">Name</TableHead>
+              <TableHead className="w-[50px]">Source</TableHead>
+              <TableHead className="w-[140px]">Name</TableHead>
               <TableHead className="w-[180px] hidden md:table-cell">Email</TableHead>
               <TableHead className="w-[90px]">Date</TableHead>
               <TableHead className="w-[100px]">Type</TableHead>
@@ -100,8 +101,30 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
           <TableBody>
             {records.map((record) => (
               <TableRow key={record.id} data-testid={`row-record-${record.id}`} className="border-violet-500/10 hover:bg-violet-500/5">
+                <TableCell data-testid={`badge-source-${record.id}`}>
+                  {(record.source || "gmail") === "gmail" ? (
+                    <div className="flex flex-col items-center gap-0.5" title={record.emailSubject ? `Subject: ${record.emailSubject}` : "Gmail"}>
+                      <Mail className="w-4 h-4 text-blue-400" />
+                      <span className="text-[10px] text-blue-400/70">Gmail</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-0.5" title={record.slackIsDm ? "Slack DM" : `Slack: ${record.slackChannelName || "channel"}`}>
+                      <MessageSquare className="w-4 h-4 text-green-400" />
+                      <span className="text-[10px] text-green-400/70">
+                        {record.slackIsDm ? "DM" : (record.slackChannelName || "Slack")}
+                      </span>
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium" data-testid={`text-name-${record.id}`}>
-                  {record.senderName}
+                  <div>
+                    {record.senderName}
+                    {(record.source || "gmail") === "gmail" && record.emailSubject && (
+                      <p className="text-[11px] text-muted-foreground truncate max-w-[140px]" title={record.emailSubject}>
+                        {record.emailSubject}
+                      </p>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-muted-foreground text-sm" data-testid={`text-email-${record.id}`}>
                   {record.senderEmail}
@@ -170,7 +193,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
       <Dialog open={!!viewRecord} onOpenChange={() => setViewRecord(null)}>
         <DialogContent className="max-w-lg border-violet-500/20 bg-card/95 backdrop-blur-md">
           <DialogHeader>
-            <DialogTitle>Email Details</DialogTitle>
+            <DialogTitle>{viewRecord?.source === "slack" ? "Message Details" : "Email Details"}</DialogTitle>
           </DialogHeader>
           {viewRecord && (
             <div className="space-y-4">
@@ -201,6 +224,26 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Source
+                  </p>
+                  <div className="flex items-center gap-1.5" data-testid="text-detail-source">
+                    {(viewRecord.source || "gmail") === "gmail" ? (
+                      <>
+                        <Mail className="w-4 h-4 text-blue-400" />
+                        <span className="text-sm text-blue-400">Gmail</span>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4 text-green-400" />
+                        <span className="text-sm text-green-400">
+                          {viewRecord.slackIsDm ? "Slack DM" : `Slack — ${viewRecord.slackChannelName || "channel"}`}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                     Type
                   </p>
                   <Badge className={`border ${typeBadgeColors[viewRecord.attendanceType] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}>
@@ -216,6 +259,14 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                   </Badge>
                 </div>
               </div>
+              {(viewRecord.source || "gmail") === "gmail" && viewRecord.emailSubject && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Email Subject
+                  </p>
+                  <p className="text-sm" data-testid="text-detail-subject">{viewRecord.emailSubject}</p>
+                </div>
+              )}
               {(viewRecord.mentionsStudent || viewRecord.mentionsSchool) && (
                 <div className={`rounded-md border p-3 ${viewRecord.mentionsStudent ? "border-cyan-500/20 bg-cyan-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
                   <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${viewRecord.mentionsStudent ? "text-cyan-400" : "text-emerald-400"}`}>
@@ -228,7 +279,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
               )}
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                  Full Email Body
+                  {viewRecord.source === "slack" ? "Full Message" : "Full Email Body"}
                 </p>
                 <div className="rounded-md bg-background/60 border border-violet-500/10 p-3 text-sm whitespace-pre-wrap max-h-60 overflow-auto" data-testid="text-detail-body">
                   {viewRecord.emailBody}

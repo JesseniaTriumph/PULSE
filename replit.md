@@ -10,6 +10,7 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system bu
 - **Auth**: Session-based auth with bcrypt, express-session + connect-pg-simple; Google OAuth for sign-in + Gmail access (read + send); role-based access (admin/instructor)
 - **Theme**: Dark/light mode with ThemeProvider (localStorage persistence); dark mode: full star field (120 stars), light mode: subtle corner sparkles (20 sparkles); CSS variables in :root (light) and .dark (dark); Tailwind darkMode: ["class"]
 - **Scheduler**: Interval-based scanner (every 30s) checking configured scan times; auto-fetches Gmail, processes emails, creates alerts
+- **Multi-source**: Records can come from Gmail or Slack; source tracked per record with source-specific metadata
 
 ## Key Features
 - Multi-tenant with roles: Admin (sees all) and Instructor (sees own classes)
@@ -30,6 +31,8 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system bu
 - Manual email entry, batch processing (JSON/CSV), Gmail fetch
 - Time-period filtering (Today/Week/Month/Quarter/Year/All), CSV/DOCX/JSON export, print support
 - Sidebar navigation with alert badge count (unread count)
+- Multi-source support: Gmail and Slack records with source filter buttons (Gmail/Slack) and source indicators in records table
+- Admin sees ALL records across all users; Instructor sees only their own
 
 ## Project Structure
 ```
@@ -96,6 +99,9 @@ client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign
 ### Scan Configs
 - `GET/POST/PATCH/DELETE /api/scan-configs` - Scan schedule CRUD
 
+### Slack Channel Configs
+- `GET/POST/PATCH/DELETE /api/slack-channels` - Slack channel config CRUD (admin only)
+
 ### Records & Export (with cohort ownership checks for instructors)
 - `GET /api/records` - Records (supports ?cohortId, ?studentId filters)
 - `GET /api/stats` - Category counts (supports ?cohortId)
@@ -104,7 +110,7 @@ client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign
 
 ## Database
 - PostgreSQL via Neon
-- 8 Tables: `users` (with role, google fields), `cohorts`, `students` (with status: Active/Graduated/Hired), `schedules`, `attendance_records` (with attendanceType, excuseCategory, needsResponse, urgency, alertReason, mentionsStudent, mentionsSchool, peerOrSchoolDetail, gmailMessageId, gmailThreadId), `alerts`, `scan_configs`, `session`
+- 9 Tables: `users` (with role, google fields, slackUserId), `cohorts`, `students` (with status: Active/Graduated/Hired), `schedules`, `attendance_records` (with attendanceType, excuseCategory, needsResponse, urgency, alertReason, mentionsStudent, mentionsSchool, peerOrSchoolDetail, gmailMessageId, gmailThreadId, source, emailSubject, slackChannelId, slackChannelName, slackMessageTs, slackIsDm), `alerts`, `scan_configs`, `slack_channel_configs`, `session`
 - Managed with Drizzle ORM
 
 ## Demo Account

@@ -26,6 +26,9 @@ export type ExcuseCategory = (typeof excuseCategories)[number];
 export const cohortNames = ["L1", "L2", "L3", "L∞"] as const;
 export type CohortName = (typeof cohortNames)[number];
 
+export const messageSources = ["gmail", "slack"] as const;
+export type MessageSource = (typeof messageSources)[number];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -36,6 +39,7 @@ export const users = pgTable("users", {
   googleId: text("google_id").unique(),
   googleAccessToken: text("google_access_token"),
   googleRefreshToken: text("google_refresh_token"),
+  slackUserId: text("slack_user_id"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -88,6 +92,12 @@ export const attendanceRecords = pgTable("attendance_records", {
   peerOrSchoolDetail: text("peer_or_school_detail"),
   gmailMessageId: text("gmail_message_id"),
   gmailThreadId: text("gmail_thread_id"),
+  source: text("source").notNull().default("gmail"),
+  emailSubject: text("email_subject"),
+  slackChannelId: text("slack_channel_id"),
+  slackChannelName: text("slack_channel_name"),
+  slackMessageTs: text("slack_message_ts"),
+  slackIsDm: boolean("slack_is_dm").default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -99,6 +109,15 @@ export const alerts = pgTable("alerts", {
   message: text("message").notNull(),
   urgency: text("urgency").notNull().default("low"),
   isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const slackChannelConfigs = pgTable("slack_channel_configs", {
+  id: serial("id").primaryKey(),
+  cohortId: integer("cohort_id").notNull().references(() => cohorts.id),
+  channelId: text("channel_id").notNull(),
+  channelName: text("channel_name").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -116,6 +135,7 @@ export const insertStudentSchema = createInsertSchema(students).omit({ id: true,
 export const insertScheduleSchema = createInsertSchema(schedules).omit({ id: true, createdAt: true });
 export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({ id: true, createdAt: true });
 export const insertAlertSchema = createInsertSchema(alerts).omit({ id: true, createdAt: true });
+export const insertSlackChannelConfigSchema = createInsertSchema(slackChannelConfigs).omit({ id: true, createdAt: true });
 export const insertScanConfigSchema = createInsertSchema(scanConfigs).omit({ id: true, createdAt: true });
 
 export type User = typeof users.$inferSelect;
@@ -130,6 +150,8 @@ export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
+export type SlackChannelConfig = typeof slackChannelConfigs.$inferSelect;
+export type InsertSlackChannelConfig = z.infer<typeof insertSlackChannelConfigSchema>;
 export type ScanConfig = typeof scanConfigs.$inferSelect;
 export type InsertScanConfig = z.infer<typeof insertScanConfigSchema>;
 

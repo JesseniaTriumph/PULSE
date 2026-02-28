@@ -1,12 +1,13 @@
 import { db } from "./db";
 import {
-  users, attendanceRecords, cohorts, students, schedules, alerts, scanConfigs,
+  users, attendanceRecords, cohorts, students, schedules, alerts, scanConfigs, slackChannelConfigs,
   type User, type InsertUser,
   type AttendanceRecord, type InsertAttendanceRecord,
   type Cohort, type InsertCohort,
   type Student, type InsertStudent,
   type Schedule, type InsertSchedule,
   type Alert, type InsertAlert,
+  type SlackChannelConfig, type InsertSlackChannelConfig,
   type ScanConfig, type InsertScanConfig,
 } from "@shared/schema";
 import { eq, desc, and, sql, inArray } from "drizzle-orm";
@@ -42,6 +43,7 @@ export interface IStorage {
   deleteScheduleEntry(id: number): Promise<void>;
 
   getAllRecords(userId: number): Promise<AttendanceRecord[]>;
+  getAllRecordsAdmin(): Promise<AttendanceRecord[]>;
   getRecordsByStudentId(studentId: number): Promise<AttendanceRecord[]>;
   getRecordsByCohort(cohortId: number): Promise<AttendanceRecord[]>;
   getRecordById(id: number): Promise<AttendanceRecord | undefined>;
@@ -53,6 +55,7 @@ export interface IStorage {
   deleteRecord(id: number): Promise<void>;
   deleteAllRecords(userId: number): Promise<void>;
   getStats(userId: number): Promise<{ total: number; byCategory: Record<string, number> }>;
+  getStatsAdmin(): Promise<{ total: number; byCategory: Record<string, number> }>;
   getStatsByCohort(cohortId: number): Promise<{ total: number; byCategory: Record<string, number> }>;
 
   createAlert(alert: InsertAlert): Promise<Alert>;
@@ -63,6 +66,13 @@ export interface IStorage {
   markAlertRead(id: number): Promise<Alert | undefined>;
   markAlertUnread(id: number): Promise<Alert | undefined>;
   markAllAlertsRead(userId: number): Promise<void>;
+
+  createSlackChannelConfig(config: InsertSlackChannelConfig): Promise<SlackChannelConfig>;
+  getSlackChannelConfigsByCohort(cohortId: number): Promise<SlackChannelConfig[]>;
+  getAllSlackChannelConfigs(): Promise<SlackChannelConfig[]>;
+  getAllEnabledSlackChannelConfigs(): Promise<SlackChannelConfig[]>;
+  updateSlackChannelConfig(id: number, data: Partial<InsertSlackChannelConfig>): Promise<SlackChannelConfig | undefined>;
+  deleteSlackChannelConfig(id: number): Promise<void>;
 
   createScanConfig(config: InsertScanConfig): Promise<ScanConfig>;
   getScanConfigsByUser(userId: number): Promise<ScanConfig[]>;
@@ -200,6 +210,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(attendanceRecords.createdAt));
   }
 
+  async getAllRecordsAdmin(): Promise<AttendanceRecord[]> {
+    return db.select().from(attendanceRecords)
+      .orderBy(desc(attendanceRecords.createdAt));
+  }
+
   async getRecordsByStudentId(studentId: number): Promise<AttendanceRecord[]> {
     return db.select().from(attendanceRecords)
       .where(eq(attendanceRecords.studentId, studentId))
@@ -278,6 +293,15 @@ export class DatabaseStorage implements IStorage {
     return { total: records.length, byCategory };
   }
 
+  async getStatsAdmin(): Promise<{ total: number; byCategory: Record<string, number> }> {
+    const records = await db.select().from(attendanceRecords);
+    const byCategory: Record<string, number> = {};
+    for (const record of records) {
+      byCategory[record.excuseCategory] = (byCategory[record.excuseCategory] || 0) + 1;
+    }
+    return { total: records.length, byCategory };
+  }
+
   async getStatsByCohort(cohortId: number): Promise<{ total: number; byCategory: Record<string, number> }> {
     const records = await this.getRecordsByCohort(cohortId);
     const byCategory: Record<string, number> = {};
@@ -328,6 +352,32 @@ export class DatabaseStorage implements IStorage {
 
   async markAllAlertsRead(userId: number): Promise<void> {
     await db.update(alerts).set({ isRead: true }).where(eq(alerts.userId, userId));
+  }
+
+  async createSlackChannelConfig(config: InsertSlackChannelConfig): Promise<SlackChannelConfig> {
+    const [created] = await db.insert(slackChannelConfigs).values(config).returning();
+    return created;
+  }
+
+  async getSlackChannelConfigsByCohort(cohortId: number): Promise<SlackChannelConfig[]> {
+    return db.select().from(slackChannelConfigs).where(eq(slackChannelConfigs.cohortId, cohortId));
+  }
+
+  async getAllSlackChannelConfigs(): Promise<SlackChannelConfig[]> {
+    return db.select().from(slackChannelConfigs);
+  }
+
+  async getAllEnabledSlackChannelConfigs(): Promise<SlackChannelConfig[]> {
+    return db.select().from(slackChannelConfigs).where(eq(slackChannelConfigs.enabled, true));
+  }
+
+  async updateSlackChannelConfig(id: number, data: Partial<InsertSlackChannelConfig>): Promise<SlackChannelConfig | undefined> {
+    const [updated] = await db.update(slackChannelConfigs).set(data).where(eq(slackChannelConfigs.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSlackChannelConfig(id: number): Promise<void> {
+    await db.delete(slackChannelConfigs).where(eq(slackChannelConfigs.id, id));
   }
 
   async createScanConfig(config: InsertScanConfig): Promise<ScanConfig> {

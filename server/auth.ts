@@ -247,6 +247,8 @@ export function setupAuth(app: Express) {
             batchId: "demo-batch-001",
             needsResponse: false,
             urgency: "low",
+            source: "gmail",
+            emailSubject: "Absent today — migraine",
           },
           {
             userId: instructor1.id,
@@ -262,6 +264,8 @@ export function setupAuth(app: Express) {
             batchId: "demo-batch-001",
             needsResponse: false,
             urgency: "low",
+            source: "gmail",
+            emailSubject: "Out for networking event",
           },
           {
             userId: instructor1.id,
@@ -278,6 +282,8 @@ export function setupAuth(app: Express) {
             needsResponse: true,
             urgency: "medium",
             alertReason: "Student is asking for materials they will miss",
+            source: "gmail",
+            emailSubject: "Family visit — absent today",
           },
           {
             userId: instructor1.id,
@@ -293,6 +299,11 @@ export function setupAuth(app: Express) {
             batchId: "demo-batch-001",
             needsResponse: false,
             urgency: "low",
+            source: "slack",
+            slackChannelName: "#l1-attendance",
+            slackChannelId: "C01DEMO001",
+            slackMessageTs: "1709100000.000100",
+            slackIsDm: false,
           },
           {
             userId: instructor1.id,
@@ -309,6 +320,8 @@ export function setupAuth(app: Express) {
             needsResponse: true,
             urgency: "high",
             alertReason: "Student has a job interview and is asking about leaving early and whether there will be a recording",
+            source: "gmail",
+            emailSubject: "Leaving early — job interview",
           },
           {
             userId: instructor2.id,
@@ -324,6 +337,9 @@ export function setupAuth(app: Express) {
             batchId: "demo-batch-001",
             needsResponse: false,
             urgency: "low",
+            source: "slack",
+            slackIsDm: true,
+            slackMessageTs: "1709100000.000200",
           },
           {
             userId: instructor2.id,
@@ -339,6 +355,11 @@ export function setupAuth(app: Express) {
             batchId: "demo-batch-001",
             needsResponse: false,
             urgency: "low",
+            source: "slack",
+            slackChannelName: "#l3-general",
+            slackChannelId: "C01DEMO003",
+            slackMessageTs: "1709100000.000300",
+            slackIsDm: false,
           },
         ];
 

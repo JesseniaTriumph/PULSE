@@ -409,8 +409,11 @@ export async function registerRoutes(
     try {
       const { studentId, cohortId } = req.query;
       const user = await storage.getUserById(req.session.userId!);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
       if (studentId) {
-        if (user && user.role !== "admin") {
+        if (user.role !== "admin") {
           const student = await storage.getStudentById(parseInt(studentId as string));
           if (student) {
             const cohort = await storage.getCohortById(student.cohortId);
@@ -423,7 +426,7 @@ export async function registerRoutes(
         return res.json(records);
       }
       if (cohortId) {
-        if (user && user.role !== "admin") {
+        if (user.role !== "admin") {
           const cohort = await storage.getCohortById(parseInt(cohortId as string));
           if (!cohort || cohort.instructorId !== user.id) {
             return res.status(403).json({ error: "Access denied" });
@@ -432,8 +435,13 @@ export async function registerRoutes(
         const records = await storage.getRecordsByCohort(parseInt(cohortId as string));
         return res.json(records);
       }
-      const records = await storage.getAllRecords(req.session.userId!);
-      res.json(records);
+      if (user.role === "admin") {
+        const records = await storage.getAllRecordsAdmin();
+        res.json(records);
+      } else {
+        const records = await storage.getAllRecords(req.session.userId!);
+        res.json(records);
+      }
     } catch (error) {
       console.error("Error fetching records:", error);
       res.status(500).json({ error: "Failed to fetch records" });
@@ -457,9 +465,12 @@ export async function registerRoutes(
   app.get("/api/stats", requireAuth, async (req, res) => {
     try {
       const { cohortId } = req.query;
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
       if (cohortId) {
-        const user = await storage.getUserById(req.session.userId!);
-        if (user && user.role !== "admin") {
+        if (user.role !== "admin") {
           const cohort = await storage.getCohortById(parseInt(cohortId as string));
           if (!cohort || cohort.instructorId !== user.id) {
             return res.status(403).json({ error: "Access denied" });
@@ -468,8 +479,13 @@ export async function registerRoutes(
         const stats = await storage.getStatsByCohort(parseInt(cohortId as string));
         return res.json(stats);
       }
-      const stats = await storage.getStats(req.session.userId!);
-      res.json(stats);
+      if (user.role === "admin") {
+        const stats = await storage.getStatsAdmin();
+        res.json(stats);
+      } else {
+        const stats = await storage.getStats(req.session.userId!);
+        res.json(stats);
+      }
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ error: "Failed to fetch stats" });
@@ -778,6 +794,65 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error exporting DOC:", error);
       res.status(500).json({ error: "Failed to export document" });
+    }
+  });
+
+  app.get("/api/slack-channels", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.session.userId!);
+      if (!user) return res.status(401).json({ error: "User not found" });
+      if (user.role === "admin") {
+        const configs = await storage.getAllSlackChannelConfigs();
+        res.json(configs);
+      } else {
+        const cohortList = await storage.getCohortsByInstructor(user.id);
+        const configs: any[] = [];
+        for (const c of cohortList) {
+          const cc = await storage.getSlackChannelConfigsByCohort(c.id);
+          configs.push(...cc);
+        }
+        res.json(configs);
+      }
+    } catch (error) {
+      console.error("Error fetching slack channels:", error);
+      res.status(500).json({ error: "Failed to fetch slack channels" });
+    }
+  });
+
+  app.post("/api/slack-channels", requireAdmin, async (req, res) => {
+    try {
+      const { cohortId, channelId, channelName } = req.body;
+      if (!cohortId || !channelId || !channelName) {
+        return res.status(400).json({ error: "cohortId, channelId, and channelName are required" });
+      }
+      const config = await storage.createSlackChannelConfig({ cohortId, channelId, channelName });
+      res.status(201).json(config);
+    } catch (error) {
+      console.error("Error creating slack channel config:", error);
+      res.status(500).json({ error: "Failed to create slack channel config" });
+    }
+  });
+
+  app.patch("/api/slack-channels/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const config = await storage.updateSlackChannelConfig(id, req.body);
+      if (!config) return res.status(404).json({ error: "Config not found" });
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating slack channel config:", error);
+      res.status(500).json({ error: "Failed to update config" });
+    }
+  });
+
+  app.delete("/api/slack-channels/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteSlackChannelConfig(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting slack channel config:", error);
+      res.status(500).json({ error: "Failed to delete config" });
     }
   });
 
