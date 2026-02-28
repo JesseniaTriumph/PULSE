@@ -61,6 +61,7 @@ export interface IStorage {
   getUnreadAlertCount(userId: number): Promise<number>;
   getAllUnreadAlertCount(): Promise<number>;
   markAlertRead(id: number): Promise<Alert | undefined>;
+  markAlertUnread(id: number): Promise<Alert | undefined>;
   markAllAlertsRead(userId: number): Promise<void>;
 
   createScanConfig(config: InsertScanConfig): Promise<ScanConfig>;
@@ -317,6 +318,11 @@ export class DatabaseStorage implements IStorage {
 
   async markAlertRead(id: number): Promise<Alert | undefined> {
     const [updated] = await db.update(alerts).set({ isRead: true }).where(eq(alerts.id, id)).returning();
+    return updated;
+  }
+
+  async markAlertUnread(id: number): Promise<Alert | undefined> {
+    const [updated] = await db.update(alerts).set({ isRead: false }).where(eq(alerts.id, id)).returning();
     return updated;
   }
 

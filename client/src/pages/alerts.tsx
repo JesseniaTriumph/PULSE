@@ -57,6 +57,17 @@ export default function AlertsPage() {
     }
   };
 
+  const handleMarkUnread = async (id: number) => {
+    try {
+      await apiRequest("PATCH", `/api/alerts/${id}/unread`);
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts/unread-count"] });
+      toast({ title: "Alert marked as unread" });
+    } catch {
+      toast({ title: "Failed to update", variant: "destructive" });
+    }
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await apiRequest("POST", "/api/alerts/mark-all-read");
@@ -186,6 +197,17 @@ export default function AlertsPage() {
                         className="hover:bg-violet-500/10 text-xs"
                       >
                         <Reply className="w-3.5 h-3.5 mr-1" /> Reply
+                      </Button>
+                    )}
+                    {alert.isRead && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => { e.stopPropagation(); handleMarkUnread(alert.id); }}
+                        data-testid={`button-unread-alert-${alert.id}`}
+                        className="hover:bg-violet-500/10 text-xs"
+                      >
+                        Mark Unread
                       </Button>
                     )}
                     {!alert.isRead && (

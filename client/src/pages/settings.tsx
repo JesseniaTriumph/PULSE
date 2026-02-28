@@ -113,8 +113,8 @@ export default function SettingsPage() {
               {user?.googleId ? "Connected" : "Not Connected"}
             </Badge>
           </div>
-          {!user?.googleId && (
-            <div className="pt-2">
+          <div className="pt-2 flex gap-2">
+            {!user?.googleId ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -124,8 +124,18 @@ export default function SettingsPage() {
               >
                 <Mail className="w-4 h-4 mr-1.5" /> Connect Google Account
               </Button>
-            </div>
-          )}
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-violet-500/30"
+                onClick={() => window.location.href = "/api/auth/google"}
+                data-testid="button-reconnect-google"
+              >
+                <Mail className="w-4 h-4 mr-1.5" /> Reconnect Google Account
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 

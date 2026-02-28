@@ -334,6 +334,18 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/alerts/:id/unread", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updated = await storage.markAlertUnread(id);
+      if (!updated) return res.status(404).json({ error: "Alert not found" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error marking alert unread:", error);
+      res.status(500).json({ error: "Failed to mark alert unread" });
+    }
+  });
+
   app.post("/api/alerts/mark-all-read", requireAuth, async (req, res) => {
     try {
       await storage.markAllAlertsRead(req.session.userId!);
