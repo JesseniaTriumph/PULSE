@@ -219,10 +219,10 @@ export default function Dashboard() {
           {isAdmin && cohorts.length > 0 && (
             <Select value={filterCohort} onValueChange={setFilterCohort}>
               <SelectTrigger className="w-[130px] border-violet-500/20 h-8 text-xs" data-testid="select-filter-cohort">
-                <SelectValue placeholder="All Cohorts" />
+                <SelectValue placeholder="All Classes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Cohorts</SelectItem>
+                <SelectItem value="all">All Classes</SelectItem>
                 {cohorts.map(c => (
                   <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                 ))}

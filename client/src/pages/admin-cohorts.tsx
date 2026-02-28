@@ -50,20 +50,20 @@ export default function AdminCohortsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
       setAddDialogOpen(false);
       setNewCohort({ name: "", instructorId: "" });
-      toast({ title: "Cohort created" });
+      toast({ title: "Class created" });
     } catch {
-      toast({ title: "Failed to create cohort", variant: "destructive" });
+      toast({ title: "Failed to create class", variant: "destructive" });
     }
   };
 
   const handleDeleteCohort = async (id: number) => {
-    if (!confirm("Delete this cohort? All students in it must be removed first.")) return;
+    if (!confirm("Delete this class? All students in it must be removed first.")) return;
     try {
       await apiRequest("DELETE", `/api/cohorts/${id}`);
       queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
-      toast({ title: "Cohort deleted" });
+      toast({ title: "Class deleted" });
     } catch {
-      toast({ title: "Failed to delete cohort", variant: "destructive" });
+      toast({ title: "Failed to delete class", variant: "destructive" });
     }
   };
 
@@ -86,11 +86,11 @@ export default function AdminCohortsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold" data-testid="text-page-title">Cohort Management</h2>
-          <p className="text-sm text-muted-foreground">{cohorts.length} cohorts, {instructors.length} instructors</p>
+          <h2 className="text-2xl font-bold" data-testid="text-page-title">Class Management</h2>
+          <p className="text-sm text-muted-foreground">{cohorts.length} classes, {instructors.length} instructors</p>
         </div>
         <Button size="sm" onClick={() => setAddDialogOpen(true)} data-testid="button-add-cohort" className="bg-gradient-to-r from-violet-600 to-indigo-600">
-          <Plus className="w-4 h-4 mr-1.5" /> New Cohort
+          <Plus className="w-4 h-4 mr-1.5" /> New Class
         </Button>
       </div>
 
@@ -98,8 +98,8 @@ export default function AdminCohortsPage() {
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Building2 className="w-12 h-12 text-violet-400 mb-4" />
-            <h3 className="text-lg font-medium mb-1">No cohorts yet</h3>
-            <p className="text-sm text-muted-foreground">Create cohorts and assign instructors to get started.</p>
+            <h3 className="text-lg font-medium mb-1">No classes yet</h3>
+            <p className="text-sm text-muted-foreground">Create classes and assign instructors to get started.</p>
           </CardContent>
         </Card>
       ) : (
@@ -156,11 +156,11 @@ export default function AdminCohortsPage() {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="border-violet-500/20 bg-card/95 backdrop-blur-md">
           <DialogHeader>
-            <DialogTitle>Create Cohort</DialogTitle>
+            <DialogTitle>Create Class</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Cohort Name</Label>
+              <Label>Class Name</Label>
               <Input value={newCohort.name} onChange={e => setNewCohort(p => ({ ...p, name: e.target.value }))} placeholder="e.g., L1, L2, L3, L∞" className="border-violet-500/20" data-testid="input-cohort-name" />
             </div>
             <div>
@@ -179,7 +179,7 @@ export default function AdminCohortsPage() {
           </div>
           <DialogFooter>
             <Button onClick={handleCreateCohort} data-testid="button-submit-cohort" className="bg-gradient-to-r from-violet-600 to-indigo-600">
-              Create Cohort
+              Create Class
             </Button>
           </DialogFooter>
         </DialogContent>

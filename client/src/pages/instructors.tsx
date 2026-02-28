@@ -60,8 +60,8 @@ export default function InstructorsPage() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Building2 className="w-3.5 h-3.5" />
                     {assignedCohorts.length === 0
-                      ? "No cohorts assigned"
-                      : `Cohorts: ${assignedCohorts.map(c => c.name).join(", ")}`
+                      ? "No classes assigned"
+                      : `Classes: ${assignedCohorts.map(c => c.name).join(", ")}`
                     }
                   </div>
                 </CardContent>

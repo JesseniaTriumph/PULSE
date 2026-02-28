@@ -40,7 +40,7 @@ export function AppSidebar() {
     { path: "/schedule", label: "Schedule", icon: CalendarDays },
     { path: "/alerts", label: "Alerts", icon: Bell, badge: unreadCount },
     ...(isAdmin ? [
-      { path: "/cohorts", label: "Cohorts", icon: Building2 },
+      { path: "/cohorts", label: "Classes", icon: Building2 },
       { path: "/instructors", label: "Instructors", icon: Users },
     ] : []),
     { path: "/settings", label: "Settings", icon: Settings },

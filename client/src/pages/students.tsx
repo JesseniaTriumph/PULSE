@@ -191,7 +191,7 @@ export default function StudentsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold" data-testid="text-page-title">Student Roster</h2>
-          <p className="text-sm text-muted-foreground">{students.length} students across {cohorts.length} cohorts</p>
+          <p className="text-sm text-muted-foreground">{students.length} students across {cohorts.length} classes</p>
         </div>
         <Button size="sm" onClick={() => setAddDialogOpen(true)} data-testid="button-add-student" className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700">
           <Plus className="w-4 h-4 mr-1.5" /> Add Student
@@ -211,10 +211,10 @@ export default function StudentsPage() {
         </div>
         <Select value={filterCohort} onValueChange={setFilterCohort}>
           <SelectTrigger className="w-[140px] border-violet-500/20" data-testid="select-filter-cohort">
-            <SelectValue placeholder="All Cohorts" />
+            <SelectValue placeholder="All Classes" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Cohorts</SelectItem>
+            <SelectItem value="all">All Classes</SelectItem>
             {cohorts.map(c => (
               <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
             ))}
@@ -229,7 +229,7 @@ export default function StudentsPage() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <GraduationCap className="w-12 h-12 text-violet-400 mb-4" />
             <h3 className="text-lg font-medium mb-1">No students found</h3>
-            <p className="text-sm text-muted-foreground">Add students to your cohorts to start tracking attendance.</p>
+            <p className="text-sm text-muted-foreground">Add students to your classes to start tracking attendance.</p>
           </CardContent>
         </Card>
       ) : (
@@ -282,10 +282,10 @@ export default function StudentsPage() {
               <Input value={newStudent.email} onChange={e => setNewStudent(p => ({ ...p, email: e.target.value }))} placeholder="student@email.com" className="border-violet-500/20" data-testid="input-student-email" />
             </div>
             <div>
-              <Label>Cohort</Label>
+              <Label>Class</Label>
               <Select value={newStudent.cohortId} onValueChange={v => setNewStudent(p => ({ ...p, cohortId: v }))}>
                 <SelectTrigger className="border-violet-500/20" data-testid="select-student-cohort">
-                  <SelectValue placeholder="Select cohort" />
+                  <SelectValue placeholder="Select class" />
                 </SelectTrigger>
                 <SelectContent>
                   {cohorts.map(c => (

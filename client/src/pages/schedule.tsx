@@ -77,12 +77,12 @@ export default function SchedulePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold" data-testid="text-page-title">Class Schedule</h2>
-          <p className="text-sm text-muted-foreground">Manage weekly schedule for your cohorts</p>
+          <p className="text-sm text-muted-foreground">Manage weekly schedule for your classes</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={cohortId} onValueChange={v => setSelectedCohort(v)}>
             <SelectTrigger className="w-[140px] border-violet-500/20" data-testid="select-schedule-cohort">
-              <SelectValue placeholder="Select cohort" />
+              <SelectValue placeholder="Select class" />
             </SelectTrigger>
             <SelectContent>
               {cohorts.map(c => (
@@ -100,8 +100,8 @@ export default function SchedulePage() {
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <CalendarDays className="w-12 h-12 text-violet-400 mb-4" />
-            <h3 className="text-lg font-medium mb-1">No cohorts available</h3>
-            <p className="text-sm text-muted-foreground">Create a cohort first to manage schedules.</p>
+            <h3 className="text-lg font-medium mb-1">No classes available</h3>
+            <p className="text-sm text-muted-foreground">Create a class first to manage schedules.</p>
           </CardContent>
         </Card>
       ) : (
