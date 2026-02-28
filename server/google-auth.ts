@@ -183,7 +183,7 @@ export function setupGoogleAuth(app: Express) {
 
     try {
       const { maxResults = 20, query = "" } = req.body;
-      const searchQuery = query || "subject:(absent OR excuse OR sick OR cannot attend OR won't be able OR late OR tardy OR running late OR delayed OR will be late)";
+      const searchQuery = query || "(absent OR absence OR excuse OR sick OR cannot attend OR won't be able OR can't make it OR unable to attend OR not coming OR won't be in OR missing class OR missing session OR out today OR out sick OR not feeling well OR under the weather OR late OR tardy OR running late OR delayed OR will be late OR running behind OR held up OR stuck in traffic OR won't make it on time OR stepping out OR leaving early OR emergency OR appointment OR called out)";
 
       const params = new URLSearchParams({
         maxResults: String(Math.min(maxResults, 50)),
