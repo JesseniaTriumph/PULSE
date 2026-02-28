@@ -3,14 +3,21 @@ import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const attendanceTypes = [
+  "Absent",
+  "Late/Tardy",
+  "Unexcused",
+] as const;
+
+export type AttendanceType = (typeof attendanceTypes)[number];
+
 export const excuseCategories = [
   "Sick/Medical",
   "Personal",
   "Program Event",
   "Technical Issue",
-  "Late/Tardy",
   "Other",
-  "Unexcused",
+  "None",
 ] as const;
 
 export type ExcuseCategory = (typeof excuseCategories)[number];
@@ -34,6 +41,7 @@ export const attendanceRecords = pgTable("attendance_records", {
   senderEmail: text("sender_email").notNull(),
   receivedAt: timestamp("received_at").notNull(),
   emailBody: text("email_body").notNull(),
+  attendanceType: text("attendance_type").notNull().default("Absent"),
   excuseCategory: text("excuse_category").notNull(),
   messageSnippet: text("message_snippet").notNull(),
   status: text("status").notNull().default("pending"),
