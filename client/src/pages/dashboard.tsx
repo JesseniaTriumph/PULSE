@@ -99,19 +99,13 @@ const categoryConfig: Record<
     bgClass: "bg-violet-500/10 border-violet-500/20",
     glowClass: "shadow-violet-500/10",
   },
-  "Late/Tardy": {
-    icon: Clock,
-    color: "text-orange-400",
-    bgClass: "bg-orange-500/10 border-orange-500/20",
-    glowClass: "shadow-orange-500/10",
-  },
   Other: {
     icon: HelpCircle,
     color: "text-emerald-400",
     bgClass: "bg-emerald-500/10 border-emerald-500/20",
     glowClass: "shadow-emerald-500/10",
   },
-  Unexcused: {
+  None: {
     icon: XCircle,
     color: "text-slate-400",
     bgClass: "bg-slate-500/10 border-slate-500/20",
@@ -165,9 +159,15 @@ export default function Dashboard() {
     });
   }, [records, timePeriod]);
 
+  const [filterType, setFilterType] = useState<string>("all");
+
+  const typeFilteredRecords = filterType === "all"
+    ? timeFilteredRecords
+    : timeFilteredRecords.filter((r) => r.attendanceType === filterType);
+
   const filteredRecords = filterCategory
-    ? timeFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
-    : timeFilteredRecords;
+    ? typeFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
+    : typeFilteredRecords;
 
   const periodStats = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -283,6 +283,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 no-print">
+
         <Card
           className={`cursor-pointer transition-all border ${
             filterCategory === null
@@ -342,7 +343,7 @@ export default function Dashboard() {
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-lg font-semibold">
             Records
             {filterCategory && (
@@ -351,6 +352,44 @@ export default function Dashboard() {
               </Badge>
             )}
           </h2>
+          <div className="flex items-center gap-1 no-print">
+            <Button
+              size="sm"
+              variant={filterType === "all" ? "default" : "outline"}
+              onClick={() => setFilterType("all")}
+              data-testid="button-type-all"
+              className={filterType === "all" ? "bg-gradient-to-r from-violet-600 to-indigo-600 h-7 text-xs" : "border-violet-500/30 hover:bg-violet-500/10 h-7 text-xs"}
+            >
+              All ({timeFilteredRecords.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterType === "Absent" ? "default" : "outline"}
+              onClick={() => setFilterType(filterType === "Absent" ? "all" : "Absent")}
+              data-testid="button-type-absent"
+              className={filterType === "Absent" ? "bg-gradient-to-r from-rose-600 to-rose-500 h-7 text-xs" : "border-rose-500/30 hover:bg-rose-500/10 text-rose-400 h-7 text-xs"}
+            >
+              Absent ({timeFilteredRecords.filter(r => r.attendanceType === "Absent").length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterType === "Late/Tardy" ? "default" : "outline"}
+              onClick={() => setFilterType(filterType === "Late/Tardy" ? "all" : "Late/Tardy")}
+              data-testid="button-type-late"
+              className={filterType === "Late/Tardy" ? "bg-gradient-to-r from-orange-600 to-orange-500 h-7 text-xs" : "border-orange-500/30 hover:bg-orange-500/10 text-orange-400 h-7 text-xs"}
+            >
+              Late/Tardy ({timeFilteredRecords.filter(r => r.attendanceType === "Late/Tardy").length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filterType === "Unexcused" ? "default" : "outline"}
+              onClick={() => setFilterType(filterType === "Unexcused" ? "all" : "Unexcused")}
+              data-testid="button-type-unexcused"
+              className={filterType === "Unexcused" ? "bg-gradient-to-r from-slate-600 to-slate-500 h-7 text-xs" : "border-slate-500/30 hover:bg-slate-500/10 text-slate-400 h-7 text-xs"}
+            >
+              Unexcused ({timeFilteredRecords.filter(r => r.attendanceType === "Unexcused").length})
+            </Button>
+          </div>
           <Badge variant="outline" className="border-violet-500/30">{filteredRecords.length}</Badge>
           {timePeriod !== "all" && (
             <span className="text-xs text-muted-foreground hidden sm:inline">
