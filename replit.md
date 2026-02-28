@@ -67,6 +67,7 @@ client/src/components/gmail-fetch-dialog.tsx  - Gmail inbox search and email sel
 - `DELETE /api/records/:id` - Delete record
 - `GET /api/export/csv` - Download CSV report
 - `GET /api/export/doc` - Download DOCX report
+- `GET /api/export/json` - Download JSON report (for database import)
 
 ## Database
 - PostgreSQL via Neon

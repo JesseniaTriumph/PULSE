@@ -23,6 +23,7 @@ import {
   Mail,
   Sun,
   Moon,
+  Braces,
 } from "lucide-react";
 import type { AttendanceRecord } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -167,6 +168,10 @@ export default function Dashboard() {
 
   const handleExportDoc = () => {
     window.open("/api/export/doc", "_blank");
+  };
+
+  const handleExportJSON = () => {
+    window.open("/api/export/json", "_blank");
   };
 
   const handleClearAll = async () => {
@@ -396,6 +401,16 @@ export default function Dashboard() {
                   >
                     <FileText className="w-4 h-4 mr-1.5" />
                     DOC
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleExportJSON}
+                    data-testid="button-export-json"
+                    className="border-violet-500/30 hover:bg-violet-500/10"
+                  >
+                    <Braces className="w-4 h-4 mr-1.5" />
+                    JSON
                   </Button>
                   <Button
                     size="sm"

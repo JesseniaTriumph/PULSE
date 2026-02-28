@@ -200,6 +200,29 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/export/json", requireAuth, async (req, res) => {
+    try {
+      const records = await storage.getAllRecords(req.session.userId!);
+      const data = records.map((r) => ({
+        senderName: r.senderName,
+        senderEmail: r.senderEmail,
+        receivedAt: r.receivedAt,
+        emailBody: r.emailBody,
+        excuseCategory: r.excuseCategory,
+        messageSnippet: r.messageSnippet,
+        status: r.status,
+        batchId: r.batchId,
+        createdAt: r.createdAt,
+      }));
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", "attachment; filename=attendance_report.json");
+      res.send(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Error exporting JSON:", error);
+      res.status(500).json({ error: "Failed to export JSON" });
+    }
+  });
+
   app.get("/api/export/doc", requireAuth, async (req, res) => {
     try {
       const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, HeadingLevel, BorderStyle } = await import("docx");
