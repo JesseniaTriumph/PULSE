@@ -33,7 +33,7 @@ export default function InstructorsPage() {
       {instructors.length === 0 ? (
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Users className="w-12 h-12 text-violet-400 mb-4" />
+            <Users className="w-12 h-12 text-violet-600 dark:text-violet-400 mb-4" />
             <h3 className="text-lg font-medium mb-1">No instructors yet</h3>
             <p className="text-sm text-muted-foreground">Instructors will appear here after they register.</p>
           </CardContent>

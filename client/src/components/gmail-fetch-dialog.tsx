@@ -164,7 +164,7 @@ export function GmailFetchDialog({ open, onOpenChange }: GmailFetchDialogProps) 
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col border-violet-500/20 bg-card/95 backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-violet-400" />
+            <Mail className="w-5 h-5 text-violet-600 dark:text-violet-400" />
             Fetch Emails from Gmail
           </DialogTitle>
           <DialogDescription>

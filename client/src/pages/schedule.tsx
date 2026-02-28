@@ -99,7 +99,7 @@ export default function SchedulePage() {
       {!cohortId ? (
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <CalendarDays className="w-12 h-12 text-violet-400 mb-4" />
+            <CalendarDays className="w-12 h-12 text-violet-600 dark:text-violet-400 mb-4" />
             <h3 className="text-lg font-medium mb-1">No classes available</h3>
             <p className="text-sm text-muted-foreground">Create a class first to manage schedules.</p>
           </CardContent>
@@ -118,7 +118,7 @@ export default function SchedulePage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     {dayNames[day]}
-                    {isToday && <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px]">Today</Badge>}
+                    {isToday && <Badge className="bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500/30 text-[10px]">Today</Badge>}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -127,7 +127,7 @@ export default function SchedulePage() {
                   ) : (
                     entries.map(entry => (
                       <div key={entry.id} className="flex items-center gap-2 bg-violet-500/5 rounded-lg p-2 group" data-testid={`schedule-entry-${entry.id}`}>
-                        <Clock className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />
+                        <Clock className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{entry.label}</p>
                           <p className="text-xs text-muted-foreground">{entry.startTime} - {entry.endTime}</p>
@@ -135,7 +135,7 @@ export default function SchedulePage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="opacity-0 group-hover:opacity-100 h-6 w-6 hover:bg-rose-500/10 hover:text-rose-400"
+                          className="opacity-0 group-hover:opacity-100 h-6 w-6 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
                           onClick={() => handleDelete(entry.id)}
                           data-testid={`button-delete-schedule-${entry.id}`}
                         >

@@ -383,7 +383,7 @@ export default function StudentsPage() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="hover:bg-rose-500/10 hover:text-rose-400 h-6 w-6"
+                        className="hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 h-6 w-6"
                         onClick={(e) => { e.stopPropagation(); handleDeleteStudent(student.id); }}
                         data-testid={`button-delete-student-${student.id}`}
                       >

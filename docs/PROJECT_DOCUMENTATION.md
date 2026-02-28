@@ -25,11 +25,11 @@
 
 ### 1.1 Product Overview
 
-PULSE is a space-themed, multi-tenant AI-powered attendance automation tool designed for Pursuit (tech training program). It processes student absence and tardiness emails using a dual-classification system (attendance type + excuse reason), supports role-based access (Admin/Instructor), class management (L1, L2, L3, L∞), student rosters with status tracking (Active/Graduated/Hired), class progression, weekly class schedules, automated Gmail scanning at configurable times, an alert system for urgent student messages, and direct email reply from the portal. The application features Google OAuth integration for Gmail inbox reading and sending, multi-LLM AI fallback for cost optimization, time-period filtering, export/print capabilities, and a dark/light mode toggle with animated star field.
+PULSE is a space-themed, multi-tenant AI-powered attendance automation tool designed for Pursuit (tech training program). It processes student absence and tardiness messages from **Gmail AND Slack** using a dual-classification system (attendance type + excuse reason), supports role-based access (Admin/Instructor), class management (L1, L2, L3, L∞), student rosters with status tracking (Active/Graduated/Hired), class progression, weekly class schedules, automated scanning at configurable times with **per-source control** (Gmail/Slack independently per time slot), an alert system for urgent student messages, and direct email reply from the portal. The application features Google OAuth integration for Gmail inbox reading and sending, Slack Bot Token integration for channel/DM scanning, multi-LLM AI fallback for cost optimization, time-period filtering, export/print capabilities, and a dark/light mode toggle with animated star field.
 
 ### 1.2 Problem Statement
 
-Program administrators and instructors spend significant time manually reading, sorting, and responding to student absence and tardiness emails across multiple classes. Students communicate through various channels (email, Slack channels, DMs), making it difficult to track attendance comprehensively. PULSE automates the email-based portion of this process by ingesting emails (manually, in batch, or directly from Gmail), using AI to classify both the attendance type and excuse reason, detecting alerts for messages that need instructor response, and presenting the data in a filterable, exportable, role-scoped dashboard.
+Program administrators and instructors spend significant time manually reading, sorting, and responding to student absence and tardiness messages across multiple classes and channels. Students communicate through email, Slack channels, and DMs, making it difficult to track attendance comprehensively. PULSE automates this process by ingesting messages from Gmail and Slack (manually, in batch, directly from Gmail, or via automated scanning), using AI to classify both the attendance type and excuse reason, detecting alerts for messages that need instructor response, and presenting the data in a filterable, exportable, role-scoped dashboard.
 
 ### 1.3 Target Users
 
@@ -51,7 +51,9 @@ Program administrators and instructors spend significant time manually reading, 
 | **Alert Detection** | AI flags emails needing instructor response (questions, special requests, urgent matters); urgency levels (low/medium/high); peer mention detection (student-about-student); school/program mention detection |
 | **Alert Management** | Alert feed with mark read/unread, urgency color-coding, full email body detail view, unread count badge in sidebar |
 | **Email Reply from Portal** | Compose and send replies to student emails directly from the Alerts page; sent via instructor's connected Gmail with proper email threading |
-| **Automated Gmail Scanning** | Scheduler checks every 30 seconds for configured scan times; auto-fetches and processes new emails; default times: 10:00 AM, 6:25 PM, 9:55 PM |
+| **Automated Multi-Source Scanning** | Scheduler checks every 30 seconds for configured scan times; auto-fetches and processes messages from Gmail and/or Slack; per-source toggles (Gmail/Slack) per scan time; default times: 10:00 AM, 2:00 PM, 6:25 PM, 8:00 PM, 9:55 PM |
+| **Slack Scanning** | Scans configured Slack channels and DMs for attendance-related keywords using SLACK_BOT_TOKEN; processes through same AI classification as Gmail; matches senders to student roster; creates records with Slack metadata (channel name, DM indicator) |
+| **Multi-Source Dashboard** | Source filter buttons (Gmail/Slack) on Dashboard; source column in records table with icons (Mail for Gmail, MessageSquare for Slack); source-specific detail in record dialog |
 | **Manual Email Entry** | Single email form with sender name, email, date, and body |
 | **Batch Upload** | Paste or upload JSON/CSV with multiple emails; processed with real-time SSE streaming |
 | **Gmail Fetch** | OAuth 2.0 + Gmail API to search, select, and process emails directly from inbox |
@@ -64,7 +66,7 @@ Program administrators and instructors spend significant time manually reading, 
 | **Dark / Light Mode** | Space-dark theme with 120 animated stars; clean-light theme with 20 corner sparkles |
 | **Google OAuth** | Sign-in + Gmail read/send; reconnect button for scope upgrades |
 | **Demo Mode** | One-click demo with admin account, 2 instructors, 4 classes, 12 students, 7 records, 2 alerts |
-| **Settings** | Scan schedule config, account info, Google connection status and reconnect |
+| **Settings** | Scan schedule config with per-source Gmail/Slack toggles per time slot, account info, Google connection status and reconnect |
 
 ### 1.5 Attendance Classification System
 
@@ -174,9 +176,15 @@ The AI also detects when emails need instructor attention:
 │  ┌────────────────────────────────────┐  ┌───────────────────────┐│
 │  │   Multi-LLM AI Engine (OpenAI)    │  │    Scheduler          ││
 │  │   nano → mini → full fallback     │  │    (30s interval)     ││
-│  │   Dual classification + alerts    │  │    Automated Gmail    ││
+│  │   Dual classification + alerts    │  │    Gmail + Slack scan  ││
 │  └────────────────────────────────────┘  └───────────────────────┘│
-└──────────────────────────────────────────────────────────────────-─┘
+│                                                                    │
+│  ┌────────────────────────────────────┐                            │
+│  │   Slack Scanner                    │                            │
+│  │   Channel + DM scanning           │                            │
+│  │   Keyword match → AI classify     │                            │
+│  └────────────────────────────────────┘                            │
+└───────────────────────────────────────────────────────────────────-┘
 ```
 
 ### 2.2 Technology Stack
@@ -246,7 +254,8 @@ pulse/
 │   ├── routes.ts                      # All CRUD endpoints with role middleware
 │   ├── openai.ts                      # Multi-LLM AI classification + alert detection
 │   ├── storage.ts                     # IStorage interface + DatabaseStorage implementation
-│   ├── scheduler.ts                   # Automated email scanning (30s interval)
+│   ├── scheduler.ts                   # Automated scanning scheduler (30s interval, Gmail + Slack)
+│   ├── slack-scanner.ts               # Slack channel/DM scanner (keyword match → AI classify)
 │   ├── db.ts                          # Drizzle + Neon connection
 │   ├── vite.ts                        # Vite dev middleware (DO NOT MODIFY)
 │   └── static.ts                      # Static file serving (production)
@@ -289,33 +298,34 @@ pulse/
 │ username       TEXT NOT NULL UQ │  │    │ user_id       INT NOT NULL FK   │──→ users.id
 │ email          TEXT NOT NULL UQ │  │    │ scan_time     TEXT NOT NULL     │
 │ password       TEXT NOT NULL    │  │    │ enabled       BOOLEAN DEFAULT T │
-│ display_name   TEXT NOT NULL    │  │    │ created_at    TIMESTAMP         │
-│ role           TEXT DEFAULT     │  │    └──────────────────────────────────┘
-│                'instructor'    │  │
-│ google_id      TEXT UQ         │  │
+│ display_name   TEXT NOT NULL    │  │    │ scan_gmail    BOOLEAN DEFAULT T │
+│ role           TEXT DEFAULT     │  │    │ scan_slack    BOOLEAN DEFAULT T │
+│                'instructor'    │  │    │ created_at    TIMESTAMP         │
+│ google_id      TEXT UQ         │  │    └──────────────────────────────────┘
 │ google_access_token  TEXT      │  │
-│ google_refresh_token TEXT      │  │
-│ created_at     TIMESTAMP       │  │
-└─────────────────────────────────┘  │
-         │                           │
-         │ 1:N (instructor_id)       │ 1:N (user_id)
-         ▼                           │
-┌─────────────────────────────────┐  │    ┌──────────────────────────────────┐
-│           cohorts               │  │    │            alerts                │
-├─────────────────────────────────┤  │    ├──────────────────────────────────┤
-│ id             SERIAL PK       │  │    │ id            SERIAL PK         │
-│ name           TEXT NOT NULL    │  │    │ user_id       INT NOT NULL FK   │──→ users.id
-│ instructor_id  INT NOT NULL FK │──┘    │ record_id     INT NOT NULL FK   │──→ attendance_records.id
-│ created_at     TIMESTAMP       │       │ alert_type    TEXT NOT NULL      │
-└─────────────────────────────────┘       │ message       TEXT NOT NULL      │
-         │                                │ urgency       TEXT DEFAULT 'low' │
-         │ 1:N (cohort_id)               │ is_read       BOOLEAN DEFAULT F  │
-         ├──────────────┐                 │ created_at    TIMESTAMP          │
-         ▼              ▼                 └──────────────────────────────────┘
-┌──────────────────┐ ┌──────────────────┐
-│    students      │ │   schedules      │
-├──────────────────┤ ├──────────────────┤
-│ id     SERIAL PK │ │ id     SERIAL PK │
+│ google_refresh_token TEXT      │  │    ┌──────────────────────────────────┐
+│ slack_user_id  TEXT            │  │    │       slack_channel_configs      │
+│ created_at     TIMESTAMP       │  │    ├──────────────────────────────────┤
+└─────────────────────────────────┘  │    │ id            SERIAL PK         │
+         │                           │    │ cohort_id     INT NOT NULL FK   │──→ cohorts.id
+         │ 1:N (instructor_id)       │    │ channel_id    TEXT NOT NULL     │
+         ▼                           │    │ channel_name  TEXT NOT NULL     │
+┌─────────────────────────────────┐  │    │ enabled       BOOLEAN DEFAULT T │
+│           cohorts               │  │    │ created_at    TIMESTAMP         │
+├─────────────────────────────────┤  │    └──────────────────────────────────┘
+│ id             SERIAL PK       │  │
+│ name           TEXT NOT NULL    │  │    ┌──────────────────────────────────┐
+│ instructor_id  INT NOT NULL FK │──┘    │            alerts                │
+│ created_at     TIMESTAMP       │       ├──────────────────────────────────┤
+└─────────────────────────────────┘       │ id            SERIAL PK         │
+         │                                │ user_id       INT NOT NULL FK   │──→ users.id
+         │ 1:N (cohort_id)               │ record_id     INT NOT NULL FK   │──→ attendance_records.id
+         ├──────────────┐                 │ alert_type    TEXT NOT NULL      │
+         ▼              ▼                 │ message       TEXT NOT NULL      │
+┌──────────────────┐ ┌──────────────────┐ │ urgency       TEXT DEFAULT 'low' │
+│    students      │ │   schedules      │ │ is_read       BOOLEAN DEFAULT F  │
+├──────────────────┤ ├──────────────────┤ │ created_at    TIMESTAMP          │
+│ id     SERIAL PK │ │ id     SERIAL PK │ └──────────────────────────────────┘
 │ name   TEXT NN   │ │ cohort_id INT FK │──→ cohorts.id
 │ email  TEXT NN   │ │ day_of_week INT  │
 │ cohort_id INT FK │ │ start_time TEXT  │
@@ -351,21 +361,29 @@ pulse/
 │ peer_or_school_detail TEXT                   │
 │ gmail_message_id    TEXT                     │
 │ gmail_thread_id     TEXT                     │
+│ source              TEXT NOT NULL DEFAULT    │
+│                     'gmail'                  │
+│ email_subject       TEXT                     │
+│ slack_channel_id    TEXT                     │
+│ slack_channel_name  TEXT                     │
+│ slack_message_ts    TEXT                     │
+│ slack_is_dm         BOOLEAN DEFAULT FALSE   │
 │ created_at          TIMESTAMP                │
 └──────────────────────────────────────────────┘
 ```
 
-### 3.2 Table Count: 8
+### 3.2 Table Count: 10
 
 | Table | Purpose |
 |---|---|
-| users | User accounts with role, Google OAuth tokens |
+| users | User accounts with role, Google OAuth tokens, Slack user ID |
 | cohorts | Classes (L1, L2, L3, L∞) with instructor assignment |
 | students | Student roster with class assignment and status |
 | schedules | Weekly time blocks per class |
-| attendance_records | Processed email records with dual classification and alert flags |
+| attendance_records | Processed records with dual classification, alert flags, multi-source metadata (Gmail/Slack) |
 | alerts | Flagged records needing instructor attention |
-| scan_configs | Automated scan schedule per user |
+| scan_configs | Automated scan schedule per user with per-source toggles (scanGmail, scanSlack) |
+| slack_channel_configs | Slack channel-to-class mapping for automated Slack scanning |
 | session | Express session storage (managed by connect-pg-simple) |
 
 ### 3.3 Field Descriptions
@@ -1464,8 +1482,10 @@ Key differentiators:
 | Student status tracking | Complete | Active/Graduated/Hired with visual indicators |
 | Class progression | Complete | Bulk promote (active only) + individual move |
 | Weekly schedule | Complete | Grid view, add/edit/delete time blocks per class |
-| Automated Gmail scanning | Complete | 30s interval scheduler with configurable scan times |
-| Scan schedule config | Complete | Add/edit/delete/toggle scan times in Settings |
+| Automated multi-source scanning | Complete | 30s interval scheduler; per-source Gmail/Slack toggles per scan time; 5 default times |
+| Scan schedule config | Complete | Add/edit/delete/toggle scan times in Settings; Gmail/Slack toggles per time |
+| Slack scanning backend | Complete | Scans channels + DMs for attendance keywords; AI classify; student matching |
+| Multi-source dashboard | Complete | Source filter buttons, source column with icons, source-aware detail dialog |
 | Time-period filtering | Complete | Today/Week/Month/Quarter/Year/All |
 | CSV export | Complete | All records |
 | DOCX export | Complete | Grouped by excuse category |
@@ -1476,7 +1496,7 @@ Key differentiators:
 | Theme persistence | Complete | localStorage |
 | Sidebar navigation | Complete | Role-based items, alert badge, collapse on mobile |
 | Responsive design | Complete | Mobile-first with breakpoints |
-| Slack integration | Not Built | Not currently supported; students posting in Slack channels cannot be tracked |
+| Slack integration | Complete (Backend) | Slack scanner, channel configs, per-source scan toggles all built; requires SLACK_BOT_TOKEN to activate |
 
 ### 9.3 Security Measures
 
@@ -1519,8 +1539,9 @@ Key differentiators:
 - Maximum 50 Gmail messages fetched per search query
 - AI classification depends on OpenAI API availability and rate limits
 - Demo account has no Gmail functionality (no Google ID linked)
-- **No Slack integration**: Students posting absence/tardiness messages in Slack channels (class message boards) or DMs cannot be tracked. Only email-based communication is currently supported. This is a known gap — see Roadmap.
+- Slack scanning requires a `SLACK_BOT_TOKEN` with specific scopes — see System Tools section
 - Scan times are stored as "HH:MM" strings; scheduler checks every 30 seconds
+- Slack DM scanning only processes messages from known students (matched by email or name)
 
 ### 9.7 Deployment
 
@@ -1534,7 +1555,7 @@ Key differentiators:
 
 ## 10. Project Roadmap
 
-### 10.1 Completed (v3.0)
+### 10.1 Completed (v4.0)
 
 - Multi-tenant with Admin/Instructor roles
 - Class management (L1, L2, L3, L∞) with instructor assignment
@@ -1544,29 +1565,225 @@ Key differentiators:
 - Multi-LLM fallback (nano → mini → full)
 - Alert system with urgency, peer mentions, school mentions
 - Direct email reply from portal with Gmail threading
-- Automated Gmail scanning at configurable times
+- Automated multi-source scanning (Gmail + Slack) at 5 configurable times
+- Per-source scan toggles (Gmail/Slack independently per time slot) in Settings
+- Slack scanning backend (channel + DM scanning with keyword match → AI classify)
+- Multi-source dashboard (source filter buttons, source column, source-aware detail dialog)
 - Attendance type filter buttons on Dashboard
 - Excuse category stat cards on Dashboard
-- Combined filtering (type + category + time period)
+- Combined filtering (type + category + time period + source)
 - Weekly class schedule management
 - CSV/DOCX/JSON export + filtered print
-- Dark/light mode with animated star field
+- Dark/light mode with animated star field and proper contrast in both modes
 - Google OAuth with reconnect for scope upgrades
-- Settings page with scan schedule config
+- Settings page with scan schedule config and per-source toggles
+- Slack channel config CRUD (admin only)
 
-### 10.2 Potential Future Features
+### 10.2 Current Status & What Still Needs To Be Done
 
-- **Slack Integration**: Scan class Slack channels for absence/tardiness messages; send DMs to students from portal
-- **SMS/Text Notifications**: Alert instructors via text for high-urgency messages
-- **Attendance Analytics**: Trends over time, per-student risk scoring, cohort comparison charts
-- **Calendar Integration**: Sync schedule with Google Calendar
-- **Student Self-Service**: Students confirm/update their own absence details
-- **Substitution System**: Temporary instructor assignment to cover another class
-- **Mobile App**: Native mobile experience for on-the-go alert management
-- **Webhook Support**: Trigger external systems when alerts are created
-- **Custom Alert Rules**: Configurable thresholds (e.g., alert if student absent 3+ times in a month)
-- **Parent/Guardian Notifications**: Auto-notify family contacts for underage students
+#### COMPLETED — Built and functional:
+- All core attendance features (classification, alerts, records, exports)
+- Gmail integration (OAuth, fetch, send, automated scanning)
+- Slack scanning backend (`server/slack-scanner.ts`)
+- Per-source scan controls (Settings UI + backend)
+- Multi-source dashboard UI (Gmail/Slack filter, source column, icons)
+- Light/dark mode with proper contrast in both modes
+
+#### NEEDS EXTERNAL SETUP — Code is built but requires user/admin action:
+
+| Item | What's Needed | Who Does It | Status |
+|---|---|---|---|
+| **Google OAuth** | Google Cloud Console project with OAuth 2.0 credentials | User/Admin | Partially configured (env vars exist but app is in "Testing" mode) |
+| **SLACK_BOT_TOKEN** | Slack app created at api.slack.com/apps with Bot Token scopes | User/Admin | NOT YET PROVIDED — scanner will gracefully skip |
+| **Slack Channel Configs** | Map Slack channels to classes via Settings/API | User/Admin | UI endpoint exists, no channels configured yet |
+
+#### TODO LIST — Remaining work items:
+
+**Priority 1 — Required for Production:**
+
+| # | Task | Details | Files |
+|---|---|---|---|
+| 1 | **Google OAuth Production Setup** | Move Google Cloud Console app from "Testing" to "Production" status OR add all user emails as authorized test users. Currently the app can only be used by accounts explicitly added as test users in Google Cloud Console. | External: Google Cloud Console |
+| 2 | **Provide SLACK_BOT_TOKEN** | Create Slack app at api.slack.com/apps → OAuth & Permissions → add Bot Token Scopes → Install to Workspace → copy Bot User OAuth Token → set as `SLACK_BOT_TOKEN` env secret | External: Slack admin |
+| 3 | **Configure Slack Channels** | After providing SLACK_BOT_TOKEN, use `/api/slack-channels` POST endpoint to map Slack channels to classes (cohortId, channelId, channelName) | API calls or future Settings UI |
+| 4 | **Slack Channel Config UI** | Build a Settings section or separate page for admins to browse/select Slack channels and map them to classes | `client/src/pages/settings.tsx` or new page |
+| 5 | **Duplicate Message Prevention** | Add deduplication logic to prevent re-processing the same Gmail/Slack message on subsequent scans (check gmailMessageId / slackMessageTs before creating record) | `server/scheduler.ts`, `server/slack-scanner.ts` |
+
+**Priority 2 — Important Improvements:**
+
+| # | Task | Details | Files |
+|---|---|---|---|
+| 6 | **Slack Reply from Portal** | Add ability to reply to Slack messages directly from the Alerts page (similar to Gmail reply); uses `chat.postMessage` API | `server/routes.ts`, `client/src/pages/alerts.tsx` |
+| 7 | **Student Slack ID Mapping** | Add Slack user ID to student records for better sender matching; currently matches by email/name | `shared/schema.ts`, `server/slack-scanner.ts` |
+| 8 | **Dashboard Analytics** | Add charts/graphs for attendance trends over time, per-student patterns, cohort comparison | `client/src/pages/dashboard.tsx` or new analytics page |
+| 9 | **Notification System** | Push notifications or email alerts to instructors when high-urgency messages arrive | New feature |
+| 10 | **Thread Message Scanning** | Currently Slack scanner skips threaded replies; add option to scan thread messages too | `server/slack-scanner.ts` |
+
+**Priority 3 — Nice to Have:**
+
+| # | Task | Details | Files |
+|---|---|---|---|
+| 11 | **Calendar Integration** | Sync class schedules with Google Calendar | New feature |
+| 12 | **Student Self-Service Portal** | Students confirm/update their own absence details | New feature |
+| 13 | **Custom Alert Rules** | Configurable thresholds (e.g., alert if student absent 3+ times in a month) | New feature |
+| 14 | **Mobile App / PWA** | Native mobile or Progressive Web App for on-the-go alert management | New feature |
+| 15 | **Webhook Support** | Trigger external systems (Zapier, etc.) when alerts are created | New feature |
+| 16 | **SMS/Text Notifications** | Alert instructors via text for high-urgency messages | New feature |
+| 17 | **Parent/Guardian Notifications** | Auto-notify family contacts for students | New feature |
 
 ---
 
-*End of PULSE Project Documentation v3.0*
+## 11. System Tools & Requirements
+
+### 11.1 Runtime Environment
+
+| Tool | Version | Purpose |
+|---|---|---|
+| Node.js | 20+ | JavaScript/TypeScript runtime |
+| TypeScript | 5.x | Type-safe development |
+| tsx | Latest | TypeScript execution (dev server) |
+| npm | 10+ | Package manager |
+
+### 11.2 Database
+
+| Service | Details |
+|---|---|
+| PostgreSQL | Primary database (via Neon Serverless) |
+| Connection | `DATABASE_URL` environment variable |
+| ORM | Drizzle ORM with drizzle-zod for schema validation |
+| Driver | `@neondatabase/serverless` (WebSocket-based) |
+| Sessions | `connect-pg-simple` stores sessions in PostgreSQL |
+
+### 11.3 External APIs & Services
+
+| Service | Purpose | Auth Method | Required |
+|---|---|---|---|
+| **OpenAI API** | AI classification of attendance messages | Replit AI Integrations (auto-configured) | YES |
+| **Google OAuth 2.0** | User sign-in + Gmail read/send access | OAuth 2.0 Authorization Code flow | YES (for Gmail features) |
+| **Gmail API** | Read inbox, send replies | OAuth 2.0 Bearer token | YES (for email scanning/reply) |
+| **Slack Web API** | Scan channels/DMs for attendance messages | Bot User OAuth Token | OPTIONAL (for Slack scanning) |
+
+### 11.4 Google Cloud Console Setup (Required for Gmail)
+
+To enable Gmail integration, the following Google Cloud Console setup is required:
+
+1. **Create a Google Cloud Project** at https://console.cloud.google.com
+2. **Enable APIs**:
+   - Gmail API
+   - Google Identity Services / People API (for OAuth sign-in)
+3. **Create OAuth 2.0 Credentials**:
+   - Application type: Web application
+   - Authorized redirect URI: `https://<your-domain>/api/auth/google/callback`
+   - For Replit: use `https://<repl-name>.<username>.repl.co/api/auth/google/callback` or `https://<custom-domain>/api/auth/google/callback`
+4. **Configure OAuth Consent Screen**:
+   - App name: PULSE
+   - Scopes: `openid`, `userinfo.email`, `userinfo.profile`, `gmail.readonly`, `gmail.send`
+   - User type: External (for production) or Internal (for org-only)
+   - **IMPORTANT**: If the app is in "Testing" mode, only emails explicitly added as test users can sign in. To allow all users, submit for Google verification or move to "Production" mode.
+5. **Set Environment Variables**:
+   - `PULSE_GOOGLE_CLIENT_ID` = Client ID from step 3
+   - `PULSE_GOOGLE_CLIENT_SECRET` = Client Secret from step 3
+
+**Current Status**: The `PULSE_GOOGLE_CLIENT_ID` env var is listed as a missing secret. It must be set for Google OAuth to work. The `PULSE_GOOGLE_CLIENT_SECRET` is already configured.
+
+### 11.5 Slack App Setup (Required for Slack Scanning)
+
+To enable Slack message scanning, the following Slack app setup is required:
+
+1. **Create a Slack App** at https://api.slack.com/apps
+   - Choose "From scratch"
+   - Name: PULSE Attendance Scanner
+   - Workspace: Pursuit workspace
+2. **Add Bot Token Scopes** (OAuth & Permissions → Scopes → Bot Token Scopes):
+   - `channels:history` — Read messages in public channels
+   - `groups:history` — Read messages in private channels
+   - `im:history` — Read direct messages
+   - `channels:read` — List channels
+   - `users:read` — Get user info (name)
+   - `users:read.email` — Get user email (for student matching)
+   - `chat:write` — Send messages (for future reply feature)
+3. **Install to Workspace**: Click "Install to Workspace" and authorize
+4. **Copy Bot Token**: OAuth & Permissions → Bot User OAuth Token (starts with `xoxb-`)
+5. **Set Environment Variable**: `SLACK_BOT_TOKEN` = the bot token from step 4
+6. **Invite Bot to Channels**: The bot must be invited to each channel it should scan (`/invite @PULSE`)
+7. **Configure Channel Mappings**: Use the API to map Slack channels to classes:
+   ```
+   POST /api/slack-channels
+   { "cohortId": 1, "channelId": "C06XXXXXXX", "channelName": "#l1-attendance" }
+   ```
+
+**Current Status**: `SLACK_BOT_TOKEN` is NOT configured. The Slack scanner will gracefully skip scanning and log a warning when the token is missing.
+
+### 11.6 Environment Variables / Secrets
+
+| Variable | Required | Status | Description |
+|---|---|---|---|
+| `DATABASE_URL` | YES | Configured | PostgreSQL connection string (Neon) |
+| `SESSION_SECRET` | YES | Configured | Express session cookie signing key |
+| `PULSE_GOOGLE_CLIENT_ID` | YES (for Gmail) | **MISSING** | Google OAuth Client ID |
+| `PULSE_GOOGLE_CLIENT_SECRET` | YES (for Gmail) | Configured | Google OAuth Client Secret |
+| `GOOGLE_CLIENT_SECRET` | — | Configured | (Legacy/duplicate — `PULSE_GOOGLE_CLIENT_SECRET` is used) |
+| `SLACK_BOT_TOKEN` | Optional | **NOT SET** | Slack Bot User OAuth Token for channel/DM scanning |
+| `AI_INTEGRATIONS_OPENAI_API_KEY` | YES | Auto-configured | OpenAI API key (via Replit AI Integrations) |
+| `AI_INTEGRATIONS_OPENAI_BASE_URL` | YES | Auto-configured | OpenAI base URL (via Replit AI Integrations) |
+
+### 11.7 NPM Dependencies
+
+**Core Backend:**
+| Package | Version | Purpose |
+|---|---|---|
+| express | ^5.0.1 | Web framework (REST API + SSE) |
+| express-session | ^1.18.1 | Session management |
+| connect-pg-simple | ^10.0.0 | PostgreSQL session store |
+| passport | ^0.7.0 | Authentication middleware |
+| passport-local | ^1.0.0 | Local username/password strategy |
+| bcrypt | ^6.0.0 | Password hashing |
+| pg | ^8.16.3 | PostgreSQL client |
+| drizzle-orm | ^0.39.3 | Type-safe ORM |
+| @neondatabase/serverless | ^1.0.2 | Neon PostgreSQL driver |
+| ws | ^8.18.0 | WebSocket library (used by Neon) |
+| zod | ^3.25.76 | Schema validation |
+| drizzle-zod | ^0.7.1 | Drizzle-to-Zod schema bridge |
+| openai | ^6.25.0 | OpenAI API client |
+
+**Frontend:**
+| Package | Version | Purpose |
+|---|---|---|
+| react | ^18.3.1 | UI library |
+| react-dom | ^18.3.1 | React DOM renderer |
+| wouter | ^3.3.5 | Lightweight routing |
+| @tanstack/react-query | ^5.60.5 | Server state management |
+| @radix-ui/react-* | Various | Accessible UI primitives (20+ packages) |
+| lucide-react | ^0.453.0 | Action icons |
+| react-icons | ^5.4.0 | Brand logos (Google, etc.) |
+| framer-motion | ^11.13.1 | Animations |
+| recharts | ^2.15.2 | Charts/data visualization |
+| tailwindcss | ^3.4.17 | Utility-first CSS |
+| class-variance-authority | ^0.7.1 | Dynamic class management |
+| tailwind-merge | ^2.6.0 | Tailwind class deduplication |
+
+**Utilities:**
+| Package | Version | Purpose |
+|---|---|---|
+| date-fns | ^3.6.0 | Date utilities (time-period filtering) |
+| docx | ^9.6.0 | DOCX document generation |
+| file-saver | ^2.0.5 | Client-side file downloads |
+| p-limit | ^7.3.0 | Promise concurrency limiter |
+| p-retry | ^7.1.1 | Retry logic for API calls |
+
+**Dev Tools:**
+| Package | Version | Purpose |
+|---|---|---|
+| typescript | ^5.6.3 | TypeScript compiler |
+| tsx | ^4.19.2 | TypeScript execution |
+| vite | ^5.4.14 | Build tool + dev server |
+| esbuild | ^0.24.2 | Fast TypeScript/JS bundler |
+| @vitejs/plugin-react | ^4.3.4 | React support for Vite |
+| tailwindcss | ^3.4.17 | CSS framework |
+| postcss | ^8.4.49 | CSS processing |
+| autoprefixer | ^10.4.20 | CSS vendor prefixes |
+| drizzle-kit | ^0.30.4 | Drizzle schema migration tool |
+
+---
+
+*End of PULSE Project Documentation v4.0*

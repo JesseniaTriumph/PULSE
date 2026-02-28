@@ -301,7 +301,7 @@ export default function Dashboard() {
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-violet-400" />
+              <Users className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Total
               </span>
@@ -494,7 +494,7 @@ export default function Dashboard() {
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mb-4">
-              <Users className="w-8 h-8 text-violet-400" />
+              <Users className="w-8 h-8 text-violet-600 dark:text-violet-400" />
             </div>
             <h3 className="text-lg font-medium mb-1" data-testid="text-empty-title">
               {timePeriod !== "all"

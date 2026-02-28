@@ -125,7 +125,7 @@ export default function AdminCohortsPage() {
       {cohorts.length === 0 ? (
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Building2 className="w-12 h-12 text-violet-400 mb-4" />
+            <Building2 className="w-12 h-12 text-violet-600 dark:text-violet-400 mb-4" />
             <h3 className="text-lg font-medium mb-1">No classes yet</h3>
             <p className="text-sm text-muted-foreground">Create classes and assign instructors to get started.</p>
           </CardContent>
@@ -141,7 +141,7 @@ export default function AdminCohortsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-violet-400" />
+                        <Building2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
                       </div>
                       <div>
                         <h3 className="text-lg font-bold">{cohort.name}</h3>
@@ -156,7 +156,7 @@ export default function AdminCohortsPage() {
                         size="icon"
                         variant="ghost"
                         onClick={() => openPromoteDialog(cohort.id)}
-                        className="hover:bg-emerald-500/10 hover:text-emerald-400 h-8 w-8"
+                        className="hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 h-8 w-8"
                         title="Promote class"
                         data-testid={`button-promote-cohort-${cohort.id}`}
                       >
@@ -166,7 +166,7 @@ export default function AdminCohortsPage() {
                         size="icon"
                         variant="ghost"
                         onClick={() => handleDeleteCohort(cohort.id)}
-                        className="hover:bg-rose-500/10 hover:text-rose-400 h-8 w-8"
+                        className="hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 h-8 w-8"
                         data-testid={`button-delete-cohort-${cohort.id}`}
                       >
                         <Trash2 className="w-4 h-4" />

@@ -178,7 +178,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                       variant="ghost"
                       onClick={() => handleDelete(record.id)}
                       data-testid={`button-delete-${record.id}`}
-                      className="hover:bg-rose-500/10 hover:text-rose-400"
+                      className="hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -269,7 +269,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
               )}
               {(viewRecord.mentionsStudent || viewRecord.mentionsSchool) && (
                 <div className={`rounded-md border p-3 ${viewRecord.mentionsStudent ? "border-cyan-500/20 bg-cyan-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
-                  <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${viewRecord.mentionsStudent ? "text-cyan-400" : "text-emerald-400"}`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${viewRecord.mentionsStudent ? "text-cyan-600 dark:text-cyan-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                     {viewRecord.mentionsStudent ? "⚠ Mentions Another Student" : "⚠ School/Program Report"}
                   </p>
                   <p className="text-sm" data-testid="text-detail-peer-school">

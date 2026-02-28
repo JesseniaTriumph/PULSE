@@ -164,7 +164,7 @@ export default function SettingsPage() {
 
           {scanConfigs.length === 0 ? (
             <div className="py-6 text-center">
-              <Clock className="w-10 h-10 text-violet-400 mx-auto mb-3" />
+              <Clock className="w-10 h-10 text-violet-600 dark:text-violet-400 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground mb-3">No scan times configured</p>
               <div className="flex flex-wrap gap-2 justify-center">
                 {defaultTimes.map(t => (
@@ -193,7 +193,7 @@ export default function SettingsPage() {
                       size="icon"
                       variant="ghost"
                       onClick={() => handleDelete(config.id)}
-                      className="opacity-0 group-hover:opacity-100 h-7 w-7 hover:bg-rose-500/10 hover:text-rose-400"
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
                       data-testid={`button-delete-scan-${config.id}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />

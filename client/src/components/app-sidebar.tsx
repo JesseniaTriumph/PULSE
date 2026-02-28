@@ -74,17 +74,17 @@ export function AppSidebar() {
               <div
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all ${
                   isActive
-                    ? "bg-violet-500/15 text-violet-300 border border-violet-500/30"
+                    ? "bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/30"
                     : "hover:bg-violet-500/5 text-muted-foreground hover:text-foreground border border-transparent"
                 }`}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-violet-400" : ""}`} />
+                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-violet-600 dark:text-violet-400" : ""}`} />
                 {!collapsed && (
                   <>
                     <span className="text-sm font-medium flex-1">{item.label}</span>
                     {item.badge ? (
-                      <Badge className="bg-rose-500/20 text-rose-300 border-rose-500/30 text-xs px-1.5 min-w-[20px] justify-center" data-testid="badge-alert-count">
+                      <Badge className="bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30 text-xs px-1.5 min-w-[20px] justify-center" data-testid="badge-alert-count">
                         {item.badge}
                       </Badge>
                     ) : null}
@@ -111,7 +111,7 @@ export function AppSidebar() {
         </button>
         <button
           onClick={() => logout.mutate()}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg hover:bg-rose-500/5 text-muted-foreground hover:text-rose-400 transition-all"
+          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg hover:bg-rose-500/5 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all"
           data-testid="button-logout"
         >
           <LogOut className="w-5 h-5" />
