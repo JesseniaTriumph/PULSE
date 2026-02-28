@@ -6,7 +6,7 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system. I
 ## Architecture
 - **Frontend**: React + Vite + Tailwind CSS + Shadcn UI (wouter for routing, @tanstack/react-query)
 - **Backend**: Express.js + PostgreSQL (Drizzle ORM) + OpenAI AI Integrations
-- **AI**: Uses Replit AI Integrations (OpenAI) for dual-classification (attendanceType + excuseCategory) and alert detection (needsResponse, urgency, alertReason)
+- **AI**: Multi-LLM fallback system using Replit AI Integrations (OpenAI): tries gpt-5-nano (cheapest) → gpt-5-mini → gpt-5.2 (most capable). Performs dual-classification (attendanceType + excuseCategory), alert detection (needsResponse, urgency, alertReason), and peer/school mention detection (mentionsStudent, mentionsSchool, peerOrSchoolDetail)
 - **Auth**: Session-based auth with bcrypt, express-session + connect-pg-simple; Google OAuth for sign-in + Gmail access; role-based access (admin/instructor)
 - **Theme**: Dark/light mode with ThemeProvider (localStorage persistence); dark mode: full star field (120 stars), light mode: subtle corner sparkles (20 sparkles); CSS variables in :root (light) and .dark (dark); Tailwind darkMode: ["class"]
 - **Scheduler**: Interval-based scanner (every 30s) checking configured scan times; auto-fetches Gmail, processes emails, creates alerts
@@ -17,7 +17,8 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system. I
 - Student roster with per-student attendance history and profile view
 - Class schedule management (weekly grid per cohort)
 - Dual classification: attendanceType (Absent/Late-Tardy/Unexcused) + excuseCategory (Sick-Medical/Personal/Program Event/Technical Issue/Other/None)
-- Alert system for emails needing response (urgency: low/medium/high)
+- Alert system for emails needing response (urgency: low/medium/high), peer mentions (student-about-student), and school/program reports (about Pursuit, classes, curriculum, instructors)
+- Multi-LLM fallback: nano → mini → full model chain to minimize costs; escalates only on low confidence or failure
 - Automated Gmail scanning at configurable times (default: 10:00 AM, 6:25 PM, 9:55 PM)
 - Google OAuth sign-in with Gmail inbox reading
 - Manual email entry, batch processing (JSON/CSV), Gmail fetch

@@ -216,6 +216,16 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                   </Badge>
                 </div>
               </div>
+              {(viewRecord.mentionsStudent || viewRecord.mentionsSchool) && (
+                <div className={`rounded-md border p-3 ${viewRecord.mentionsStudent ? "border-cyan-500/20 bg-cyan-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${viewRecord.mentionsStudent ? "text-cyan-400" : "text-emerald-400"}`}>
+                    {viewRecord.mentionsStudent ? "⚠ Mentions Another Student" : "⚠ School/Program Report"}
+                  </p>
+                  <p className="text-sm" data-testid="text-detail-peer-school">
+                    {viewRecord.peerOrSchoolDetail || "Details flagged by AI — review email body below"}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                   Full Email Body

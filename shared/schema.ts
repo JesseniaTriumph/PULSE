@@ -80,6 +80,9 @@ export const attendanceRecords = pgTable("attendance_records", {
   needsResponse: boolean("needs_response").default(false),
   urgency: text("urgency").default("low"),
   alertReason: text("alert_reason"),
+  mentionsStudent: boolean("mentions_student").default(false),
+  mentionsSchool: boolean("mentions_school").default(false),
+  peerOrSchoolDetail: text("peer_or_school_detail"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

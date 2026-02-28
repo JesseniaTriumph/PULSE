@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Clock } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Clock, Users, School } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Alert } from "@shared/schema";
@@ -85,7 +85,11 @@ export default function AlertsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge className={`text-xs border ${config.bg} ${config.color}`}>{config.label}</Badge>
-                      <Badge variant="outline" className="text-xs border-violet-500/20">{alert.alertType === "urgent" ? "Urgent Response Needed" : "Action Needed"}</Badge>
+                      <Badge variant="outline" className={`text-xs border-violet-500/20 ${alert.alertType === "peer_mention" ? "border-cyan-500/30 text-cyan-300" : alert.alertType === "school_report" ? "border-emerald-500/30 text-emerald-300" : ""}`}>
+                        {alert.alertType === "urgent" ? "Urgent Response Needed" : alert.alertType === "peer_mention" ? "Peer Mention" : alert.alertType === "school_report" ? "School/Program Report" : "Action Needed"}
+                      </Badge>
+                      {alert.alertType === "peer_mention" && <Users className="w-3.5 h-3.5 text-cyan-400" />}
+                      {alert.alertType === "school_report" && <School className="w-3.5 h-3.5 text-emerald-400" />}
                       {!alert.isRead && <div className="w-2 h-2 bg-violet-500 rounded-full" />}
                     </div>
                     <p className="text-sm font-medium mb-1">{alert.message}</p>

@@ -438,14 +438,28 @@ export async function registerRoutes(
             needsResponse: categorization.needsResponse,
             urgency: categorization.urgency,
             alertReason: categorization.alertReason,
+            mentionsStudent: categorization.mentionsStudent,
+            mentionsSchool: categorization.mentionsSchool,
+            peerOrSchoolDetail: categorization.peerOrSchoolDetail,
           });
 
           if (categorization.needsResponse) {
+            let alertType = categorization.urgency === "high" ? "urgent" : "action_needed";
+            let alertMessage = categorization.alertReason || "This email may need a response";
+
+            if (categorization.mentionsStudent) {
+              alertType = "peer_mention";
+              alertMessage = `Peer mention: ${categorization.peerOrSchoolDetail || alertMessage}`;
+            } else if (categorization.mentionsSchool) {
+              alertType = "school_report";
+              alertMessage = `School/program report: ${categorization.peerOrSchoolDetail || alertMessage}`;
+            }
+
             await storage.createAlert({
               userId,
               recordId: record.id,
-              alertType: categorization.urgency === "high" ? "urgent" : "action_needed",
-              message: categorization.alertReason || "This email may need a response",
+              alertType,
+              message: alertMessage,
               urgency: categorization.urgency,
             });
           }
