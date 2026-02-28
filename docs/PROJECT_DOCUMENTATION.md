@@ -1,7 +1,7 @@
 # PULSE — Project Documentation
 
-**Attendance Automation Tool**
-**Version:** 2.0
+**Multi-Tenant Attendance Automation Tool for Pursuit**
+**Version:** 3.0
 **Last Updated:** February 28, 2026
 
 ---
@@ -17,6 +17,7 @@
 7. [User Flow](#7-user-flow)
 8. [Conditional Logic Trees](#8-conditional-logic-trees)
 9. [Full Project Report](#9-full-project-report)
+10. [Project Roadmap](#10-project-roadmap)
 
 ---
 
@@ -24,72 +25,112 @@
 
 ### 1.1 Product Overview
 
-PULSE is a space-themed, multi-user attendance automation tool designed for program administrators, instructors, and team leads. It processes builder/student absence and tardiness excuse emails, categorizes them via OpenAI using a dual-classification system (attendance type + excuse reason), and generates printable CSV/DOCX/JSON reports. The application features Google OAuth integration for Gmail inbox fetching, time-period filtering, WCAG 2 accessibility, and a dark/light mode toggle with animated star sparkles.
+PULSE is a space-themed, multi-tenant AI-powered attendance automation tool designed for Pursuit (tech training program). It processes student absence and tardiness emails using a dual-classification system (attendance type + excuse reason), supports role-based access (Admin/Instructor), class management (L1, L2, L3, L∞), student rosters with status tracking (Active/Graduated/Hired), class progression, weekly class schedules, automated Gmail scanning at configurable times, an alert system for urgent student messages, and direct email reply from the portal. The application features Google OAuth integration for Gmail inbox reading and sending, multi-LLM AI fallback for cost optimization, time-period filtering, export/print capabilities, and a dark/light mode toggle with animated star field.
 
 ### 1.2 Problem Statement
 
-Program administrators spend significant time manually reading and sorting student/builder absence and tardiness emails. PULSE automates this process by ingesting emails (manually, in batch, or directly from Gmail), using AI to determine both the attendance type (Absent, Late/Tardy, or Unexcused) and the excuse reason (Sick/Medical, Personal, Program Event, Technical Issue, Other, or None), and presenting the data in a filterable, exportable dashboard.
+Program administrators and instructors spend significant time manually reading, sorting, and responding to student absence and tardiness emails across multiple classes. Students communicate through various channels (email, Slack channels, DMs), making it difficult to track attendance comprehensively. PULSE automates the email-based portion of this process by ingesting emails (manually, in batch, or directly from Gmail), using AI to classify both the attendance type and excuse reason, detecting alerts for messages that need instructor response, and presenting the data in a filterable, exportable, role-scoped dashboard.
 
 ### 1.3 Target Users
 
-- Program administrators and coordinators
-- Instructors and teaching assistants
-- Team leads managing cohort attendance
-- Any role requiring systematic absence/tardiness tracking
+| Role | Description | Access Level |
+|---|---|---|
+| **Admin** | Program administrators and coordinators | Full access: all classes, all students, all instructors, system configuration |
+| **Instructor** | Teaching staff assigned to specific classes | Scoped access: own classes and students only |
 
 ### 1.4 Core Features
 
 | Feature | Description |
 |---|---|
-| **Dual-Classification AI** | Every email is classified on two axes: Attendance Type (Absent, Late/Tardy, Unexcused) and Excuse Category (Sick/Medical, Personal, Program Event, Technical Issue, Other, None) |
+| **Multi-Tenant Roles** | Admin sees everything; Instructor sees only their assigned classes and students |
+| **Class Management** | L1, L2, L3, L∞ classes with instructor assignment; admin can create/edit/delete |
+| **Student Roster** | Per-class student lists with status tracking (Active/Graduated/Hired); per-student attendance history and profile view |
+| **Class Progression** | Bulk promote all active students in a class to a target class; individually move students between classes |
+| **Dual-Classification AI** | Every email classified on two axes: Attendance Type (Absent, Late/Tardy, Unexcused) + Excuse Category (Sick/Medical, Personal, Program Event, Technical Issue, Other, None) |
+| **Multi-LLM Fallback** | Cost-optimized AI: tries nano model first → mini → full; escalates only on low confidence (<0.4) or failure |
+| **Alert Detection** | AI flags emails needing instructor response (questions, special requests, urgent matters); urgency levels (low/medium/high); peer mention detection (student-about-student); school/program mention detection |
+| **Alert Management** | Alert feed with mark read/unread, urgency color-coding, full email body detail view, unread count badge in sidebar |
+| **Email Reply from Portal** | Compose and send replies to student emails directly from the Alerts page; sent via instructor's connected Gmail with proper email threading |
+| **Automated Gmail Scanning** | Scheduler checks every 30 seconds for configured scan times; auto-fetches and processes new emails; default times: 10:00 AM, 6:25 PM, 9:55 PM |
 | **Manual Email Entry** | Single email form with sender name, email, date, and body |
 | **Batch Upload** | Paste or upload JSON/CSV with multiple emails; processed with real-time SSE streaming |
 | **Gmail Fetch** | OAuth 2.0 + Gmail API to search, select, and process emails directly from inbox |
-| **Time-Period Filtering** | Filter records by Day, Week, Month, Quarter, Year, or All Time |
-| **Category Stats Dashboard** | Live stat cards with icons and glow effects for each classification |
-| **Inline Category Editing** | Dropdown in each row to manually reclassify a record |
-| **CSV Export** | All records downloaded as `attendance_report.csv` |
-| **DOCX Export** | Records grouped by category into a formatted Word document |
-| **JSON Export** | All records as formatted JSON for database import |
+| **Attendance Type Filter Buttons** | Dashboard Records section has All/Absent/Late-Tardy/Unexcused toggle buttons with counts |
+| **Excuse Category Stat Cards** | Clickable stat cards for each excuse reason; filters combine with type filter buttons |
+| **Time-Period Filtering** | Filter records by Today, Week, Month, Quarter, Year, or All Time |
+| **Weekly Schedule** | Per-class weekly grid with time blocks; add/edit/delete schedule entries |
+| **CSV/DOCX/JSON Export** | Download attendance reports in multiple formats |
 | **Print View** | Respects active time-period filter; hides interactive controls |
-| **Dark / Light Mode** | Toggle between space-dark and clean-light themes; star field adapts |
-| **Demo Mode** | One-click demo account with pre-seeded records |
-| **WCAG 2 Accessibility** | Semantic HTML, ARIA labels, keyboard navigation, contrast ratios |
+| **Dark / Light Mode** | Space-dark theme with 120 animated stars; clean-light theme with 20 corner sparkles |
+| **Google OAuth** | Sign-in + Gmail read/send; reconnect button for scope upgrades |
+| **Demo Mode** | One-click demo with admin account, 2 instructors, 4 classes, 12 students, 7 records, 2 alerts |
+| **Settings** | Scan schedule config, account info, Google connection status and reconnect |
 
 ### 1.5 Attendance Classification System
 
 PULSE uses a dual-classification approach to accurately track attendance:
 
-**Attendance Types** (Was the person present?):
-| Type | Meaning |
-|---|---|
-| Absent | Student will not attend at all |
-| Late/Tardy | Student will attend but will not arrive on time, or is leaving early |
-| Unexcused | No valid reason provided or message is not a genuine excuse |
+**Attendance Types** (What happened — was the person present?):
+| Type | Meaning | Dashboard Filter Button Color |
+|---|---|---|
+| Absent | Student will not attend at all | Rose/Red |
+| Late/Tardy | Student will attend but will arrive late, or is leaving early | Orange |
+| Unexcused | No valid reason provided or message is not a genuine excuse | Slate/Gray |
 
-**Excuse Categories** (Why?):
-| Category | Examples |
-|---|---|
-| Sick/Medical | Flu, migraine, doctor appointment, hospital, COVID, mental health day, surgery, under the weather |
-| Personal | Family emergency, funeral, wedding, travel, jury duty, court date, bereavement, child care, moving |
-| Program Event | Conference, workshop, hackathon, career fair, field trip, orientation, guest speaker, company visit |
-| Technical Issue | Internet down, laptop broken, power outage, car broke down, bus delayed, can't log in, WiFi issues |
-| Other | Valid reason that does not fit the above categories |
-| None | Used when attendance type is Unexcused and no valid reason exists |
+**Excuse Categories** (Why — the reason for absence/tardiness):
+| Category | Examples | Stat Card Color |
+|---|---|---|
+| Sick/Medical | Flu, migraine, doctor appointment, hospital, COVID, mental health day, surgery, under the weather | Rose |
+| Personal | Family emergency, funeral, wedding, travel, jury duty, court date, bereavement, child care, moving | Amber |
+| Program Event | Conference, workshop, hackathon, career fair, field trip, orientation, guest speaker, company visit | Sky |
+| Technical Issue | Internet down, laptop broken, power outage, car broke down, bus delayed, can't log in, WiFi issues | Violet |
+| Other | Valid reason that does not fit the above categories | Emerald |
+| None | Used when attendance type is Unexcused and no valid reason exists | Slate |
 
 **Important Classification Rules:**
 - If someone says "running late because I'm sick" → Attendance Type = Late/Tardy, Excuse Category = Sick/Medical
 - If someone says "I won't be in today, I have the flu" → Attendance Type = Absent, Excuse Category = Sick/Medical
 - If someone says "can't make it, something came up" (no details) → Attendance Type = Unexcused, Excuse Category = None
 - Leaving early or stepping out partway → Attendance Type = Late/Tardy
+- Stuck in traffic → Attendance Type = Late/Tardy, Excuse Category = Technical Issue
 
-### 1.6 Non-Functional Requirements
+**Dashboard Filtering:**
+- **Attendance Type Filter Buttons** (next to Records heading): All, Absent, Late/Tardy, Unexcused — each shows a count
+- **Excuse Category Stat Cards** (above records): Total, Sick/Medical, Personal, Program Event, Technical Issue, Other, None — clickable to filter
+- Both filters combine: e.g., click "Late/Tardy" button + "Personal" stat card = only Late/Tardy records with Personal reason
 
-- **Performance**: SSE streaming for batch processing; sub-second UI interactions
-- **Security**: Bcrypt password hashing; session-based auth; CSRF state for OAuth; per-user data isolation
+### 1.6 Alert Classification System
+
+The AI also detects when emails need instructor attention:
+
+| Field | Description |
+|---|---|
+| `needsResponse` | Boolean: does this email contain a question, request, or urgent matter? |
+| `urgency` | low / medium / high — how time-sensitive is the matter? |
+| `alertReason` | Brief explanation of why the alert was flagged |
+| `mentionsStudent` | Boolean: does a student mention another student by name? (peer reporting) |
+| `mentionsSchool` | Boolean: does the email mention Pursuit, classes, curriculum, or instructors? |
+| `peerOrSchoolDetail` | Details about what was mentioned |
+
+### 1.7 Student Status Tracking
+
+| Status | Description |
+|---|---|
+| Active | Currently enrolled and attending class |
+| Graduated | Completed the program |
+| Hired | Placed in employment after program |
+
+- Non-active students appear dimmed in the roster
+- Bulk class promotion only moves Active students; Graduated/Hired stay in place
+- Individual students can be moved between classes or have their status changed at any time
+
+### 1.8 Non-Functional Requirements
+
+- **Performance**: SSE streaming for batch processing; sub-second UI interactions; multi-LLM fallback minimizes API costs
+- **Security**: Bcrypt password hashing; session-based auth; CSRF state for OAuth; per-user data isolation; CRLF header injection prevention on email replies; recipient validation on email sends; cohort ownership checks for instructors
 - **Accessibility**: WCAG 2 AA contrast, keyboard navigation, semantic elements, ARIA attributes
 - **Browser Support**: Modern evergreen browsers (Chrome, Firefox, Safari, Edge)
-- **Responsive**: Mobile-first with breakpoints at `md` (768px) and `lg` (1024px)
+- **Responsive**: Mobile-first with sidebar collapse; breakpoints at `md` (768px) and `lg` (1024px)
 
 ---
 
@@ -98,36 +139,44 @@ PULSE uses a dual-classification approach to accurately track attendance:
 ### 2.1 High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     CLIENT (React)                  │
-│  ┌──────────┐  ┌───────────┐  ┌──────────────────┐  │
-│  │ Auth Page │  │ Dashboard │  │ Theme / StarField│  │
-│  └────┬─────┘  └─────┬─────┘  └──────────────────┘  │
-│       │               │                              │
-│  ┌────┴───────────────┴────────────────────────────┐ │
-│  │          TanStack Query + Fetch API             │ │
-│  └─────────────────────┬───────────────────────────┘ │
-└────────────────────────┼─────────────────────────────┘
-                         │ HTTP / SSE
-┌────────────────────────┼─────────────────────────────┐
-│                   SERVER (Express 5)                 │
-│  ┌─────────┐  ┌───────┴──────┐  ┌────────────────┐  │
-│  │  Auth   │  │   Routes     │  │  Google OAuth   │  │
-│  │ (bcrypt)│  │ (CRUD, SSE)  │  │  + Gmail API    │  │
-│  └────┬────┘  └──────┬───────┘  └───────┬─────────┘  │
-│       │              │                  │            │
-│  ┌────┴──────────────┴──────────────────┴──────────┐ │
-│  │               Storage Layer (IStorage)          │ │
-│  └──────────────────────┬──────────────────────────┘ │
-│                         │                            │
-│  ┌──────────────────────┴──────────────────────────┐ │
-│  │        Drizzle ORM  →  PostgreSQL (Neon)        │ │
-│  └─────────────────────────────────────────────────┘ │
-│                                                      │
-│  ┌──────────────────────────────────────────────────┐│
-│  │          OpenAI API (Categorization)             ││
-│  └──────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        CLIENT (React + Vite)                        │
+│  ┌──────────┐ ┌───────────┐ ┌──────────┐ ┌────────┐ ┌──────────┐  │
+│  │ Auth Page │ │ Dashboard │ │ Students │ │Schedule│ │ Alerts   │  │
+│  └────┬─────┘ └─────┬─────┘ └────┬─────┘ └───┬────┘ └────┬─────┘  │
+│       │              │            │            │           │        │
+│  ┌──────────────┐ ┌──────────┐ ┌─────────┐ ┌─────────┐            │
+│  │Admin Cohorts │ │Instructors│ │Settings │ │Sidebar  │            │
+│  └──────┬───────┘ └────┬─────┘ └────┬────┘ └────┬────┘            │
+│         │              │            │            │                  │
+│  ┌──────┴──────────────┴────────────┴────────────┴───────────────┐ │
+│  │            TanStack Query v5 + Fetch API + apiRequest        │ │
+│  └──────────────────────────┬────────────────────────────────────┘ │
+└─────────────────────────────┼──────────────────────────────────────┘
+                              │ HTTP / SSE
+┌─────────────────────────────┼──────────────────────────────────────┐
+│                        SERVER (Express 5)                          │
+│  ┌──────────┐  ┌────────────┴──────┐  ┌──────────────────────┐    │
+│  │  Auth    │  │   Routes          │  │  Google OAuth         │    │
+│  │ (bcrypt  │  │ (CRUD, SSE,      │  │  + Gmail Read/Send   │    │
+│  │  roles)  │  │  role middleware) │  │  + Token Refresh     │    │
+│  └────┬─────┘  └────────┬─────────┘  └──────────┬────────────┘    │
+│       │                 │                        │                 │
+│  ┌────┴─────────────────┴────────────────────────┴───────────────┐ │
+│  │                   Storage Layer (IStorage)                    │ │
+│  │  Users, Cohorts, Students, Schedules, Records, Alerts, Scans │ │
+│  └──────────────────────────┬────────────────────────────────────┘ │
+│                              │                                     │
+│  ┌──────────────────────────┴────────────────────────────────────┐ │
+│  │              Drizzle ORM  →  PostgreSQL (Neon)                │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+│                                                                    │
+│  ┌────────────────────────────────────┐  ┌───────────────────────┐│
+│  │   Multi-LLM AI Engine (OpenAI)    │  │    Scheduler          ││
+│  │   nano → mini → full fallback     │  │    (30s interval)     ││
+│  │   Dual classification + alerts    │  │    Automated Gmail    ││
+│  └────────────────────────────────────┘  └───────────────────────┘│
+└──────────────────────────────────────────────────────────────────-─┘
 ```
 
 ### 2.2 Technology Stack
@@ -139,16 +188,18 @@ PULSE uses a dual-classification approach to accurately track attendance:
 | State | TanStack Query v5 | Server state, caching, mutations |
 | Styling | Tailwind CSS 3 | Utility-first CSS with dark mode |
 | UI Library | shadcn/ui (Radix primitives) | Accessible, customizable components |
-| Icons | lucide-react | Consistent iconography |
+| Icons | lucide-react | Action icons and visual cues |
+| Company Logos | react-icons/si | Brand logos (Google, etc.) |
 | Build | Vite 5 | HMR, ESBuild transforms |
 | Server | Express 5 | REST API + SSE endpoints |
 | ORM | Drizzle ORM | Type-safe SQL queries |
 | Database | PostgreSQL (Neon Serverless) | Persistent data storage |
-| Auth | express-session + bcrypt | Session cookies, password hashing |
-| OAuth | Google OAuth 2.0 | Gmail access for email fetching |
-| AI | OpenAI GPT (via Replit AI Integrations) | Email classification |
+| Auth | express-session + bcrypt | Session cookies, password hashing, role-based access |
+| OAuth | Google OAuth 2.0 | Gmail read/send access, sign-in |
+| AI | OpenAI GPT (via Replit AI Integrations) | Multi-LLM email classification + alert detection |
 | Documents | docx (npm) | DOCX generation |
 | Dates | date-fns | Time-period filtering |
+| Validation | Zod + drizzle-zod | Schema validation on both client and server |
 
 ### 2.3 Directory Structure
 
@@ -160,40 +211,47 @@ pulse/
 │   │   └── favicon.png
 │   └── src/
 │       ├── main.tsx                    # React entry point
-│       ├── App.tsx                     # Router + Providers
-│       ├── index.css                   # Global styles, star animations, theme vars
+│       ├── App.tsx                     # Router + Providers + Sidebar layout
+│       ├── index.css                   # Global styles, star animations, theme vars, print styles
 │       ├── pages/
 │       │   ├── auth.tsx                # Login / Register / OAuth / Demo
-│       │   ├── dashboard.tsx           # Main dashboard with stats, filters, table
+│       │   ├── dashboard.tsx           # Stats, type filters, category cards, records table, exports
+│       │   ├── students.tsx            # Student roster + profile with attendance history
+│       │   ├── schedule.tsx            # Weekly schedule grid per class
+│       │   ├── alerts.tsx              # Alert feed with reply, detail view, mark read/unread
+│       │   ├── admin-cohorts.tsx       # Admin class management + instructor assignment + bulk promote
+│       │   ├── instructors.tsx         # Admin instructor list
+│       │   ├── settings.tsx            # Scan schedule config, account info, Google connect/reconnect
 │       │   └── not-found.tsx           # 404 page
 │       ├── components/
 │       │   ├── ui/                     # 30+ shadcn/ui components
+│       │   ├── app-sidebar.tsx         # Sidebar nav with role-based items + alert badge
 │       │   ├── add-email-dialog.tsx    # Manual single email entry
 │       │   ├── batch-upload-dialog.tsx # JSON/CSV batch processing
 │       │   ├── gmail-fetch-dialog.tsx  # Gmail inbox search + select
-│       │   ├── records-table.tsx       # Data table with inline editing
+│       │   ├── records-table.tsx       # Data table with Type + Reason columns, inline editing
 │       │   ├── star-field.tsx          # Animated star/sparkle background
 │       │   └── theme-provider.tsx      # Dark/Light mode context
 │       ├── hooks/
-│       │   ├── use-auth.ts            # Auth state hook
+│       │   ├── use-auth.ts            # Auth state hook with isAdmin helper
 │       │   ├── use-mobile.tsx         # Responsive breakpoint hook
 │       │   └── use-toast.ts           # Toast notification hook
 │       └── lib/
-│           ├── queryClient.ts         # TanStack Query config + apiRequest
+│           ├── queryClient.ts         # TanStack Query config + apiRequest helper
 │           └── utils.ts               # cn() utility
 ├── server/
-│   ├── index.ts                       # Express server bootstrap
-│   ├── auth.ts                        # Login/register/demo/session routes
-│   ├── google-auth.ts                 # OAuth 2.0 flow + Gmail API
-│   ├── routes.ts                      # CRUD, batch processing, exports
-│   ├── openai.ts                      # AI categorization function
-│   ├── storage.ts                     # IStorage interface + DatabaseStorage
+│   ├── index.ts                       # Express server bootstrap + scheduler start
+│   ├── auth.ts                        # Login/register/demo/session + demo seeding
+│   ├── google-auth.ts                 # OAuth 2.0 flow + Gmail read/send + token refresh
+│   ├── routes.ts                      # All CRUD endpoints with role middleware
+│   ├── openai.ts                      # Multi-LLM AI classification + alert detection
+│   ├── storage.ts                     # IStorage interface + DatabaseStorage implementation
+│   ├── scheduler.ts                   # Automated email scanning (30s interval)
 │   ├── db.ts                          # Drizzle + Neon connection
-│   ├── seed.ts                        # Demo data seeder
-│   ├── vite.ts                        # Vite dev middleware
+│   ├── vite.ts                        # Vite dev middleware (DO NOT MODIFY)
 │   └── static.ts                      # Static file serving (production)
 ├── shared/
-│   ├── schema.ts                      # Drizzle schema, Zod schemas, types
+│   ├── schema.ts                      # Drizzle schema, Zod schemas, types, constants
 │   └── models/
 │       └── chat.ts                    # Chat integration models
 ├── docs/
@@ -203,18 +261,19 @@ pulse/
 ├── vite.config.ts
 ├── tsconfig.json
 ├── components.json
-├── package.json
-└── replit.md
+└── package.json
 ```
 
 ### 2.4 Data Flow
 
-1. **Email Ingestion**: Email arrives via manual entry, batch upload, or Gmail fetch
-2. **AI Classification**: `categorizeExcuse()` in `server/openai.ts` sends the email body to OpenAI, which returns both an attendance type and an excuse category
-3. **Storage**: Record is persisted in PostgreSQL via the storage layer
-4. **SSE Streaming**: For batch processing, each result is streamed to the client as it completes
-5. **Dashboard**: TanStack Query fetches records and stats; UI renders filtered, sortable data
-6. **Export**: CSV/DOCX/JSON endpoints generate downloadable files from all user records
+1. **Email Ingestion**: Email arrives via manual entry, batch upload, Gmail fetch, or automated Gmail scan
+2. **Multi-LLM Classification**: Email body sent to AI (nano first → mini if low confidence → full if still low); returns attendance type, excuse category, alert flags, and peer/school mentions
+3. **Storage**: Record persisted in PostgreSQL; if alert flagged, alert record also created
+4. **SSE Streaming**: For batch processing, each result streamed to client as it completes
+5. **Dashboard**: TanStack Query fetches records/stats scoped by role; admin sees all, instructor sees own classes
+6. **Filtering**: Attendance type filter buttons + excuse category stat cards + time-period buttons all combine
+7. **Alerts**: Flagged emails appear in alert feed with urgency; instructor can reply directly via Gmail
+8. **Export**: CSV/DOCX/JSON endpoints generate downloadable files from user's records
 
 ---
 
@@ -223,117 +282,262 @@ pulse/
 ### 3.1 Database Schema
 
 ```
-┌─────────────────────────────────┐
-│            users                │
-├─────────────────────────────────┤
-│ id            SERIAL PK        │
-│ username      TEXT NOT NULL UQ  │
-│ email         TEXT NOT NULL UQ  │
-│ password      TEXT NOT NULL     │
-│ display_name  TEXT NOT NULL     │
-│ google_id     TEXT UQ           │
-│ google_access_token  TEXT       │
-│ google_refresh_token TEXT       │
-│ created_at    TIMESTAMP        │
-└────────────┬────────────────────┘
-             │
-             │ 1:N (user_id → users.id)
-             │
-┌────────────┴────────────────────┐
-│      attendance_records         │
-├─────────────────────────────────┤
-│ id              SERIAL PK      │
-│ user_id         INT NOT NULL FK│
-│ sender_name     TEXT NOT NULL   │
-│ sender_email    TEXT NOT NULL   │
-│ received_at     TIMESTAMP      │
-│ email_body      TEXT NOT NULL   │
-│ attendance_type TEXT NOT NULL   │
-│ excuse_category TEXT NOT NULL   │
-│ message_snippet TEXT NOT NULL   │
-│ status          TEXT NOT NULL   │
-│ batch_id        TEXT            │
-│ created_at      TIMESTAMP      │
-└─────────────────────────────────┘
+┌─────────────────────────────────┐       ┌──────────────────────────────────┐
+│            users                │       │           scan_configs           │
+├─────────────────────────────────┤       ├──────────────────────────────────┤
+│ id             SERIAL PK       │──┐    │ id            SERIAL PK         │
+│ username       TEXT NOT NULL UQ │  │    │ user_id       INT NOT NULL FK   │──→ users.id
+│ email          TEXT NOT NULL UQ │  │    │ scan_time     TEXT NOT NULL     │
+│ password       TEXT NOT NULL    │  │    │ enabled       BOOLEAN DEFAULT T │
+│ display_name   TEXT NOT NULL    │  │    │ created_at    TIMESTAMP         │
+│ role           TEXT DEFAULT     │  │    └──────────────────────────────────┘
+│                'instructor'    │  │
+│ google_id      TEXT UQ         │  │
+│ google_access_token  TEXT      │  │
+│ google_refresh_token TEXT      │  │
+│ created_at     TIMESTAMP       │  │
+└─────────────────────────────────┘  │
+         │                           │
+         │ 1:N (instructor_id)       │ 1:N (user_id)
+         ▼                           │
+┌─────────────────────────────────┐  │    ┌──────────────────────────────────┐
+│           cohorts               │  │    │            alerts                │
+├─────────────────────────────────┤  │    ├──────────────────────────────────┤
+│ id             SERIAL PK       │  │    │ id            SERIAL PK         │
+│ name           TEXT NOT NULL    │  │    │ user_id       INT NOT NULL FK   │──→ users.id
+│ instructor_id  INT NOT NULL FK │──┘    │ record_id     INT NOT NULL FK   │──→ attendance_records.id
+│ created_at     TIMESTAMP       │       │ alert_type    TEXT NOT NULL      │
+└─────────────────────────────────┘       │ message       TEXT NOT NULL      │
+         │                                │ urgency       TEXT DEFAULT 'low' │
+         │ 1:N (cohort_id)               │ is_read       BOOLEAN DEFAULT F  │
+         ├──────────────┐                 │ created_at    TIMESTAMP          │
+         ▼              ▼                 └──────────────────────────────────┘
+┌──────────────────┐ ┌──────────────────┐
+│    students      │ │   schedules      │
+├──────────────────┤ ├──────────────────┤
+│ id     SERIAL PK │ │ id     SERIAL PK │
+│ name   TEXT NN   │ │ cohort_id INT FK │──→ cohorts.id
+│ email  TEXT NN   │ │ day_of_week INT  │
+│ cohort_id INT FK │ │ start_time TEXT  │
+│ status TEXT      │ │ end_time   TEXT  │
+│  DEFAULT 'Active'│ │ label      TEXT  │
+│ created_at TS    │ │ created_at TS    │
+└──────────────────┘ └──────────────────┘
+         │
+         │ 1:N (student_id, nullable)
+         ▼
+┌──────────────────────────────────────────────┐
+│              attendance_records               │
+├──────────────────────────────────────────────┤
+│ id                  SERIAL PK                │
+│ user_id             INT NOT NULL FK          │──→ users.id
+│ student_id          INT FK (nullable)        │──→ students.id
+│ sender_name         TEXT NOT NULL            │
+│ sender_email        TEXT NOT NULL            │
+│ received_at         TIMESTAMP NOT NULL       │
+│ email_body          TEXT NOT NULL            │
+│ attendance_type     TEXT NOT NULL DEFAULT    │
+│                     'Absent'                 │
+│ excuse_category     TEXT NOT NULL            │
+│ message_snippet     TEXT NOT NULL            │
+│ status              TEXT NOT NULL DEFAULT    │
+│                     'pending'                │
+│ batch_id            TEXT                     │
+│ needs_response      BOOLEAN DEFAULT FALSE   │
+│ urgency             TEXT DEFAULT 'low'       │
+│ alert_reason        TEXT                     │
+│ mentions_student    BOOLEAN DEFAULT FALSE   │
+│ mentions_school     BOOLEAN DEFAULT FALSE   │
+│ peer_or_school_detail TEXT                   │
+│ gmail_message_id    TEXT                     │
+│ gmail_thread_id     TEXT                     │
+│ created_at          TIMESTAMP                │
+└──────────────────────────────────────────────┘
 ```
 
-### 3.2 Field Descriptions
+### 3.2 Table Count: 8
+
+| Table | Purpose |
+|---|---|
+| users | User accounts with role, Google OAuth tokens |
+| cohorts | Classes (L1, L2, L3, L∞) with instructor assignment |
+| students | Student roster with class assignment and status |
+| schedules | Weekly time blocks per class |
+| attendance_records | Processed email records with dual classification and alert flags |
+| alerts | Flagged records needing instructor attention |
+| scan_configs | Automated scan schedule per user |
+| session | Express session storage (managed by connect-pg-simple) |
+
+### 3.3 Field Descriptions
 
 **users**
 | Field | Type | Constraints | Description |
 |---|---|---|---|
-| id | SERIAL | PK, auto-increment | Unique user identifier |
+| id | SERIAL | PK | Unique user identifier |
 | username | TEXT | NOT NULL, UNIQUE | Login username |
 | email | TEXT | NOT NULL, UNIQUE | User email address |
 | password | TEXT | NOT NULL | Bcrypt-hashed password |
-| display_name | TEXT | NOT NULL | Shown in UI header |
+| display_name | TEXT | NOT NULL | Shown in UI sidebar |
+| role | TEXT | NOT NULL, DEFAULT 'instructor' | 'admin' or 'instructor' |
 | google_id | TEXT | UNIQUE, nullable | Google OAuth subject ID |
 | google_access_token | TEXT | nullable | Current OAuth access token |
 | google_refresh_token | TEXT | nullable | Long-lived refresh token |
 | created_at | TIMESTAMP | DEFAULT NOW() | Account creation timestamp |
 
+**cohorts**
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | SERIAL | PK | Unique class identifier |
+| name | TEXT | NOT NULL | Class name: L1, L2, L3, or L∞ |
+| instructor_id | INT | NOT NULL, FK → users.id | Assigned instructor |
+| created_at | TIMESTAMP | DEFAULT NOW() | Class creation timestamp |
+
+**students**
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | SERIAL | PK | Unique student identifier |
+| name | TEXT | NOT NULL | Student full name |
+| email | TEXT | NOT NULL | Student email address |
+| cohort_id | INT | NOT NULL, FK → cohorts.id | Current class assignment |
+| status | TEXT | NOT NULL, DEFAULT 'Active' | Active, Graduated, or Hired |
+| created_at | TIMESTAMP | DEFAULT NOW() | Student creation timestamp |
+
+**schedules**
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | SERIAL | PK | Unique schedule entry identifier |
+| cohort_id | INT | NOT NULL, FK → cohorts.id | Class this schedule belongs to |
+| day_of_week | INT | NOT NULL | 0=Sunday through 6=Saturday |
+| start_time | TEXT | NOT NULL | Start time in "HH:MM" 24h format |
+| end_time | TEXT | NOT NULL | End time in "HH:MM" 24h format |
+| label | TEXT | NOT NULL | Subject/activity name |
+| created_at | TIMESTAMP | DEFAULT NOW() | Entry creation timestamp |
+
 **attendance_records**
 | Field | Type | Constraints | Description |
 |---|---|---|---|
-| id | SERIAL | PK, auto-increment | Unique record identifier |
-| user_id | INT | NOT NULL, FK → users.id | Owning user |
-| sender_name | TEXT | NOT NULL | Name of the student/builder |
+| id | SERIAL | PK | Unique record identifier |
+| user_id | INT | NOT NULL, FK → users.id | Owning instructor/admin |
+| student_id | INT | FK → students.id, nullable | Linked student (if matched) |
+| sender_name | TEXT | NOT NULL | Name from email |
 | sender_email | TEXT | NOT NULL | Email address of sender |
-| received_at | TIMESTAMP | NOT NULL | Date/time the email was received |
+| received_at | TIMESTAMP | NOT NULL | Date/time email was received |
 | email_body | TEXT | NOT NULL | Full email content |
 | attendance_type | TEXT | NOT NULL, DEFAULT 'Absent' | Absent, Late/Tardy, or Unexcused |
 | excuse_category | TEXT | NOT NULL | Sick/Medical, Personal, Program Event, Technical Issue, Other, or None |
-| message_snippet | TEXT | NOT NULL | First 150 chars of email body |
-| status | TEXT | NOT NULL, DEFAULT 'pending' | Processing status (pending / processed) |
+| message_snippet | TEXT | NOT NULL | Truncated email preview |
+| status | TEXT | NOT NULL, DEFAULT 'pending' | pending or processed |
 | batch_id | TEXT | nullable | Groups emails processed together |
+| needs_response | BOOLEAN | DEFAULT FALSE | AI detected question/request |
+| urgency | TEXT | DEFAULT 'low' | low, medium, or high |
+| alert_reason | TEXT | nullable | Why alert was flagged |
+| mentions_student | BOOLEAN | DEFAULT FALSE | Mentions another student by name |
+| mentions_school | BOOLEAN | DEFAULT FALSE | Mentions Pursuit/program/curriculum |
+| peer_or_school_detail | TEXT | nullable | Details of what was mentioned |
+| gmail_message_id | TEXT | nullable | Gmail Message-ID header (for threading) |
+| gmail_thread_id | TEXT | nullable | Gmail thread ID (for threading) |
 | created_at | TIMESTAMP | DEFAULT NOW() | Record creation timestamp |
 
-### 3.3 Relationships
+**alerts**
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | SERIAL | PK | Unique alert identifier |
+| user_id | INT | NOT NULL, FK → users.id | Instructor who should see this |
+| record_id | INT | NOT NULL, FK → attendance_records.id | Associated attendance record |
+| alert_type | TEXT | NOT NULL | Type of alert (needs_response, peer_mention, school_mention) |
+| message | TEXT | NOT NULL | Alert description text |
+| urgency | TEXT | NOT NULL, DEFAULT 'low' | low, medium, or high |
+| is_read | BOOLEAN | NOT NULL, DEFAULT FALSE | Read/unread status |
+| created_at | TIMESTAMP | DEFAULT NOW() | Alert creation timestamp |
 
-- **users → attendance_records**: One-to-Many. Each user owns zero or more attendance records.
-- **Data Isolation**: All queries filter by `user_id` to ensure users only see their own records.
+**scan_configs**
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| id | SERIAL | PK | Unique config identifier |
+| user_id | INT | NOT NULL, FK → users.id | User who owns this config |
+| scan_time | TEXT | NOT NULL | Time to scan in "HH:MM" 24h format |
+| enabled | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether this scan time is active |
+| created_at | TIMESTAMP | DEFAULT NOW() | Config creation timestamp |
+
+### 3.4 Relationships
+
+```
+users 1:N → cohorts (instructor_id)
+users 1:N → attendance_records (user_id)
+users 1:N → alerts (user_id)
+users 1:N → scan_configs (user_id)
+cohorts 1:N → students (cohort_id)
+cohorts 1:N → schedules (cohort_id)
+students 1:N → attendance_records (student_id, nullable)
+attendance_records 1:N → alerts (record_id)
+```
 
 ---
 
 ## 4. Technical Requirements Document (TRD)
 
-### 4.1 Authentication
+### 4.1 Authentication & Authorization
 
 **Username/Password Authentication**
-- Registration: username (3+ chars), email (valid format), password (6+ chars), display name
+- Registration: username (3+ chars), email (valid format), password (6+ chars), display name, role selection (admin/instructor)
 - Login: username + password validated against bcrypt hash
 - Session: `express-session` with `connect-pg-simple` for PostgreSQL-backed sessions
 - Session secret: `SESSION_SECRET` environment variable
 - Cookie: `httpOnly`, `secure` in production, `sameSite: lax`
 
+**Role-Based Access Control**
+- `requireAuth` middleware: blocks unauthenticated requests with 401
+- `requireAdmin` middleware: blocks non-admin requests with 403
+- Instructor middleware: enforces cohort ownership checks — instructors can only access students, records, and schedules in their own classes
+- Admin bypass: admins can access all data across all classes and instructors
+
 **Google OAuth 2.0**
-- Scopes: `openid`, `userinfo.email`, `userinfo.profile`, `gmail.readonly`
+- Scopes: `openid`, `userinfo.email`, `userinfo.profile`, `gmail.readonly`, `gmail.send`
 - Flow: Authorization Code with `access_type: offline`, `prompt: consent`
 - CSRF: Random `state` parameter stored in session
 - Token storage: Access and refresh tokens persisted in `users` table
 - Auto-refresh: Expired access tokens refreshed via refresh token on 401 responses
+- Reconnect: Settings page has "Reconnect Google Account" button for existing users to re-authorize with updated scopes (e.g., adding gmail.send)
 - Environment variables: `PULSE_GOOGLE_CLIENT_ID`, `PULSE_GOOGLE_CLIENT_SECRET`
 
 **Demo Mode**
-- Username: `demo` / Password: `demo123456`
-- Auto-created on first demo login with 6 pre-seeded attendance records
-- No Google ID attached (Gmail button hidden in demo mode)
+- Username: `demo`, role: admin
+- Auto-seeds: 2 instructor accounts (instructor_smith for L1/L2, instructor_jones for L3/L∞), 4 cohorts, 12 students (all Active), schedule entries, 7 attendance records (4 Absent, 2 Late/Tardy, 1 Unexcused), 2 alerts
+- No Google ID attached (Gmail features unavailable in demo)
 
-### 4.2 AI Classification Engine
+### 4.2 Multi-LLM AI Classification Engine
 
 **Provider**: OpenAI via Replit AI Integrations
-**Model**: GPT-5.2
-**Response Format**: JSON mode (`response_format: { type: "json_object" }`)
-**Max Tokens**: 256
+**Model Tiers** (cost optimization):
+| Tier | Model | When Used |
+|---|---|---|
+| nano | gpt-5-nano | First attempt (cheapest) |
+| mini | gpt-5-mini | Escalation if nano confidence < 0.4 or fails |
+| full | gpt-5.2 | Final escalation if mini also low confidence or fails |
 
-**Dual-Classification Prompt Structure**:
+**Response Format**: JSON mode (`response_format: { type: "json_object" }`)
+
+**Dual-Classification + Alert Detection Prompt**:
 The AI prompt instructs the model to analyze each email and return:
-1. `attendanceType`: Whether the person is Absent, Late/Tardy, or Unexcused
-2. `category`: The reason/excuse — Sick/Medical, Personal, Program Event, Technical Issue, Other, or None
+1. `attendanceType`: Absent, Late/Tardy, or Unexcused
+2. `category`: Sick/Medical, Personal, Program Event, Technical Issue, Other, or None
 3. `confidence`: Float 0-1 indicating classification confidence
 4. `reasoning`: One-sentence explanation
+5. `needsResponse`: Boolean — does email contain a question or request?
+6. `urgency`: low, medium, or high
+7. `alertReason`: Why the email needs attention (if applicable)
+8. `mentionsStudent`: Boolean — does a student mention another student?
+9. `mentionsSchool`: Boolean — does email mention Pursuit/program/curriculum/instructors?
+10. `peerOrSchoolDetail`: Details of what was mentioned
 
-**Phrase Recognition** (comprehensive examples provided to the AI):
+**Escalation Logic**:
+```
+parseResponse returns null if confidence < 0.4
+   → triggers escalation to next model tier
+   → if all tiers exhausted → defaults to Absent/Unexcused/0 confidence
+```
+
+**Phrase Recognition** (comprehensive examples in prompt):
 - Sick/Medical: not feeling well, under the weather, flu, fever, migraine, hospital, ER, urgent care, therapy, mental health day, COVID, quarantine, food poisoning, surgery, recovery
 - Personal: family emergency, funeral, wedding, out of town, traveling, personal matter, child care, moving, jury duty, court date, religious observance, bereavement
 - Program Event: conference, workshop, hackathon, career fair, networking event, field trip, orientation, guest speaker, company visit
@@ -341,9 +545,9 @@ The AI prompt instructs the model to analyze each email and return:
 - Late/Tardy indicators: running late, running behind, stuck in traffic, held up, on my way, be there soon, overslept but coming, parking issues, stepping in late, missed the bus but on my way
 - Unexcused indicators: can't make it (no reason), something came up (no details), just won't be there
 
-**Fallback**: If AI response cannot be parsed, defaults to `Unexcused` with confidence `0`.
-
 ### 4.3 Gmail Integration
+
+**OAuth Scopes**: `gmail.readonly` (inbox reading) + `gmail.send` (reply sending)
 
 **Email Search Query** (default when no custom query provided):
 ```
@@ -359,17 +563,33 @@ OR stepping out OR leaving early OR emergency OR appointment OR called out
 **Fetch Process**:
 1. List message IDs via Gmail API with search query (max 50)
 2. Fetch full message details for each ID
-3. Parse headers (From, Subject, Date)
+3. Parse headers (From, Subject, Date, Message-ID)
 4. Extract body: prefer `text/plain`, fallback to `text/html` with tag stripping
 5. Parse sender: regex split of `"Display Name <email@domain.com>"` format
-6. Return structured email objects for user selection
+6. Store `gmail_message_id` and `gmail_thread_id` for threading
+7. Return structured email objects for user selection
+
+**Email Reply (Send)**:
+- Endpoint: `POST /api/gmail/send`
+- Parameters: to, subject, body, inReplyTo (Message-ID), threadId (Gmail thread), alertId
+- Security: validates recipient matches original sender when alertId provided; sanitizes all headers against CRLF injection
+- Threading: Sets `In-Reply-To` and `References` headers + Gmail `threadId` for proper conversation threading
+- Sends via instructor's connected Gmail account using `gmail.send` scope
 
 **Token Refresh**:
-- On 401 response from Gmail API, automatically use refresh token to get new access token
+- On 401 from Gmail API, use refresh token to get new access token
 - Update database with new token
 - Retry original request once
 
-### 4.4 Export Formats
+### 4.4 Automated Scanning (Scheduler)
+
+- Runs on server startup in `server/scheduler.ts`
+- Checks every **30 seconds** if current time (HH:MM) matches any enabled scan_config
+- For users with Google tokens and enabled scan configs: auto-fetches Gmail, processes through AI, creates records and alerts
+- Default scan times seeded for new users: 10:00, 18:25, 21:55
+- Logs scan results to console
+
+### 4.5 Export Formats
 
 | Format | Endpoint | Content-Type | Notes |
 |---|---|---|---|
@@ -379,11 +599,10 @@ OR stepping out OR leaving early OR emergency OR appointment OR called out
 
 All exports include all user records regardless of active time filter. Print view respects the active time filter.
 
-### 4.5 Real-Time Processing (SSE)
+### 4.6 Real-Time Processing (SSE)
 
 Batch email processing uses Server-Sent Events for live progress:
 
-**Event Types**:
 | Event | Payload | Description |
 |---|---|---|
 | `started` | `{ total, batchId }` | Processing has begun |
@@ -415,7 +634,18 @@ Batch email processing uses Server-Sent Events for live progress:
 │  │  │  Password                            │  │              │
 │  │  └──────────────────────────────────────┘  │              │
 │  │                                            │              │
-│  │  [ Sign In                            ]    │              │
+│  │  Register tab also shows:                  │              │
+│  │  ┌──────────────────────────────────────┐  │              │
+│  │  │  Email                               │  │              │
+│  │  └──────────────────────────────────────┘  │              │
+│  │  ┌──────────────────────────────────────┐  │              │
+│  │  │  Display Name                        │  │              │
+│  │  └──────────────────────────────────────┘  │              │
+│  │  ┌──────────────────────────────────────┐  │              │
+│  │  │  Role: [Admin ▼] / [Instructor ▼]   │  │              │
+│  │  └──────────────────────────────────────┘  │              │
+│  │                                            │              │
+│  │  [ Sign In / Register                 ]    │              │
 │  │                                            │              │
 │  │  ──── OR ────                              │              │
 │  │                                            │              │
@@ -427,60 +657,248 @@ Batch email processing uses Server-Sent Events for live progress:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Dashboard
+### 5.2 App Shell — Sidebar Layout
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  ⚡ PULSE    Welcome, [Name]   [☀/🌙] [Logout]              │
-│  ─────────────────────────────────────────────────────────── │
-│  [Star Field Background]                                     │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────────┐│
-│  │ STAT CARDS (one per classification)                      ││
-│  │ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       ││
-│  │ │Total    │ │Sick/    │ │Personal │ │Program  │       ││
-│  │ │Records  │ │Medical  │ │         │ │Event    │       ││
-│  │ │  42     │ │  12     │ │  8      │ │  5      │       ││
-│  │ └─────────┘ └─────────┘ └─────────┘ └─────────┘       ││
-│  │ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       ││
-│  │ │Tech     │ │Late/    │ │Other    │ │Unexcused│       ││
-│  │ │Issue    │ │Tardy    │ │         │ │         │       ││
-│  │ │  4      │ │  7      │ │  3      │ │  3      │       ││
-│  │ └─────────┘ └─────────┘ └─────────┘ └─────────┘       ││
-│  └──────────────────────────────────────────────────────────┘│
-│                                                              │
-│  TIME FILTERS: [All] [Day] [Week] [Month] [Quarter] [Year]  │
-│                                                              │
-│  ACTIONS: [+ Add Email] [Batch Upload] [📧 Gmail] [🔄 Clear]│
-│  EXPORTS: [CSV] [DOC] [JSON] [🖨 Print]                     │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────────┐│
-│  │ Name    │ Email       │ Date  │ Category   │ Snippet │ ⚙││
-│  │─────────┼─────────────┼───────┼────────────┼─────────┼──││
-│  │ Maria G │ maria@...   │ 02/26 │ [Sick/Med▼]│ Woke up │👁🗑││
-│  │ James W │ j.wilson@.. │ 02/26 │ [Program ▼]│ Program │👁🗑││
-│  │ Tyler B │ tbrooks@... │ 02/27 │ [TechIss ▼]│ Internet│👁🗑││
-│  └──────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────┘
+┌──────────┬───────────────────────────────────────────────────┐
+│          │  [Star Field Background]                          │
+│  ⚡PULSE  │                                                   │
+│          │  [Page Content Area]                              │
+│ ─────── │                                                   │
+│ 📊 Dash  │                                                   │
+│ 👥 Studt │                                                   │
+│ 📅 Sched │                                                   │
+│ 🔔 Alert │  ← badge with unread count                       │
+│ ⚙ Setng  │                                                   │
+│          │                                                   │
+│ ADMIN:   │                                                   │
+│ 🏫 Class │                                                   │
+│ 👨‍🏫 Instr │                                                   │
+│          │                                                   │
+│ ─────── │                                                   │
+│ [☀/🌙]  │                                                   │
+│ [Logout] │                                                   │
+└──────────┴───────────────────────────────────────────────────┘
 ```
 
-### 5.3 Email Detail Modal
+### 5.3 Dashboard
+
+```
+┌──────────┬───────────────────────────────────────────────────┐
+│ Sidebar  │                                                   │
+│          │  Dashboard                     [Admin: Class ▼]   │
+│          │                                                   │
+│          │  TIME: [All] [Today] [Week] [Month] [Qtr] [Year] │
+│          │                                                   │
+│          │  STAT CARDS (excuse categories — clickable):      │
+│          │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │
+│          │  │Total │ │Sick/ │ │Pers  │ │Prog  │ │Tech  │   │
+│          │  │  42  │ │Med 12│ │  8   │ │Evt 5 │ │Iss 4 │   │
+│          │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘   │
+│          │  ┌──────┐ ┌──────┐                               │
+│          │  │Other │ │None  │                               │
+│          │  │  3   │ │  3   │                               │
+│          │  └──────┘ └──────┘                               │
+│          │                                                   │
+│          │  Records                                          │
+│          │  TYPE FILTERS: [All(42)] [Absent(33)] [Late/      │
+│          │                Tardy(6)] [Unexcused(3)]           │
+│          │  [Count Badge]                                    │
+│          │                                                   │
+│          │  ACTIONS: [+ Add] [Batch] [📧Gmail] [🔄Clear]    │
+│          │  EXPORTS: [CSV] [DOC] [JSON] [🖨Print]           │
+│          │                                                   │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ Name  │Email  │Date │Type        │Reason   │⚙│ │
+│          │  │───────┼───────┼─────┼────────────┼─────────┼──│ │
+│          │  │Maria G│maria@ │02/27│[Absent]    │[Sick/▼] │👁🗑│ │
+│          │  │Sarah C│sarah@ │02/27│[Late/Tardy]│[Pers ▼] │👁🗑│ │
+│          │  │Jordan │jordan@│02/27│[Late/Tardy]│[Tech ▼] │👁🗑│ │
+│          │  │Devon K│devon@ │02/27│[Unexcused] │[None ▼] │👁🗑│ │
+│          │  └──────────────────────────────────────────────┘ │
+└──────────┴───────────────────────────────────────────────────┘
+```
+
+### 5.4 Students Page
+
+```
+┌──────────┬───────────────────────────────────────────────────┐
+│ Sidebar  │                                                   │
+│          │  Students                    [Status ▼] [Class ▼] │
+│          │  [+ Add Student]                                  │
+│          │                                                   │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ Name       │ Email          │ Class │ Status │ │
+│          │  │────────────┼────────────────┼───────┼────────│ │
+│          │  │ Maria G    │ maria@univ.edu │  L1   │ Active │ │
+│          │  │ James W    │ james@univ.edu │  L1   │ Active │ │
+│          │  │ Tyler B    │ tyler@univ.edu │  L2   │ Grad'd │ │
+│          │  └──────────────────────────────────────────────┘ │
+│          │                                                   │
+│          │  STUDENT PROFILE (click to expand):               │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ Maria Garcia            Status: [Active ▼]  │ │
+│          │  │ maria.garcia@univ.edu   Class: L1           │ │
+│          │  │ [Move to Class ▼]                           │ │
+│          │  │                                              │ │
+│          │  │ Attendance History (5 records)               │ │
+│          │  │ ┌─────────────────────────────────────────┐  │ │
+│          │  │ │ Date  │ Type    │ Reason     │ Snippet  │  │ │
+│          │  │ │ 02/27 │ Absent  │ Sick/Med   │ Woke up..│  │ │
+│          │  │ │ 02/20 │ Late   │ Tech Issue │ Traffic..│  │ │
+│          │  │ └─────────────────────────────────────────┘  │ │
+│          │  └──────────────────────────────────────────────┘ │
+└──────────┴───────────────────────────────────────────────────┘
+```
+
+### 5.5 Schedule Page
+
+```
+┌──────────┬───────────────────────────────────────────────────┐
+│ Sidebar  │                                                   │
+│          │  Schedule                        [Class: L1 ▼]    │
+│          │  [+ Add Time Block]                               │
+│          │                                                   │
+│          │  ┌─────┬──────┬──────┬──────┬──────┬──────┬─────┐│
+│          │  │     │ Mon  │ Tue  │ Wed  │ Thu  │ Fri  │ Sat ││
+│          │  │─────┼──────┼──────┼──────┼──────┼──────┼─────││
+│          │  │ 9AM │ Core │ Core │ Core │ Core │ Core │     ││
+│          │  │     │Coding│Coding│Coding│Coding│Coding│     ││
+│          │  │─────┼──────┼──────┼──────┼──────┼──────┼─────││
+│          │  │12PM │Lunch │Lunch │Lunch │Lunch │Lunch │     ││
+│          │  │─────┼──────┼──────┼──────┼──────┼──────┼─────││
+│          │  │ 1PM │ Lab  │ Lab  │ Lab  │ Lab  │Review│     ││
+│          │  └─────┴──────┴──────┴──────┴──────┴──────┴─────┘│
+└──────────┴───────────────────────────────────────────────────┘
+```
+
+### 5.6 Alerts Page
+
+```
+┌──────────┬───────────────────────────────────────────────────┐
+│ Sidebar  │                                                   │
+│          │  Alerts (3 unread)           [Mark All Read]       │
+│          │                                                   │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ 🔴 HIGH │ Sarah Chen         │ 1 day ago     │ │
+│          │  │ Job interview — asking to leave early and    │ │
+│          │  │ whether there will be a recording            │ │
+│          │  │ [View Details] [Reply] [Mark Read]           │ │
+│          │  ├──────────────────────────────────────────────┤ │
+│          │  │ 🟡 MED  │ Alex Johnson       │ 2 days ago    │ │
+│          │  │ Student mentioned another student by name,   │ │
+│          │  │ reporting that they are also absent           │ │
+│          │  │ [View Details] [Reply] [Mark Read]           │ │
+│          │  └──────────────────────────────────────────────┘ │
+│          │                                                   │
+│          │  DETAIL DIALOG (click View Details):              │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ From: sarah.chen@university.edu              │ │
+│          │  │ Type: Late/Tardy │ Reason: Personal          │ │
+│          │  │ Urgency: HIGH                                │ │
+│          │  │                                              │ │
+│          │  │ Full Email Body:                             │ │
+│          │  │ "Hi, I have a job interview at 2 PM today    │ │
+│          │  │  and need to leave early. Is it okay if I    │ │
+│          │  │  skip the afternoon? Also, will there be a   │ │
+│          │  │  recording of the session?"                  │ │
+│          │  │                                              │ │
+│          │  │ [Reply via Email] [Mark Unread] [Close]      │ │
+│          │  └──────────────────────────────────────────────┘ │
+│          │                                                   │
+│          │  REPLY DIALOG:                                    │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ To: sarah.chen@university.edu                │ │
+│          │  │ Subject: Re: [original subject]              │ │
+│          │  │ ┌────────────────────────────────────────┐   │ │
+│          │  │ │ [Reply body text area]                 │   │ │
+│          │  │ └────────────────────────────────────────┘   │ │
+│          │  │ [Send Reply]                    [Cancel]     │ │
+│          │  └──────────────────────────────────────────────┘ │
+└──────────┴───────────────────────────────────────────────────┘
+```
+
+### 5.7 Admin Classes Page
+
+```
+┌──────────┬───────────────────────────────────────────────────┐
+│ Sidebar  │                                                   │
+│          │  Manage Classes                    [+ Add Class]   │
+│          │                                                   │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ L1 — Instructor Smith          [Edit] [Del] │ │
+│          │  │   3 students (3 active)                     │ │
+│          │  │   [Promote Class →]                         │ │
+│          │  ├──────────────────────────────────────────────┤ │
+│          │  │ L2 — Instructor Smith          [Edit] [Del] │ │
+│          │  │   3 students (2 active, 1 graduated)        │ │
+│          │  │   [Promote Class →]                         │ │
+│          │  ├──────────────────────────────────────────────┤ │
+│          │  │ L3 — Instructor Jones          [Edit] [Del] │ │
+│          │  │   3 students (3 active)                     │ │
+│          │  │   [Promote Class →]                         │ │
+│          │  ├──────────────────────────────────────────────┤ │
+│          │  │ L∞ — Instructor Jones          [Edit] [Del] │ │
+│          │  │   3 students (3 active)                     │ │
+│          │  └──────────────────────────────────────────────┘ │
+│          │                                                   │
+│          │  PROMOTE DIALOG:                                  │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ Promote L1 students to: [L2 ▼]              │ │
+│          │  │ This will move all 3 active students.       │ │
+│          │  │ Graduated/Hired students will not be moved. │ │
+│          │  │ [Confirm Promotion]              [Cancel]    │ │
+│          │  └──────────────────────────────────────────────┘ │
+└──────────┴───────────────────────────────────────────────────┘
+```
+
+### 5.8 Settings Page
+
+```
+┌──────────┬───────────────────────────────────────────────────┐
+│ Sidebar  │                                                   │
+│          │  Settings                                         │
+│          │                                                   │
+│          │  Account                                          │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ Username: demo                              │ │
+│          │  │ Email: demo@pulse.app                       │ │
+│          │  │ Role: Admin                                 │ │
+│          │  │ Google: ✅ Connected / ❌ Not connected      │ │
+│          │  │ [Reconnect Google Account]                  │ │
+│          │  └──────────────────────────────────────────────┘ │
+│          │                                                   │
+│          │  Scan Schedule                                    │
+│          │  ┌──────────────────────────────────────────────┐ │
+│          │  │ ✅ 10:00 AM    [Edit] [Delete]              │ │
+│          │  │ ✅  6:25 PM    [Edit] [Delete]              │ │
+│          │  │ ✅  9:55 PM    [Edit] [Delete]              │ │
+│          │  │ [+ Add Scan Time]                           │ │
+│          │  └──────────────────────────────────────────────┘ │
+└──────────┴───────────────────────────────────────────────────┘
+```
+
+### 5.9 Email Detail Modal
 
 ```
 ┌──────────────────────────────────────┐
 │  Email Details                    ✕  │
 │                                      │
 │  Name           Email                │
-│  Maria Garcia   maria.garcia@u..     │
+│  Sarah Chen     sarah.chen@u..       │
 │                                      │
-│  Date           Category             │
-│  2/26/2026      [Sick/Medical]       │
+│  Date           Type                 │
+│  2/27/2026      [Late/Tardy]         │
+│                                      │
+│  Reason                              │
+│  [Personal]                          │
 │                                      │
 │  Full Email Body                     │
 │  ┌──────────────────────────────────┐│
-│  │ Good morning, I woke up with    ││
-│  │ a severe migraine and nausea    ││
-│  │ this morning...                 ││
+│  │ Hi, I have a job interview at   ││
+│  │ 2 PM today and need to leave    ││
+│  │ early. Is it okay if I skip     ││
+│  │ the afternoon portion?          ││
 │  └──────────────────────────────────┘│
 └──────────────────────────────────────┘
 ```
@@ -512,22 +930,24 @@ Batch email processing uses Server-Sent Events for live progress:
 ### 6.3 Key Dependencies
 
 **Production**:
-| Package | Version | Purpose |
-|---|---|---|
-| react | ^18 | UI framework |
-| express | ^5 | HTTP server |
-| drizzle-orm | latest | Type-safe database ORM |
-| @neondatabase/serverless | latest | PostgreSQL driver |
-| openai | latest | AI classification |
-| bcrypt | latest | Password hashing |
-| express-session | latest | Session management |
-| connect-pg-simple | latest | PostgreSQL session store |
-| docx | latest | DOCX generation |
-| date-fns | latest | Date manipulation |
-| wouter | latest | Client-side routing |
-| @tanstack/react-query | ^5 | Server state management |
-| zod | latest | Schema validation |
-| drizzle-zod | latest | Drizzle-to-Zod schema bridge |
+| Package | Purpose |
+|---|---|
+| react (^18) | UI framework |
+| express (^5) | HTTP server |
+| drizzle-orm | Type-safe database ORM |
+| @neondatabase/serverless | PostgreSQL driver |
+| openai | AI classification (multi-LLM) |
+| bcrypt | Password hashing |
+| express-session | Session management |
+| connect-pg-simple | PostgreSQL session store |
+| docx | DOCX report generation |
+| date-fns | Date manipulation and filtering |
+| wouter | Client-side routing |
+| @tanstack/react-query (^5) | Server state management |
+| zod | Schema validation |
+| drizzle-zod | Drizzle-to-Zod schema bridge |
+| lucide-react | Icons |
+| react-icons | Company logos |
 
 **Development**:
 | Package | Purpose |
@@ -542,7 +962,7 @@ Batch email processing uses Server-Sent Events for live progress:
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Start development server (Express + Vite HMR) |
+| `npm run dev` | Start development server (Express + Vite HMR + Scheduler) |
 | `npm run build` | Production build |
 | `npm run db:push` | Push schema changes to database |
 
@@ -559,7 +979,9 @@ User arrives at PULSE
         │                                                          │
         │                                                     Invalid? ── Show error
         │
-        ├─── New user? ──── Fill registration form ──── Validate ──── Create account ──── Dashboard
+        ├─── New user? ──── Fill registration form ──── Select role ──── Create account ──── Dashboard
+        │                   (username, email, password,
+        │                    display name, role)
         │
         ├─── Google user? ──── Click "Sign in with Google" ──── OAuth consent
         │                          │
@@ -567,9 +989,9 @@ User arrives at PULSE
         │                          │
         │                     ├── Existing Google user? ── Update tokens ── Dashboard
         │                     ├── Existing email user? ── Link Google ID ── Dashboard
-        │                     └── New user? ── Create account ── Dashboard
+        │                     └── New user? ── Create account (instructor role) ── Dashboard
         │
-        └─── Demo? ──── Click "Try Demo" ──── Auto-login with seeded data ──── Dashboard
+        └─── Demo? ──── Click "Try Demo" ──── Auto-login as admin with seeded data ──── Dashboard
 ```
 
 ### 7.2 Email Processing Flow
@@ -579,85 +1001,158 @@ User on Dashboard
         │
         ├─── Manual Entry ──── Fill form (name, email, date, body) ──── Submit
         │                                                                  │
-        │                                                            Send to AI
+        │                                                        Send to Multi-LLM AI
+        │                                                        (nano → mini → full)
         │                                                                  │
-        │                                                          Classify (type + category)
+        │                                                    Classify (type + category + alerts)
         │                                                                  │
-        │                                                          Save to DB ──── Update UI
+        │                                                    Save record to DB
+        │                                                    If needsResponse → create alert
+        │                                                    ──── Update UI
         │
         ├─── Batch Upload ──── Paste JSON or CSV ──── Parse ──── Validate
         │                                                           │
         │                                                    SSE connection opened
         │                                                           │
         │                                                    For each email:
-        │                                                      ├── Send to AI
-        │                                                      ├── Save to DB
+        │                                                      ├── Send to Multi-LLM AI
+        │                                                      ├── Save to DB + create alerts
         │                                                      └── Stream progress event
         │                                                           │
         │                                                    Complete event ──── Update UI
         │
-        └─── Gmail Fetch ──── Search inbox (keyword query)
-                                    │
-                              Display matching emails with checkboxes
-                                    │
-                              User selects emails ──── Submit selected
-                                    │
-                              Same batch processing flow as above
+        ├─── Gmail Fetch ──── Search inbox (keyword query)
+        │                           │
+        │                     Display matching emails with checkboxes
+        │                           │
+        │                     User selects emails ──── Submit selected
+        │                           │
+        │                     Same batch processing flow as above
+        │
+        └─── Automated Scan ──── Scheduler triggers at configured time
+                                        │
+                                  For each user with Google tokens + enabled configs:
+                                        │
+                                  Fetch Gmail → Process → Save → Create alerts
 ```
 
-### 7.3 Data Consumption Flow
+### 7.3 Dashboard Filtering Flow
 
 ```
-Dashboard displays records
+Dashboard displays records (scoped by role)
         │
-        ├─── Filter by time ──── Day / Week / Month / Quarter / Year / All
-        │                              │
-        │                        Filtered records shown in table + stats updated
+        ├─── Admin: sees all records across all classes
+        │    └── Can filter by class using dropdown
         │
-        ├─── Change category ──── Select new value from dropdown ──── PATCH API ──── Update stats
+        ├─── Instructor: sees only records from own classes
         │
-        ├─── View details ──── Click eye icon ──── Modal with full email body
+        ├─── Filter by attendance type
+        │    └── Click: [All] [Absent] [Late/Tardy] [Unexcused] buttons
+        │         └── Records table filters to selected type
+        │         └── Buttons show count in parentheses
         │
+        ├─── Filter by excuse category
+        │    └── Click stat card (Sick/Medical, Personal, etc.)
+        │         └── Records table filters to selected category
+        │         └── Combines with type filter
+        │
+        ├─── Filter by time period
+        │    └── Click: [All] [Today] [Week] [Month] [Quarter] [Year]
+        │
+        ├─── Change reason ──── Select new value from Reason dropdown ──── PATCH API ──── Update stats
+        ├─── View details ──── Click eye icon ──── Modal with full email body + type + reason
         ├─── Delete record ──── Click trash icon ──── DELETE API ──── Remove from table
+        ├─── Clear all ──── Confirm ──── DELETE all ──── Empty table
+        ├─── Export ──── CSV / DOCX / JSON ──── Download file
+        └─── Print ──── Window.print() ──── Print dialog (filtered, no controls)
+```
+
+### 7.4 Alert Response Flow
+
+```
+Alert appears in feed (and sidebar badge increments)
         │
-        ├─── Clear all ──── Confirm ──── DELETE /api/records ──── Empty table
+        ├── View Details ──── Dialog shows full email body, type, reason, urgency
         │
-        ├─── Export ──── CSV / DOCX / JSON ──── Download file (all records)
+        ├── Reply ──── Reply dialog opens
+        │                │
+        │           Fill reply body ──── Send
+        │                │
+        │           POST /api/gmail/send
+        │           (uses instructor's Gmail, threads properly)
+        │                │
+        │           Success toast ──── Alert marked read
         │
-        └─── Print ──── Window.print() ──── Print dialog (filtered records, no controls)
+        ├── Mark Read ──── PATCH /api/alerts/:id/read ──── Badge decrements
+        │
+        ├── Mark Unread ──── PATCH /api/alerts/:id/unread ──── Badge increments
+        │
+        └── Mark All Read ──── POST /api/alerts/mark-all-read ──── Badge → 0
+```
+
+### 7.5 Student Management Flow
+
+```
+Students Page
+        │
+        ├── View roster ──── Filter by class / status
+        │
+        ├── Add student ──── Form (name, email, class) ──── POST /api/students
+        │
+        ├── Click student ──── Profile view
+        │         │
+        │         ├── View attendance history (all records for this student)
+        │         ├── Change status ──── [Active ▼] / Graduated / Hired
+        │         └── Move to class ──── Select target class ──── PATCH /api/students/:id
+        │
+        └── Admin: Bulk promote ──── Admin Cohorts page
+                    │
+                    ├── Select source class ──── Click "Promote Class"
+                    ├── Select target class
+                    └── Confirm ──── All Active students move; Graduated/Hired stay
 ```
 
 ---
 
 ## 8. Conditional Logic Trees
 
-### 8.1 AI Classification Decision Tree
+### 8.1 Multi-LLM Classification Decision Tree
 
 ```
 Email received for classification
         │
         ▼
-   Parse email body
+   Send to gpt-5-nano (cheapest)
         │
-        ▼
-   Send to OpenAI with dual-classification prompt
-        │
-        ├─── API responds successfully
+        ├─── Response received
         │         │
         │         ▼
         │    Parse JSON response
         │         │
-        │         ├── Valid attendanceType? ── Yes ── Use it
-        │         │                           No ── Default to "Absent"
+        │         ├── confidence >= 0.4? ── Yes ── Use result
         │         │
-        │         ├── Valid category? ── Yes ── Use it
-        │         │                     No ── Default to "Unexcused" / "None"
-        │         │
-        │         └── Return { attendanceType, category, confidence, reasoning }
+        │         └── confidence < 0.4 or parse error
+        │                  │
+        │                  ▼
+        │            Escalate to gpt-5-mini
+        │                  │
+        │                  ├── confidence >= 0.4? ── Yes ── Use result
+        │                  │
+        │                  └── confidence < 0.4 or parse error
+        │                           │
+        │                           ▼
+        │                     Escalate to gpt-5.2 (full)
+        │                           │
+        │                           ├── Valid response? ── Use result
+        │                           │
+        │                           └── Failed ── Default:
+        │                                    attendanceType: "Absent"
+        │                                    category: "Unexcused"
+        │                                    confidence: 0
         │
-        └─── API fails or unparseable
+        └─── API fails (timeout, error)
                   │
-                  └── Return { attendanceType: "Absent", category: "Unexcused", confidence: 0, reasoning: "Failed" }
+                  └── Escalate to next tier (same logic)
 ```
 
 ### 8.2 Attendance Type Classification Logic
@@ -668,22 +1163,57 @@ Analyze email content
         ▼
    Does the person indicate they will still attend?
         │
-        ├── YES (e.g., "on my way", "be there soon", "running late")
+        ├── YES (e.g., "on my way", "be there soon", "running late",
+        │       "leaving early", "stepping out", "stuck in traffic")
         │         │
         │         └── attendanceType = "Late/Tardy"
+        │              └── Determine excuse category from reason
+        │                   e.g., "late because sick" → Late/Tardy + Sick/Medical
+        │                   e.g., "stuck in traffic" → Late/Tardy + Technical Issue
+        │                   e.g., "job interview, leaving early" → Late/Tardy + Personal
         │
         ├── NO, they indicate complete absence with a reason
         │         │
         │         └── attendanceType = "Absent"
         │              └── Determine excuse category from reason
         │
-        └── NO reason given, vague, or not a real excuse
+        └── NO reason given, vague, or not a genuine excuse
                   │
                   └── attendanceType = "Unexcused"
                        └── excuseCategory = "None"
 ```
 
-### 8.3 Authentication Decision Tree
+### 8.3 Alert Detection Decision Tree
+
+```
+Email classified by AI
+        │
+        ▼
+   needsResponse?
+        │
+        ├── YES (question, request, time-sensitive matter)
+        │    │
+        │    ├── Determine urgency:
+        │    │    ├── HIGH: job interview, emergency, immediate deadline
+        │    │    ├── MEDIUM: schedule change request, accommodation need
+        │    │    └── LOW: general question, FYI with follow-up
+        │    │
+        │    └── Create alert record with alertReason
+        │
+        ├── mentionsStudent? (peer reporting)
+        │    │
+        │    └── YES → Create alert: "Student mentioned another student"
+        │              Include peerOrSchoolDetail
+        │
+        ├── mentionsSchool? (program/curriculum mention)
+        │    │
+        │    └── YES → Create alert: "Email mentions Pursuit/program"
+        │              Include peerOrSchoolDetail
+        │
+        └── None of the above → No alert created
+```
+
+### 8.4 Role-Based Access Decision Tree
 
 ```
 Request arrives at protected endpoint
@@ -691,58 +1221,70 @@ Request arrives at protected endpoint
         ▼
    requireAuth middleware
         │
-        ├── req.session.userId exists?
-        │         │
-        │         ├── Yes ── Continue to route handler
-        │         │
-        │         └── No ── Return 401 Unauthorized
+        ├── Session userId exists? ── No ── Return 401
         │
-        ▼
-   Route handler
-        │
-        ├── Resource has userId field?
-        │         │
-        │         ├── Matches session userId? ── Yes ── Allow operation
-        │         │
-        │         └── No ── Return 404 (resource not found)
-        │
-        └── User-scoped query (getAllRecords, getStats, etc.)
-                  │
-                  └── Filter by session userId automatically
+        └── Yes ── Continue
+                │
+                ▼
+          What type of endpoint?
+                │
+                ├── Admin-only (cohort management, instructors, bulk promote)?
+                │    │
+                │    └── requireAdmin middleware
+                │         ├── role === 'admin'? ── Yes ── Allow
+                │         └── No ── Return 403
+                │
+                ├── Data endpoint (records, students, schedules)?
+                │    │
+                │    ├── role === 'admin'? ── Bypass ownership ── Return all data
+                │    │
+                │    └── role === 'instructor'?
+                │         │
+                │         └── Check cohort ownership
+                │              ├── Cohort belongs to instructor? ── Allow
+                │              └── No ── Return 403/404
+                │
+                └── User-specific (alerts, scan configs, settings)?
+                     │
+                     └── Filter by session userId automatically
 ```
 
-### 8.4 Google OAuth Decision Tree
+### 8.5 Google OAuth Decision Tree
 
 ```
 OAuth callback received with authorization code
         │
         ▼
-   Exchange code for tokens (access_token, refresh_token)
+   Validate CSRF state parameter matches session
         │
-        ▼
-   Fetch Google profile (email, name, googleId)
+        ├── Mismatch ── Return error
         │
-        ▼
-   Lookup user
-        │
-        ├── User with this googleId exists?
-        │         │
-        │         └── Update tokens ── Set session ── Redirect to dashboard
-        │
-        ├── User with this email exists (no googleId)?
-        │         │
-        │         └── Link googleId + store tokens ── Set session ── Redirect
-        │
-        └── No user found?
+        └── Match ──
                   │
-                  └── Create new user (random password, Google details)
-                       └── Store tokens ── Set session ── Redirect
+                  ▼
+             Exchange code for tokens (access_token, refresh_token)
+                  │
+                  ▼
+             Fetch Google profile (email, name, googleId)
+                  │
+                  ▼
+             Lookup user
+                  │
+                  ├── User with this googleId exists?
+                  │         └── Update tokens ── Set session ── Redirect to dashboard
+                  │
+                  ├── User with this email exists (no googleId)?
+                  │         └── Link googleId + store tokens ── Set session ── Redirect
+                  │
+                  └── No user found?
+                           └── Create new user (random password, instructor role)
+                                └── Store tokens ── Set session ── Redirect
 ```
 
-### 8.5 Gmail Token Refresh Decision Tree
+### 8.6 Gmail Token Refresh Decision Tree
 
 ```
-Gmail API request made
+Gmail API request made (read or send)
         │
         ▼
    Response status?
@@ -756,7 +1298,6 @@ Gmail API request made
         │         │         ├── Yes ── POST to Google token endpoint
         │         │         │              │
         │         │         │              ├── New access token received
-        │         │         │              │         │
         │         │         │              │         └── Update DB ── Retry original request
         │         │         │              │
         │         │         │              └── Refresh failed ── Return error
@@ -766,7 +1307,78 @@ Gmail API request made
         └── Other error ── Return error message
 ```
 
-### 8.6 Theme Toggle Decision Tree
+### 8.7 Email Reply Security Decision Tree
+
+```
+POST /api/gmail/send received
+        │
+        ▼
+   Sanitize all string fields (strip CRLF characters)
+        │
+        ▼
+   alertId provided?
+        │
+        ├── Yes ── Lookup alert → get associated record
+        │    │
+        │    └── Record senderEmail matches "to" field?
+        │         ├── Yes ── Allow send
+        │         └── No ── Return 403 (recipient mismatch)
+        │
+        └── No alertId ── Allow send (manual compose)
+                │
+                ▼
+           Build RFC 2822 email with:
+           - In-Reply-To header (for threading)
+           - References header (for threading)
+           - Gmail threadId (for Gmail UI threading)
+                │
+                ▼
+           Base64url encode → POST to Gmail API
+                │
+                ├── Success ── Return 200
+                └── 401 ── Attempt token refresh ── Retry
+```
+
+### 8.8 Student Status & Progression Decision Tree
+
+```
+Status change requested (PATCH /api/students/:id)
+        │
+        ▼
+   Validate status value
+        │
+        ├── Valid (Active/Graduated/Hired)?
+        │    │
+        │    ├── Instructor? ── Check cohort ownership ── Allow/Deny
+        │    ├── Admin? ── Allow
+        │    └── Update student status
+        │
+        └── Invalid ── Return 400
+
+Bulk promote requested (POST /api/cohorts/:id/promote)
+        │
+        ▼
+   Admin only (requireAdmin)
+        │
+        ▼
+   Validate source and target cohorts exist
+        │
+        ├── Same cohort? ── Return 400
+        │
+        └── Different cohorts ──
+                  │
+                  ▼
+             Get all students in source cohort
+                  │
+                  ▼
+             For each student:
+                  │
+                  ├── status === 'Active'? ── Move to target cohort
+                  │
+                  └── status === 'Graduated' or 'Hired'? ── Skip (stay in place)
+```
+
+### 8.9 Theme Toggle Decision Tree
 
 ```
 Theme toggle clicked
@@ -787,7 +1399,7 @@ Theme toggle clicked
                           └── Star field: 120 stars (4 animation types, varied colors)
 ```
 
-### 8.7 Time Period Filtering Decision Tree
+### 8.10 Time Period Filtering Decision Tree
 
 ```
 Time period button clicked
@@ -796,25 +1408,17 @@ Time period button clicked
    Selected period
         │
         ├── "all" ── Show all records (no date filter)
-        │
         ├── "day" ── startOfDay(today) to endOfDay(today)
-        │
         ├── "week" ── startOfWeek(today) to endOfWeek(today)
-        │
         ├── "month" ── startOfMonth(today) to endOfMonth(today)
-        │
         ├── "quarter" ── startOfQuarter(today) to endOfQuarter(today)
-        │
         └── "year" ── startOfYear(today) to endOfYear(today)
               │
               ▼
         Filter records where receivedAt is within range
               │
               ▼
-        Update stats cards with filtered counts
-              │
-              ▼
-        Update table display
+        Update stat cards + type filter counts + table display
 ```
 
 ---
@@ -823,50 +1427,68 @@ Time period button clicked
 
 ### 9.1 Executive Summary
 
-PULSE (version 2.0) is a production-ready attendance automation tool that combines AI-powered email classification with a polished, accessible interface. The application serves program administrators who need to track and categorize student absences and tardiness efficiently.
+PULSE (version 3.0) is a production-ready, multi-tenant attendance automation tool built for Pursuit's tech training program. It combines AI-powered email classification with role-based access control, student roster management, class progression, automated Gmail scanning, alert detection, and direct email reply — all wrapped in a polished, accessible, space-themed interface.
 
 Key differentiators:
+- **Multi-tenant architecture**: Admin sees everything; instructors see only their assigned classes
 - **Dual-classification system**: Separates "what happened" (Absent vs. Late/Tardy vs. Unexcused) from "why" (Sick/Medical, Personal, etc.)
-- **Comprehensive phrase recognition**: The AI prompt includes extensive synonym lists and edge-case rules for accurate categorization
-- **Multiple ingestion methods**: Manual entry, batch upload, and direct Gmail integration
-- **Real-time processing feedback**: SSE streaming shows per-email progress during batch operations
-- **Three export formats**: CSV for spreadsheets, DOCX for formal reports, JSON for database import
-- **Space theme with accessibility**: Animated star fields that respect color contrast requirements
+- **Multi-LLM cost optimization**: nano → mini → full model chain minimizes AI costs while maintaining accuracy
+- **Alert intelligence**: AI detects questions, requests, urgency, peer mentions, and school/program mentions
+- **Direct reply**: Instructors reply to student emails from the portal with proper Gmail threading
+- **Student lifecycle**: Active → Graduated → Hired tracking with class progression (bulk promote)
+- **Automated scanning**: Configurable Gmail scan times with background scheduler
+- **Multiple ingestion methods**: Manual entry, batch upload, Gmail fetch, and automated scan
+- **Three export formats**: CSV, DOCX, JSON + filtered print view
 
 ### 9.2 Feature Completeness
 
 | Feature | Status | Notes |
 |---|---|---|
 | Username/password auth | Complete | Bcrypt hashing, session management |
-| Google OAuth | Complete | Full flow with token refresh |
-| Demo mode | Complete | 6 pre-seeded records |
+| Role-based access (admin/instructor) | Complete | requireAuth, requireAdmin middleware, cohort ownership checks |
+| Google OAuth | Complete | Full flow with token refresh, reconnect for scope upgrades |
+| Demo mode | Complete | Admin + 2 instructors, 4 classes, 12 students, 7 records, 2 alerts |
 | Manual email entry | Complete | Single form with validation |
 | Batch upload | Complete | JSON and CSV support, SSE streaming |
-| Gmail fetch | Complete | Search, select, process |
-| AI classification (dual) | Complete | Attendance type + excuse category |
-| Time-period filtering | Complete | 6 periods with date-fns |
-| Category stats cards | Complete | Icons, colors, glow effects |
-| Inline category editing | Complete | Dropdown in table rows |
-| Record deletion | Complete | Individual and bulk |
+| Gmail fetch | Complete | Search, select, process with Message-ID storage |
+| Gmail send (reply) | Complete | Threaded replies from Alerts page with header injection prevention |
+| Multi-LLM AI classification | Complete | nano → mini → full fallback chain |
+| Alert detection | Complete | needsResponse, urgency, peer mentions, school mentions |
+| Alert management | Complete | Feed, mark read/unread, detail view, reply, sidebar badge |
+| Attendance type filter buttons | Complete | All/Absent/Late-Tardy/Unexcused with counts |
+| Excuse category stat cards | Complete | Total, Sick/Medical, Personal, Program Event, Tech Issue, Other, None |
+| Combined filtering | Complete | Type buttons + category cards + time period all combine |
+| Class management | Complete | L1/L2/L3/L∞ CRUD with instructor assignment |
+| Student roster | Complete | Per-class lists, status badges, filter by class/status |
+| Student profile | Complete | Attendance history, status change, move between classes |
+| Student status tracking | Complete | Active/Graduated/Hired with visual indicators |
+| Class progression | Complete | Bulk promote (active only) + individual move |
+| Weekly schedule | Complete | Grid view, add/edit/delete time blocks per class |
+| Automated Gmail scanning | Complete | 30s interval scheduler with configurable scan times |
+| Scan schedule config | Complete | Add/edit/delete/toggle scan times in Settings |
+| Time-period filtering | Complete | Today/Week/Month/Quarter/Year/All |
 | CSV export | Complete | All records |
-| DOCX export | Complete | Grouped by category |
+| DOCX export | Complete | Grouped by excuse category |
 | JSON export | Complete | Formatted for import |
 | Print view | Complete | Filtered, no interactive controls |
-| Dark mode | Complete | Space theme, 120 animated stars |
-| Light mode | Complete | Clean theme, 20 corner sparkles |
+| Dark mode | Complete | 120 animated stars, space theme |
+| Light mode | Complete | 20 corner sparkles, clean theme |
 | Theme persistence | Complete | localStorage |
-| WCAG 2 accessibility | Complete | ARIA, keyboard nav, contrast |
+| Sidebar navigation | Complete | Role-based items, alert badge, collapse on mobile |
 | Responsive design | Complete | Mobile-first with breakpoints |
+| Slack integration | Not Built | Not currently supported; students posting in Slack channels cannot be tracked |
 
 ### 9.3 Security Measures
 
 - **Password Security**: Bcrypt with salt rounds
 - **Session Security**: PostgreSQL-backed sessions, httpOnly cookies, secure flag in production
-- **OAuth Security**: CSRF state parameter, server-side token exchange
-- **Data Isolation**: All database queries scoped to authenticated user's ID
-- **Input Validation**: Zod schemas validate all incoming data before processing
-- **API Protection**: All data endpoints require `requireAuth` middleware
-- **Token Management**: Google tokens stored server-side, never exposed to client
+- **OAuth Security**: CSRF state parameter, server-side token exchange, token auto-refresh
+- **Role Authorization**: requireAdmin middleware for admin-only endpoints; cohort ownership verification for instructor endpoints
+- **Data Isolation**: All queries scoped to user role — admins see all, instructors see own classes only
+- **Input Validation**: Zod schemas validate all incoming data; status enum validation; field allowlisting on PATCH
+- **Email Security**: CRLF header injection prevention on email sends; recipient validation against original sender when replying to alerts
+- **API Protection**: All data endpoints require `requireAuth` middleware; admin endpoints additionally require `requireAdmin`
+- **Token Management**: Google tokens stored server-side, never exposed to client; auto-refresh on expiry
 
 ### 9.4 Accessibility Compliance
 
@@ -877,14 +1499,17 @@ Key differentiators:
 - Color contrast meeting WCAG 2 AA standards
 - Focus indicators on interactive elements
 - Responsive layout for various screen sizes
+- Print-friendly CSS with `@media print` rules
 
 ### 9.5 Performance Characteristics
 
-- **Frontend**: Vite HMR for instant development feedback; code splitting via dynamic imports
-- **Data Fetching**: TanStack Query with caching, automatic refetching, and cache invalidation
-- **Batch Processing**: SSE streaming prevents timeout on large batches; each email processed individually
+- **Frontend**: Vite HMR for instant dev feedback; code splitting via dynamic imports
+- **AI Costs**: Multi-LLM fallback starts with cheapest model; only escalates when needed
+- **Data Fetching**: TanStack Query v5 with caching, automatic refetching, and cache invalidation
+- **Batch Processing**: SSE streaming prevents timeout on large batches
 - **Database**: Drizzle ORM generates optimized SQL; Neon Serverless for auto-scaling
-- **Styling**: Tailwind CSS purges unused styles in production; utility classes minimize CSS bundle
+- **Styling**: Tailwind CSS purges unused styles in production
+- **Scheduler**: Lightweight 30s interval check (not cron — simple and predictable)
 
 ### 9.6 Known Limitations
 
@@ -894,6 +1519,8 @@ Key differentiators:
 - Maximum 50 Gmail messages fetched per search query
 - AI classification depends on OpenAI API availability and rate limits
 - Demo account has no Gmail functionality (no Google ID linked)
+- **No Slack integration**: Students posting absence/tardiness messages in Slack channels (class message boards) or DMs cannot be tracked. Only email-based communication is currently supported. This is a known gap — see Roadmap.
+- Scan times are stored as "HH:MM" strings; scheduler checks every 30 seconds
 
 ### 9.7 Deployment
 
@@ -905,4 +1532,41 @@ Key differentiators:
 
 ---
 
-*End of PULSE Project Documentation v2.0*
+## 10. Project Roadmap
+
+### 10.1 Completed (v3.0)
+
+- Multi-tenant with Admin/Instructor roles
+- Class management (L1, L2, L3, L∞) with instructor assignment
+- Student roster with Active/Graduated/Hired status tracking
+- Class progression (bulk promote, individual move)
+- Dual-classification AI (attendance type + excuse category)
+- Multi-LLM fallback (nano → mini → full)
+- Alert system with urgency, peer mentions, school mentions
+- Direct email reply from portal with Gmail threading
+- Automated Gmail scanning at configurable times
+- Attendance type filter buttons on Dashboard
+- Excuse category stat cards on Dashboard
+- Combined filtering (type + category + time period)
+- Weekly class schedule management
+- CSV/DOCX/JSON export + filtered print
+- Dark/light mode with animated star field
+- Google OAuth with reconnect for scope upgrades
+- Settings page with scan schedule config
+
+### 10.2 Potential Future Features
+
+- **Slack Integration**: Scan class Slack channels for absence/tardiness messages; send DMs to students from portal
+- **SMS/Text Notifications**: Alert instructors via text for high-urgency messages
+- **Attendance Analytics**: Trends over time, per-student risk scoring, cohort comparison charts
+- **Calendar Integration**: Sync schedule with Google Calendar
+- **Student Self-Service**: Students confirm/update their own absence details
+- **Substitution System**: Temporary instructor assignment to cover another class
+- **Mobile App**: Native mobile experience for on-the-go alert management
+- **Webhook Support**: Trigger external systems when alerts are created
+- **Custom Alert Rules**: Configurable thresholds (e.g., alert if student absent 3+ times in a month)
+- **Parent/Guardian Notifications**: Auto-notify family contacts for underage students
+
+---
+
+*End of PULSE Project Documentation v3.0*
