@@ -10,6 +10,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
 function getRedirectUri(req: Request): string {
@@ -171,6 +172,113 @@ export function setupGoogleAuth(app: Express) {
     });
   });
 
+  app.post("/api/gmail/send", async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const user = await storage.getUserById(req.session.userId);
+    if (!user || !user.googleAccessToken) {
+      return res.status(400).json({ error: "Gmail not connected. Please sign in with Google to send emails." });
+    }
+
+    const { to, subject, body, inReplyTo, threadId, alertId } = req.body;
+    if (!to || !body) {
+      return res.status(400).json({ error: "Recipient and message body are required" });
+    }
+
+    if (alertId) {
+      const alerts = await storage.getAlertsByUser(user.id);
+      const allAlerts = user.role === "admin" ? await storage.getAllAlerts() : alerts;
+      const alert = allAlerts.find(a => a.id === alertId);
+      if (!alert) {
+        return res.status(403).json({ error: "Alert not found or not authorized" });
+      }
+      const record = await storage.getRecordById(alert.recordId);
+      if (record && record.senderEmail !== to) {
+        return res.status(400).json({ error: "Recipient must match the original sender" });
+      }
+    }
+
+    try {
+      let accessToken = user.googleAccessToken;
+
+      const userEmail = user.email;
+      const displayName = user.displayName || user.username;
+
+      const sanitize = (s: string) => s.replace(/[\r\n]/g, " ").trim();
+      const safeTo = sanitize(to);
+      const safeSubject = sanitize(subject || "(no subject)");
+      const safeBody = body.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+      const headers = [
+        `From: "${sanitize(displayName)}" <${userEmail}>`,
+        `To: ${safeTo}`,
+        `Subject: ${safeSubject}`,
+        "MIME-Version: 1.0",
+        'Content-Type: text/plain; charset="UTF-8"',
+      ];
+
+      if (inReplyTo) {
+        headers.push(`In-Reply-To: <${sanitize(inReplyTo)}>`);
+        headers.push(`References: <${sanitize(inReplyTo)}>`);
+      }
+
+      const rawMessage = [...headers, "", safeBody].join("\r\n");
+      const encodedMessage = Buffer.from(rawMessage).toString("base64url");
+
+      const sendPayload: Record<string, string> = { raw: encodedMessage };
+      if (threadId) {
+        sendPayload.threadId = threadId;
+      }
+
+      let sendRes = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(sendPayload),
+        }
+      );
+
+      if (sendRes.status === 401 && user.googleRefreshToken) {
+        const refreshed = await refreshAccessToken(user.id, user.googleRefreshToken);
+        if (refreshed) {
+          accessToken = refreshed;
+          sendRes = await fetch(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(sendPayload),
+            }
+          );
+        }
+      }
+
+      if (!sendRes.ok) {
+        const errText = await sendRes.text();
+        console.error("Gmail send error:", errText);
+        if (sendRes.status === 403 || errText.includes("insufficient") || errText.includes("scope")) {
+          return res.status(403).json({ error: "Gmail send permission not granted. Please reconnect your Google account to enable sending emails." });
+        }
+        return res.status(500).json({ error: "Failed to send email. You may need to reconnect your Google account with updated permissions." });
+      }
+
+      const sendData = await sendRes.json() as { id: string; threadId: string };
+      res.json({ success: true, messageId: sendData.id, threadId: sendData.threadId });
+    } catch (error) {
+      console.error("Gmail send error:", error);
+      res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+
   app.post("/api/gmail/fetch", async (req: Request, res: Response) => {
     if (!req.session.userId) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -268,6 +376,7 @@ async function fetchEmailDetails(messages: { id: string }[], accessToken: string
 
       const msgData = await msgRes.json() as {
         id: string;
+        threadId?: string;
         payload: {
           headers: { name: string; value: string }[];
           body?: { data?: string };
@@ -308,6 +417,7 @@ async function fetchEmailDetails(messages: { id: string }[], accessToken: string
 
       emails.push({
         gmailId: msgData.id,
+        gmailThreadId: msgData.threadId || null,
         senderName,
         senderEmail,
         subject,

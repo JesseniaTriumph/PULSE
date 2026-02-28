@@ -22,7 +22,8 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system. I
 - Alert system for emails needing response (urgency: low/medium/high), peer mentions (student-about-student), and school/program reports (about Pursuit, classes, curriculum, instructors)
 - Multi-LLM fallback: nano → mini → full model chain to minimize costs; escalates only on low confidence or failure
 - Automated Gmail scanning at configurable times (default: 10:00 AM, 6:25 PM, 9:55 PM)
-- Google OAuth sign-in with Gmail inbox reading
+- Direct email reply from portal: instructors can reply to student emails from the Alerts page; reply goes out via their connected Gmail account with proper threading
+- Google OAuth sign-in with Gmail inbox reading and sending
 - Manual email entry, batch processing (JSON/CSV), Gmail fetch
 - Time-period filtering, CSV/DOCX/JSON export, print support
 - Sidebar navigation with alert badge count
@@ -78,10 +79,14 @@ client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign
 - `POST/PATCH/DELETE /api/schedules` - Schedule CRUD
 
 ### Alerts
-- `GET /api/alerts` - User's alerts (admin: all alerts)
+- `GET /api/alerts` - User's alerts (admin: all alerts); enriched with associated record data (senderName, senderEmail, emailBody, gmailMessageId, gmailThreadId)
 - `GET /api/alerts/unread-count` - Unread count
 - `PATCH /api/alerts/:id/read` - Mark alert read
 - `POST /api/alerts/mark-all-read` - Mark all read
+
+### Gmail
+- `POST /api/gmail/fetch` - Fetch emails from connected Gmail
+- `POST /api/gmail/send` - Send email reply via Gmail (to, subject, body, inReplyTo, threadId); supports thread continuity
 
 ### Scan Configs
 - `GET/POST/PATCH/DELETE /api/scan-configs` - Scan schedule CRUD

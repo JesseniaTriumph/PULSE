@@ -286,7 +286,22 @@ export async function registerRoutes(
       const alertList = user.role === "admin"
         ? await storage.getAllAlerts()
         : await storage.getAlertsByUser(req.session.userId!);
-      res.json(alertList);
+
+      const enriched = await Promise.all(alertList.map(async (alert) => {
+        const record = await storage.getRecordById(alert.recordId);
+        return {
+          ...alert,
+          record: record ? {
+            senderName: record.senderName,
+            senderEmail: record.senderEmail,
+            emailBody: record.emailBody,
+            messageSnippet: record.messageSnippet,
+            gmailMessageId: record.gmailMessageId,
+            gmailThreadId: record.gmailThreadId,
+          } : null,
+        };
+      }));
+      res.json(enriched);
     } catch (error) {
       console.error("Error fetching alerts:", error);
       res.status(500).json({ error: "Failed to fetch alerts" });

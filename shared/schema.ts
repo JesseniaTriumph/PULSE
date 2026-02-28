@@ -86,6 +86,8 @@ export const attendanceRecords = pgTable("attendance_records", {
   mentionsStudent: boolean("mentions_student").default(false),
   mentionsSchool: boolean("mentions_school").default(false),
   peerOrSchoolDetail: text("peer_or_school_detail"),
+  gmailMessageId: text("gmail_message_id"),
+  gmailThreadId: text("gmail_thread_id"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
