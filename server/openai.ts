@@ -5,61 +5,98 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-export async function categorizeExcuse(emailBody: string): Promise<{
+export interface ClassificationResult {
+  attendanceType: string;
   category: string;
   confidence: number;
   reasoning: string;
-}> {
+  needsResponse: boolean;
+  urgency: "low" | "medium" | "high";
+  alertReason: string | null;
+}
+
+export async function categorizeExcuse(emailBody: string): Promise<ClassificationResult> {
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     messages: [
       {
         role: "system",
-        content: `You are an attendance management assistant. Your job is to categorize student absence or tardiness messages into exactly one of these categories:
+        content: `You are an attendance management assistant. Analyze student emails and provide TWO classifications plus an alert assessment.
 
-1. "Sick/Medical" - Illness, doctor appointments, medical emergencies, health-related issues. Includes phrases like: not feeling well, under the weather, out sick, flu, fever, migraine, hospital, ER, urgent care, therapy appointment, mental health day, COVID, quarantine, food poisoning, surgery, recovery
-2. "Personal" - Travel, family events, personal obligations, family emergencies. Includes phrases like: family emergency, funeral, wedding, out of town, traveling, personal matter, taking the day off, child care, picking up kids, moving, jury duty, court date, religious observance, bereavement
-3. "Program Event" - Conflict with program-related events, workshops, conferences, or scheduled activities. Includes phrases like: conference, workshop, hackathon, career fair, networking event, required event, field trip, orientation, program activity, guest speaker, company visit
-4. "Technical Issue" - Internet issues, transport problems, equipment failures, software problems. Includes phrases like: internet down, WiFi issues, laptop broken, computer crashed, power outage, no electricity, car broke down, bus delayed, train cancelled, transportation issue, software update, can't log in
-5. "Late/Tardy" - Running late, arriving late, delayed arrival, tardiness — the person is still coming but will not be on time. Includes phrases like: running late, running behind, will be late, stuck in traffic, held up, on my way, be there soon, few minutes late, delayed, won't make it on time, starting late, stepping in late, caught up in something, overslept but coming, missed the bus but on my way, parking issues
-6. "Other" - Miscellaneous reasons that don't fit the above categories but still provide a valid reason
-7. "Unexcused" - No valid reason provided, vague excuses, or the message doesn't actually contain an excuse or tardiness notification. Includes phrases like: can't make it (with no reason), something came up (with no details), just won't be there
+CLASSIFICATION 1 — Attendance Type (was the person present?):
+- "Absent" — Student will not attend at all
+- "Late/Tardy" — Student will attend but will arrive late, leave early, or step out partway
+- "Unexcused" — No valid reason provided, vague excuses, or not a genuine notification
 
-Important distinctions:
-- If the person says they will still attend but will arrive late or be delayed, use "Late/Tardy"
-- If the person will be completely absent for the entire session/class, use the appropriate absence category
-- Messages about leaving early or stepping out partway through should be "Late/Tardy"
-- If a message mentions both being late AND a specific reason (e.g. "running late because I'm sick"), prioritize the root cause category (Sick/Medical in that example)
+CLASSIFICATION 2 — Excuse Category (why?):
+- "Sick/Medical" — Illness, doctor appointments, medical emergencies, health issues. Phrases: not feeling well, under the weather, out sick, flu, fever, migraine, hospital, ER, urgent care, therapy, mental health day, COVID, quarantine, food poisoning, surgery, recovery
+- "Personal" — Travel, family events, personal obligations, family emergencies. Phrases: family emergency, funeral, wedding, out of town, traveling, personal matter, child care, moving, jury duty, court date, religious observance, bereavement
+- "Program Event" — Conflict with program-related events, workshops, conferences. Phrases: conference, workshop, hackathon, career fair, networking event, field trip, orientation, guest speaker, company visit
+- "Technical Issue" — Internet/equipment/transport problems. Phrases: internet down, WiFi issues, laptop broken, power outage, car broke down, bus delayed, train cancelled, can't log in
+- "Other" — Valid reason that doesn't fit above categories
+- "None" — Used when attendance type is Unexcused and no valid reason exists
 
-Respond in JSON format with exactly these fields:
-- "category": one of the seven categories above (exact string match)
-- "confidence": a number between 0 and 1 indicating how confident you are
-- "reasoning": a brief one-sentence explanation of why you chose this category`,
+ALERT ASSESSMENT — Does this email need a response from the instructor?
+Look for:
+- Questions that need answering ("Can I...?", "What should I...?", "Is it possible to...?")
+- Special requests (schedule change, accommodation, makeup work, extension)
+- Urgent matters (job interview scheduling, emergency situation requiring guidance, time-sensitive decisions)
+- Requests for information about class, format, assignments, or materials
+- Mentions of interviews, job offers, or career-related scheduling conflicts that need confirmation
+
+Important rules:
+- If someone says "running late because I'm sick" → attendanceType: "Late/Tardy", category: "Sick/Medical"
+- If someone says "I won't be in today, I have the flu" → attendanceType: "Absent", category: "Sick/Medical"
+- If someone says "can't make it, something came up" (no details) → attendanceType: "Unexcused", category: "None"
+- Leaving early or stepping out → attendanceType: "Late/Tardy"
+
+Respond in JSON with these fields:
+- "attendanceType": one of "Absent", "Late/Tardy", "Unexcused"
+- "category": one of "Sick/Medical", "Personal", "Program Event", "Technical Issue", "Other", "None"
+- "confidence": number 0-1
+- "reasoning": brief one-sentence explanation
+- "needsResponse": boolean — true if the email contains a question, special request, or urgent matter that the instructor should respond to
+- "urgency": "low", "medium", or "high" — how urgently the instructor should see/respond to this
+- "alertReason": string or null — if needsResponse is true, briefly explain what needs attention`,
       },
       {
         role: "user",
-        content: `Categorize this absence or tardiness email:\n\n${emailBody}`,
+        content: `Analyze this student email:\n\n${emailBody}`,
       },
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 256,
+    max_completion_tokens: 350,
   });
 
-  const validCategories = ["Sick/Medical", "Personal", "Program Event", "Technical Issue", "Late/Tardy", "Other", "Unexcused"];
+  const validCategories = ["Sick/Medical", "Personal", "Program Event", "Technical Issue", "Other", "None"];
+  const validTypes = ["Absent", "Late/Tardy", "Unexcused"];
+  const validUrgencies = ["low", "medium", "high"];
   const content = response.choices[0]?.message?.content || "{}";
+
   try {
     const parsed = JSON.parse(content);
-    const category = validCategories.includes(parsed.category) ? parsed.category : "Unexcused";
+    const attendanceType = validTypes.includes(parsed.attendanceType) ? parsed.attendanceType : "Absent";
+    const category = validCategories.includes(parsed.category) ? parsed.category : "None";
+    const urgency = validUrgencies.includes(parsed.urgency) ? parsed.urgency as "low" | "medium" | "high" : "low";
+
     return {
+      attendanceType,
       category,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
       reasoning: parsed.reasoning || "Unable to determine category",
+      needsResponse: !!parsed.needsResponse,
+      urgency,
+      alertReason: parsed.alertReason || null,
     };
   } catch {
     return {
-      category: "Unexcused",
+      attendanceType: "Absent",
+      category: "None",
       confidence: 0,
       reasoning: "Failed to parse AI response",
+      needsResponse: false,
+      urgency: "low",
+      alertReason: null,
     };
   }
 }

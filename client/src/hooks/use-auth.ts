@@ -6,6 +6,7 @@ interface AuthUser {
   username: string;
   email: string;
   displayName: string;
+  role: string;
   googleId?: string | null;
 }
 
@@ -33,7 +34,7 @@ export function useAuth() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (data: { username: string; email: string; password: string; displayName: string }) => {
+    mutationFn: async (data: { username: string; email: string; password: string; displayName: string; role?: string }) => {
       const res = await apiRequest("POST", "/api/auth/register", data);
       return res.json();
     },
@@ -66,6 +67,8 @@ export function useAuth() {
     user: user ?? null,
     isLoading,
     isAuthenticated: !!user,
+    isAdmin: user?.role === "admin",
+    isInstructor: user?.role === "instructor",
     login: loginMutation,
     register: registerMutation,
     demo: demoMutation,

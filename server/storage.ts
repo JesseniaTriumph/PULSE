@@ -1,6 +1,15 @@
 import { db } from "./db";
-import { users, attendanceRecords, type User, type InsertUser, type AttendanceRecord, type InsertAttendanceRecord } from "@shared/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import {
+  users, attendanceRecords, cohorts, students, schedules, alerts, scanConfigs,
+  type User, type InsertUser,
+  type AttendanceRecord, type InsertAttendanceRecord,
+  type Cohort, type InsertCohort,
+  type Student, type InsertStudent,
+  type Schedule, type InsertSchedule,
+  type Alert, type InsertAlert,
+  type ScanConfig, type InsertScanConfig,
+} from "@shared/schema";
+import { eq, desc, and, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
@@ -8,9 +17,33 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  updateUser(id: number, data: Partial<{ role: string; displayName: string }>): Promise<void>;
   updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void>;
+  getAllInstructors(): Promise<User[]>;
+
+  createCohort(cohort: InsertCohort): Promise<Cohort>;
+  getCohortById(id: number): Promise<Cohort | undefined>;
+  getAllCohorts(): Promise<Cohort[]>;
+  getCohortsByInstructor(instructorId: number): Promise<Cohort[]>;
+  updateCohort(id: number, data: Partial<InsertCohort>): Promise<Cohort | undefined>;
+  deleteCohort(id: number): Promise<void>;
+
+  createStudent(student: InsertStudent): Promise<Student>;
+  getStudentById(id: number): Promise<Student | undefined>;
+  getStudentsByCohort(cohortId: number): Promise<Student[]>;
+  getStudentsByInstructor(instructorId: number): Promise<Student[]>;
+  getAllStudents(): Promise<Student[]>;
+  updateStudent(id: number, data: Partial<InsertStudent>): Promise<Student | undefined>;
+  deleteStudent(id: number): Promise<void>;
+
+  createScheduleEntry(entry: InsertSchedule): Promise<Schedule>;
+  getScheduleByCohort(cohortId: number): Promise<Schedule[]>;
+  updateScheduleEntry(id: number, data: Partial<InsertSchedule>): Promise<Schedule | undefined>;
+  deleteScheduleEntry(id: number): Promise<void>;
 
   getAllRecords(userId: number): Promise<AttendanceRecord[]>;
+  getRecordsByStudentId(studentId: number): Promise<AttendanceRecord[]>;
+  getRecordsByCohort(cohortId: number): Promise<AttendanceRecord[]>;
   getRecordById(id: number): Promise<AttendanceRecord | undefined>;
   getRecordsByBatchId(batchId: string, userId: number): Promise<AttendanceRecord[]>;
   createRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord>;
@@ -20,6 +53,21 @@ export interface IStorage {
   deleteRecord(id: number): Promise<void>;
   deleteAllRecords(userId: number): Promise<void>;
   getStats(userId: number): Promise<{ total: number; byCategory: Record<string, number> }>;
+  getStatsByCohort(cohortId: number): Promise<{ total: number; byCategory: Record<string, number> }>;
+
+  createAlert(alert: InsertAlert): Promise<Alert>;
+  getAlertsByUser(userId: number): Promise<Alert[]>;
+  getAllAlerts(): Promise<Alert[]>;
+  getUnreadAlertCount(userId: number): Promise<number>;
+  getAllUnreadAlertCount(): Promise<number>;
+  markAlertRead(id: number): Promise<Alert | undefined>;
+  markAllAlertsRead(userId: number): Promise<void>;
+
+  createScanConfig(config: InsertScanConfig): Promise<ScanConfig>;
+  getScanConfigsByUser(userId: number): Promise<ScanConfig[]>;
+  getAllEnabledScanConfigs(): Promise<ScanConfig[]>;
+  updateScanConfig(id: number, data: Partial<InsertScanConfig>): Promise<ScanConfig | undefined>;
+  deleteScanConfig(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -48,6 +96,10 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async updateUser(id: number, data: Partial<{ role: string; displayName: string }>): Promise<void> {
+    await db.update(users).set(data).where(eq(users.id, id));
+  }
+
   async updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void> {
     const updateData: Record<string, string> = { googleAccessToken: accessToken };
     if (refreshToken) {
@@ -56,9 +108,109 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set(updateData).where(eq(users.id, userId));
   }
 
+  async getAllInstructors(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.role, "instructor"));
+  }
+
+  async createCohort(cohort: InsertCohort): Promise<Cohort> {
+    const [created] = await db.insert(cohorts).values(cohort).returning();
+    return created;
+  }
+
+  async getCohortById(id: number): Promise<Cohort | undefined> {
+    const [cohort] = await db.select().from(cohorts).where(eq(cohorts.id, id));
+    return cohort;
+  }
+
+  async getAllCohorts(): Promise<Cohort[]> {
+    return db.select().from(cohorts).orderBy(cohorts.name);
+  }
+
+  async getCohortsByInstructor(instructorId: number): Promise<Cohort[]> {
+    return db.select().from(cohorts).where(eq(cohorts.instructorId, instructorId)).orderBy(cohorts.name);
+  }
+
+  async updateCohort(id: number, data: Partial<InsertCohort>): Promise<Cohort | undefined> {
+    const [updated] = await db.update(cohorts).set(data).where(eq(cohorts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteCohort(id: number): Promise<void> {
+    await db.delete(cohorts).where(eq(cohorts.id, id));
+  }
+
+  async createStudent(student: InsertStudent): Promise<Student> {
+    const [created] = await db.insert(students).values(student).returning();
+    return created;
+  }
+
+  async getStudentById(id: number): Promise<Student | undefined> {
+    const [student] = await db.select().from(students).where(eq(students.id, id));
+    return student;
+  }
+
+  async getStudentsByCohort(cohortId: number): Promise<Student[]> {
+    return db.select().from(students).where(eq(students.cohortId, cohortId)).orderBy(students.name);
+  }
+
+  async getStudentsByInstructor(instructorId: number): Promise<Student[]> {
+    const instructorCohorts = await this.getCohortsByInstructor(instructorId);
+    if (instructorCohorts.length === 0) return [];
+    const cohortIds = instructorCohorts.map(c => c.id);
+    return db.select().from(students).where(inArray(students.cohortId, cohortIds)).orderBy(students.name);
+  }
+
+  async getAllStudents(): Promise<Student[]> {
+    return db.select().from(students).orderBy(students.name);
+  }
+
+  async updateStudent(id: number, data: Partial<InsertStudent>): Promise<Student | undefined> {
+    const [updated] = await db.update(students).set(data).where(eq(students.id, id)).returning();
+    return updated;
+  }
+
+  async deleteStudent(id: number): Promise<void> {
+    await db.delete(students).where(eq(students.id, id));
+  }
+
+  async createScheduleEntry(entry: InsertSchedule): Promise<Schedule> {
+    const [created] = await db.insert(schedules).values(entry).returning();
+    return created;
+  }
+
+  async getScheduleByCohort(cohortId: number): Promise<Schedule[]> {
+    return db.select().from(schedules)
+      .where(eq(schedules.cohortId, cohortId))
+      .orderBy(schedules.dayOfWeek, schedules.startTime);
+  }
+
+  async updateScheduleEntry(id: number, data: Partial<InsertSchedule>): Promise<Schedule | undefined> {
+    const [updated] = await db.update(schedules).set(data).where(eq(schedules.id, id)).returning();
+    return updated;
+  }
+
+  async deleteScheduleEntry(id: number): Promise<void> {
+    await db.delete(schedules).where(eq(schedules.id, id));
+  }
+
   async getAllRecords(userId: number): Promise<AttendanceRecord[]> {
     return db.select().from(attendanceRecords)
       .where(eq(attendanceRecords.userId, userId))
+      .orderBy(desc(attendanceRecords.createdAt));
+  }
+
+  async getRecordsByStudentId(studentId: number): Promise<AttendanceRecord[]> {
+    return db.select().from(attendanceRecords)
+      .where(eq(attendanceRecords.studentId, studentId))
+      .orderBy(desc(attendanceRecords.createdAt));
+  }
+
+  async getRecordsByCohort(cohortId: number): Promise<AttendanceRecord[]> {
+    const cohortStudents = await this.getStudentsByCohort(cohortId);
+    if (cohortStudents.length === 0) return [];
+    const studentIds = cohortStudents.map(s => s.id);
+    return db.select().from(attendanceRecords)
+      .where(inArray(attendanceRecords.studentId, studentIds))
       .orderBy(desc(attendanceRecords.createdAt));
   }
 
@@ -102,10 +254,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRecord(id: number): Promise<void> {
+    await db.delete(alerts).where(eq(alerts.recordId, id));
     await db.delete(attendanceRecords).where(eq(attendanceRecords.id, id));
   }
 
   async deleteAllRecords(userId: number): Promise<void> {
+    const userRecords = await this.getAllRecords(userId);
+    const recordIds = userRecords.map(r => r.id);
+    if (recordIds.length > 0) {
+      await db.delete(alerts).where(inArray(alerts.recordId, recordIds));
+    }
     await db.delete(attendanceRecords).where(eq(attendanceRecords.userId, userId));
   }
 
@@ -117,6 +275,75 @@ export class DatabaseStorage implements IStorage {
       byCategory[record.excuseCategory] = (byCategory[record.excuseCategory] || 0) + 1;
     }
     return { total: records.length, byCategory };
+  }
+
+  async getStatsByCohort(cohortId: number): Promise<{ total: number; byCategory: Record<string, number> }> {
+    const records = await this.getRecordsByCohort(cohortId);
+    const byCategory: Record<string, number> = {};
+    for (const record of records) {
+      byCategory[record.excuseCategory] = (byCategory[record.excuseCategory] || 0) + 1;
+    }
+    return { total: records.length, byCategory };
+  }
+
+  async createAlert(alert: InsertAlert): Promise<Alert> {
+    const [created] = await db.insert(alerts).values(alert).returning();
+    return created;
+  }
+
+  async getAlertsByUser(userId: number): Promise<Alert[]> {
+    return db.select().from(alerts)
+      .where(eq(alerts.userId, userId))
+      .orderBy(desc(alerts.createdAt));
+  }
+
+  async getAllAlerts(): Promise<Alert[]> {
+    return db.select().from(alerts).orderBy(desc(alerts.createdAt));
+  }
+
+  async getUnreadAlertCount(userId: number): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(alerts)
+      .where(and(eq(alerts.userId, userId), eq(alerts.isRead, false)));
+    return Number(result[0]?.count || 0);
+  }
+
+  async getAllUnreadAlertCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(alerts)
+      .where(eq(alerts.isRead, false));
+    return Number(result[0]?.count || 0);
+  }
+
+  async markAlertRead(id: number): Promise<Alert | undefined> {
+    const [updated] = await db.update(alerts).set({ isRead: true }).where(eq(alerts.id, id)).returning();
+    return updated;
+  }
+
+  async markAllAlertsRead(userId: number): Promise<void> {
+    await db.update(alerts).set({ isRead: true }).where(eq(alerts.userId, userId));
+  }
+
+  async createScanConfig(config: InsertScanConfig): Promise<ScanConfig> {
+    const [created] = await db.insert(scanConfigs).values(config).returning();
+    return created;
+  }
+
+  async getScanConfigsByUser(userId: number): Promise<ScanConfig[]> {
+    return db.select().from(scanConfigs).where(eq(scanConfigs.userId, userId));
+  }
+
+  async getAllEnabledScanConfigs(): Promise<ScanConfig[]> {
+    return db.select().from(scanConfigs).where(eq(scanConfigs.enabled, true));
+  }
+
+  async updateScanConfig(id: number, data: Partial<InsertScanConfig>): Promise<ScanConfig | undefined> {
+    const [updated] = await db.update(scanConfigs).set(data).where(eq(scanConfigs.id, id)).returning();
+    return updated;
+  }
+
+  async deleteScanConfig(id: number): Promise<void> {
+    await db.delete(scanConfigs).where(eq(scanConfigs.id, id));
   }
 }
 

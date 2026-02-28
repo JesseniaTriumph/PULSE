@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Users,
   Stethoscope,
@@ -17,22 +18,16 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  LogOut,
   Printer,
-  Zap,
   Mail,
-  Sun,
-  Moon,
   Braces,
   Clock,
 } from "lucide-react";
-import type { AttendanceRecord } from "@shared/schema";
+import type { AttendanceRecord, Cohort } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
 import { AddEmailDialog } from "@/components/add-email-dialog";
 import { BatchUploadDialog } from "@/components/batch-upload-dialog";
 import { GmailFetchDialog } from "@/components/gmail-fetch-dialog";
-import { StarField } from "@/components/star-field";
-import { useTheme } from "@/components/theme-provider";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -130,19 +125,35 @@ export default function Dashboard() {
   const [gmailDialogOpen, setGmailDialogOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  const [filterCohort, setFilterCohort] = useState<string>("all");
   const { toast } = useToast();
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { user, isAdmin } = useAuth();
+
+  const { data: cohorts = [] } = useQuery<Cohort[]>({
+    queryKey: ["/api/cohorts"],
+  });
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<AttendanceRecord[]>({
-    queryKey: ["/api/records"],
+    queryKey: ["/api/records", { cohortId: filterCohort !== "all" ? filterCohort : undefined }],
+    queryFn: async () => {
+      const url = filterCohort !== "all" ? `/api/records?cohortId=${filterCohort}` : "/api/records";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch records");
+      return res.json();
+    },
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<{
     total: number;
     byCategory: Record<string, number>;
   }>({
-    queryKey: ["/api/stats"],
+    queryKey: ["/api/stats", { cohortId: filterCohort !== "all" ? filterCohort : undefined }],
+    queryFn: async () => {
+      const url = filterCohort !== "all" ? `/api/stats?cohortId=${filterCohort}` : "/api/stats";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch stats");
+      return res.json();
+    },
   });
 
   const timeFilteredRecords = useMemo(() => {
@@ -198,292 +209,263 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      <StarField />
-
-      <div className="border-b border-violet-500/10 bg-background/60 backdrop-blur-sm sticky top-0 z-10 no-print">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-violet-500/20">
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight pulse-glow" data-testid="text-page-title">
-                  PULSE
-                </h1>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Welcome, {user?.displayName || "User"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddDialogOpen(true)}
-                data-testid="button-add-email"
-                className="border-violet-500/30 hover:bg-violet-500/10"
-              >
-                <Plus className="w-4 h-4 mr-1.5" />
-                Add Email
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setBatchDialogOpen(true)}
-                data-testid="button-batch-upload"
-                className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
-              >
-                <RefreshCw className="w-4 h-4 mr-1.5" />
-                Batch Process
-              </Button>
-              {user?.googleId && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setGmailDialogOpen(true)}
-                  data-testid="button-gmail-fetch"
-                  className="border-violet-500/30 hover:bg-violet-500/10"
-                >
-                  <Mail className="w-4 h-4 mr-1.5" />
-                  Gmail
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={toggleTheme}
-                data-testid="button-theme-toggle"
-                className="border-violet-500/30 hover:bg-violet-500/10"
-                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              >
-                {theme === "dark" ? <Sun className="w-4 h-4 mr-1.5" /> : <Moon className="w-4 h-4 mr-1.5" />}
-                {theme === "dark" ? "Light" : "Dark"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => logout.mutate()}
-                data-testid="button-logout"
-                disabled={logout.isPending}
-                className="hover:bg-violet-500/10"
-              >
-                <LogOut className="w-4 h-4 mr-1.5" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+        <div>
+          <h2 className="text-2xl font-bold" data-testid="text-page-title">Dashboard</h2>
+          <p className="text-sm text-muted-foreground">Welcome back, {user?.displayName || "User"}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && cohorts.length > 0 && (
+            <Select value={filterCohort} onValueChange={setFilterCohort}>
+              <SelectTrigger className="w-[130px] border-violet-500/20 h-8 text-xs" data-testid="select-filter-cohort">
+                <SelectValue placeholder="All Cohorts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cohorts</SelectItem>
+                {cohorts.map(c => (
+                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setAddDialogOpen(true)}
+            data-testid="button-add-email"
+            className="border-violet-500/30 hover:bg-violet-500/10"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Email
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setBatchDialogOpen(true)}
+            data-testid="button-batch-upload"
+            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+          >
+            <RefreshCw className="w-4 h-4 mr-1.5" />
+            Batch Process
+          </Button>
+          {user?.googleId && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setGmailDialogOpen(true)}
+              data-testid="button-gmail-fetch"
+              className="border-violet-500/30 hover:bg-violet-500/10"
+            >
+              <Mail className="w-4 h-4 mr-1.5" />
+              Gmail
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative z-[1]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="flex flex-wrap items-center gap-2 no-print" data-testid="time-period-filter">
+        {(Object.keys(timePeriodLabels) as TimePeriod[]).map((period) => (
+          <Button
+            key={period}
+            size="sm"
+            variant={timePeriod === period ? "default" : "outline"}
+            onClick={() => setTimePeriod(period)}
+            data-testid={`button-period-${period}`}
+            className={
+              timePeriod === period
+                ? "bg-gradient-to-r from-violet-600 to-indigo-600"
+                : "border-violet-500/30 hover:bg-violet-500/10"
+            }
+          >
+            {timePeriodLabels[period]}
+          </Button>
+        ))}
+      </div>
 
-          <div className="flex flex-wrap items-center gap-2 no-print" data-testid="time-period-filter">
-            {(Object.keys(timePeriodLabels) as TimePeriod[]).map((period) => (
-              <Button
-                key={period}
-                size="sm"
-                variant={timePeriod === period ? "default" : "outline"}
-                onClick={() => setTimePeriod(period)}
-                data-testid={`button-period-${period}`}
-                className={
-                  timePeriod === period
-                    ? "bg-gradient-to-r from-violet-600 to-indigo-600"
-                    : "border-violet-500/30 hover:bg-violet-500/10"
-                }
-              >
-                {timePeriodLabels[period]}
-              </Button>
-            ))}
-          </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 no-print">
+        <Card
+          className={`cursor-pointer transition-all border ${
+            filterCategory === null
+              ? "ring-2 ring-violet-500 border-violet-500/40 bg-violet-500/10"
+              : "border-violet-500/10 bg-card/60 backdrop-blur-sm hover:bg-violet-500/5"
+          }`}
+          onClick={() => setFilterCategory(null)}
+          data-testid="card-stat-total"
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-violet-400" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Total
+              </span>
+            </div>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-12" />
+            ) : (
+              <p className="text-2xl font-bold" data-testid="text-stat-total">
+                {periodStats.total}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 no-print">
+        {Object.entries(categoryConfig).map(([category, config]) => {
+          const Icon = config.icon;
+          const count = periodStats.byCategory[category] || 0;
+          return (
             <Card
+              key={category}
               className={`cursor-pointer transition-all border ${
-                filterCategory === null
-                  ? "ring-2 ring-violet-500 border-violet-500/40 bg-violet-500/10"
-                  : "border-violet-500/10 bg-card/60 backdrop-blur-sm hover:bg-violet-500/5"
+                filterCategory === category
+                  ? `ring-2 ring-violet-500 ${config.bgClass}`
+                  : `border-violet-500/10 bg-card/60 backdrop-blur-sm hover:${config.bgClass}`
               }`}
-              onClick={() => setFilterCategory(null)}
-              data-testid="card-stat-total"
+              onClick={() => setFilterCategory(filterCategory === category ? null : category)}
+              data-testid={`card-stat-${category.toLowerCase().replace(/[\/ ]/g, "-")}`}
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-violet-400" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Total
+                  <Icon className={`w-4 h-4 ${config.color}`} />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">
+                    {category}
                   </span>
                 </div>
                 {statsLoading ? (
                   <Skeleton className="h-8 w-12" />
                 ) : (
-                  <p className="text-2xl font-bold" data-testid="text-stat-total">
-                    {periodStats.total}
-                  </p>
+                  <p className="text-2xl font-bold">{count}</p>
                 )}
               </CardContent>
             </Card>
+          );
+        })}
+      </div>
 
-            {Object.entries(categoryConfig).map(([category, config]) => {
-              const Icon = config.icon;
-              const count = periodStats.byCategory[category] || 0;
-              return (
-                <Card
-                  key={category}
-                  className={`cursor-pointer transition-all border ${
-                    filterCategory === category
-                      ? `ring-2 ring-violet-500 ${config.bgClass}`
-                      : `border-violet-500/10 bg-card/60 backdrop-blur-sm hover:${config.bgClass}`
-                  }`}
-                  onClick={() => setFilterCategory(filterCategory === category ? null : category)}
-                  data-testid={`card-stat-${category.toLowerCase().replace(/[\/ ]/g, "-")}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Icon className={`w-4 h-4 ${config.color}`} />
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">
-                        {category}
-                      </span>
-                    </div>
-                    {statsLoading ? (
-                      <Skeleton className="h-8 w-12" />
-                    ) : (
-                      <p className="text-2xl font-bold">{count}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">
-                Records
-                {filterCategory && (
-                  <Badge variant="secondary" className="ml-2 bg-violet-500/20 text-violet-300 border-violet-500/30">
-                    {filterCategory}
-                  </Badge>
-                )}
-              </h2>
-              <Badge variant="outline" className="border-violet-500/30">{filteredRecords.length}</Badge>
-              {timePeriod !== "all" && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  {getTimePeriodDescription(timePeriod)}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap no-print">
-              {filteredRecords.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handlePrint}
-                  data-testid="button-print"
-                  className="border-violet-500/30 hover:bg-violet-500/10"
-                >
-                  <Printer className="w-4 h-4 mr-1.5" />
-                  Print
-                </Button>
-              )}
-              {records.length > 0 && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleExportCSV}
-                    data-testid="button-export-csv"
-                    className="border-violet-500/30 hover:bg-violet-500/10"
-                  >
-                    <FileDown className="w-4 h-4 mr-1.5" />
-                    CSV
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleExportDoc}
-                    data-testid="button-export-doc"
-                    className="border-violet-500/30 hover:bg-violet-500/10"
-                  >
-                    <FileText className="w-4 h-4 mr-1.5" />
-                    DOC
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleExportJSON}
-                    data-testid="button-export-json"
-                    className="border-violet-500/30 hover:bg-violet-500/10"
-                  >
-                    <Braces className="w-4 h-4 mr-1.5" />
-                    JSON
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleClearAll}
-                    className="text-destructive border-rose-500/30 hover:bg-rose-500/10"
-                    data-testid="button-clear-all"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1.5" />
-                    Clear
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {recordsLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : filteredRecords.length === 0 ? (
-            <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
-              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mb-4">
-                  <Users className="w-8 h-8 text-violet-400" />
-                </div>
-                <h3 className="text-lg font-medium mb-1" data-testid="text-empty-title">
-                  {timePeriod !== "all"
-                    ? `No records for ${timePeriodLabels[timePeriod].toLowerCase()}`
-                    : "No attendance records yet"}
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                  {timePeriod !== "all"
-                    ? "Try selecting a different time period or add new records."
-                    : "Add individual emails or use batch processing to categorize builder absence excuses with AI."}
-                </p>
-                {timePeriod === "all" && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setAddDialogOpen(true)}
-                      data-testid="button-empty-add"
-                      className="border-violet-500/30 hover:bg-violet-500/10"
-                    >
-                      <Plus className="w-4 h-4 mr-1.5" />
-                      Add Email
-                    </Button>
-                    <Button
-                      onClick={() => setBatchDialogOpen(true)}
-                      data-testid="button-empty-batch"
-                      className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-1.5" />
-                      Batch Process
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <RecordsTable records={filteredRecords} timePeriod={timePeriodLabels[timePeriod]} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">
+            Records
+            {filterCategory && (
+              <Badge variant="secondary" className="ml-2 bg-violet-500/20 text-violet-300 border-violet-500/30">
+                {filterCategory}
+              </Badge>
+            )}
+          </h2>
+          <Badge variant="outline" className="border-violet-500/30">{filteredRecords.length}</Badge>
+          {timePeriod !== "all" && (
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {getTimePeriodDescription(timePeriod)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap no-print">
+          {filteredRecords.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handlePrint}
+              data-testid="button-print"
+              className="border-violet-500/30 hover:bg-violet-500/10"
+            >
+              <Printer className="w-4 h-4 mr-1.5" />
+              Print
+            </Button>
+          )}
+          {records.length > 0 && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportCSV}
+                data-testid="button-export-csv"
+                className="border-violet-500/30 hover:bg-violet-500/10"
+              >
+                <FileDown className="w-4 h-4 mr-1.5" />
+                CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportDoc}
+                data-testid="button-export-doc"
+                className="border-violet-500/30 hover:bg-violet-500/10"
+              >
+                <FileText className="w-4 h-4 mr-1.5" />
+                DOC
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportJSON}
+                data-testid="button-export-json"
+                className="border-violet-500/30 hover:bg-violet-500/10"
+              >
+                <Braces className="w-4 h-4 mr-1.5" />
+                JSON
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleClearAll}
+                className="text-destructive border-rose-500/30 hover:bg-rose-500/10"
+                data-testid="button-clear-all"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Clear
+              </Button>
+            </>
           )}
         </div>
       </div>
+
+      {recordsLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : filteredRecords.length === 0 ? (
+        <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-violet-400" />
+            </div>
+            <h3 className="text-lg font-medium mb-1" data-testid="text-empty-title">
+              {timePeriod !== "all"
+                ? `No records for ${timePeriodLabels[timePeriod].toLowerCase()}`
+                : "No attendance records yet"}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm mb-6">
+              {timePeriod !== "all"
+                ? "Try selecting a different time period or add new records."
+                : "Add individual emails or use batch processing to categorize builder absence excuses with AI."}
+            </p>
+            {timePeriod === "all" && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setAddDialogOpen(true)}
+                  data-testid="button-empty-add"
+                  className="border-violet-500/30 hover:bg-violet-500/10"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Add Email
+                </Button>
+                <Button
+                  onClick={() => setBatchDialogOpen(true)}
+                  data-testid="button-empty-batch"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                  Batch Process
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <RecordsTable records={filteredRecords} timePeriod={timePeriodLabels[timePeriod]} />
+      )}
 
       <AddEmailDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
       <BatchUploadDialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen} />

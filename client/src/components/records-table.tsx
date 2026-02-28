@@ -34,6 +34,13 @@ const categoryBadgeColors: Record<string, string> = {
   "Program Event": "bg-sky-500/20 text-sky-300 border-sky-500/30",
   "Technical Issue": "bg-violet-500/20 text-violet-300 border-violet-500/30",
   Other: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  None: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+};
+
+const typeBadgeColors: Record<string, string> = {
+  Absent: "bg-rose-500/20 text-rose-300 border-rose-500/30",
+  "Late/Tardy": "bg-orange-500/20 text-orange-300 border-orange-500/30",
   Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
 };
 
@@ -81,10 +88,11 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
         <Table className="print-table">
           <TableHeader>
             <TableRow className="border-violet-500/10 hover:bg-transparent">
-              <TableHead className="w-[180px]">Name</TableHead>
-              <TableHead className="w-[200px] hidden md:table-cell">Email</TableHead>
-              <TableHead className="w-[100px]">Date</TableHead>
-              <TableHead className="w-[170px]">Category</TableHead>
+              <TableHead className="w-[160px]">Name</TableHead>
+              <TableHead className="w-[180px] hidden md:table-cell">Email</TableHead>
+              <TableHead className="w-[90px]">Date</TableHead>
+              <TableHead className="w-[100px]">Type</TableHead>
+              <TableHead className="w-[150px]">Reason</TableHead>
               <TableHead className="hidden lg:table-cell">Snippet</TableHead>
               <TableHead className="w-[90px] text-right no-print">Actions</TableHead>
             </TableRow>
@@ -100,6 +108,11 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {new Date(record.receivedAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  <Badge className={`text-xs border ${typeBadgeColors[record.attendanceType] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`} data-testid={`badge-type-${record.id}`}>
+                    {record.attendanceType || "Absent"}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="no-print">
@@ -188,7 +201,15 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                    Category
+                    Type
+                  </p>
+                  <Badge className={`border ${typeBadgeColors[viewRecord.attendanceType] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}>
+                    {viewRecord.attendanceType || "Absent"}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Reason
                   </p>
                   <Badge className={`border ${categoryBadgeColors[viewRecord.excuseCategory] || ""}`}>
                     {viewRecord.excuseCategory}

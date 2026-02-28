@@ -1,87 +1,108 @@
 # PULSE
 
 ## Overview
-PULSE is a space-themed, multi-user AI-powered attendance email processing tool that categorizes student/builder absence excuses and generates reports for bulk system updates. Users can register/log in with username and password or sign in with Google OAuth. Google-authenticated users can also fetch emails directly from their Gmail inbox. The app features a dark space aesthetic with animated star fields and violet/indigo accent colors.
+PULSE is a space-themed, multi-tenant AI-powered attendance management system. It processes student/builder absence and tardiness emails using a dual-classification system (attendanceType + excuseCategory), supports multiple roles (Admin/Instructor), cohorts (L1, L2, L3, L∞), student rosters, class schedules, automated Gmail scanning at configured times, and an alert system for urgent/action-needed emails. Features a dark space aesthetic with animated star fields and violet/indigo accent colors.
 
 ## Architecture
-- **Frontend**: React + Vite + Tailwind CSS + Shadcn UI (wouter for routing)
+- **Frontend**: React + Vite + Tailwind CSS + Shadcn UI (wouter for routing, @tanstack/react-query)
 - **Backend**: Express.js + PostgreSQL (Drizzle ORM) + OpenAI AI Integrations
-- **AI**: Uses Replit AI Integrations (OpenAI gpt-5.2) for excuse categorization
-- **Auth**: Session-based auth with bcrypt password hashing, express-session + connect-pg-simple; Google OAuth for sign-in + Gmail access
+- **AI**: Uses Replit AI Integrations (OpenAI) for dual-classification (attendanceType + excuseCategory) and alert detection (needsResponse, urgency, alertReason)
+- **Auth**: Session-based auth with bcrypt, express-session + connect-pg-simple; Google OAuth for sign-in + Gmail access; role-based access (admin/instructor)
 - **Theme**: Dark/light mode with ThemeProvider (localStorage persistence); dark mode: full star field (120 stars), light mode: subtle corner sparkles (20 sparkles); CSS variables in :root (light) and .dark (dark); Tailwind darkMode: ["class"]
+- **Scheduler**: Interval-based scanner (every 30s) checking configured scan times; auto-fetches Gmail, processes emails, creates alerts
 
 ## Key Features
-- User registration and login (session-based authentication)
+- Multi-tenant with roles: Admin (sees all) and Instructor (sees own cohorts)
+- Cohort management: L1, L2, L3, L∞ with instructor assignments
+- Student roster with per-student attendance history and profile view
+- Class schedule management (weekly grid per cohort)
+- Dual classification: attendanceType (Absent/Late-Tardy/Unexcused) + excuseCategory (Sick-Medical/Personal/Program Event/Technical Issue/Other/None)
+- Alert system for emails needing response (urgency: low/medium/high)
+- Automated Gmail scanning at configurable times (default: 10:00 AM, 6:25 PM, 9:55 PM)
 - Google OAuth sign-in with Gmail inbox reading
-- Manual email entry with AI categorization
-- Batch processing (JSON or CSV upload)
-- Gmail email fetching (search inbox, select emails, process with AI)
-- 7 categories: Sick/Medical, Personal, Program Event, Technical Issue, Late/Tardy, Other, Unexcused
-- Time-period filtering: Day, Week, Month, Quarter, Year with print support
-- CSV and DOCX export (per-user data)
-- Category filtering and inline category editing
-- Real-time SSE streaming for batch processing progress
-- Print-friendly view for all time periods
+- Manual email entry, batch processing (JSON/CSV), Gmail fetch
+- Time-period filtering, CSV/DOCX/JSON export, print support
+- Sidebar navigation with alert badge count
 
 ## Project Structure
 ```
-shared/schema.ts          - Data models (users with Google fields, attendanceRecords tables)
+shared/schema.ts          - Data models (users, cohorts, students, schedules, attendanceRecords, alerts, scanConfigs)
 server/db.ts              - Database connection (Neon PostgreSQL)
-server/auth.ts            - Authentication setup (session, login, register, logout, demo)
+server/auth.ts            - Auth setup (session, login, register, logout, demo with seeding)
 server/google-auth.ts     - Google OAuth routes (sign-in, callback, Gmail fetch)
-server/storage.ts         - CRUD operations (DatabaseStorage)
-server/routes.ts          - API endpoints (all protected by requireAuth)
-server/openai.ts          - AI categorization logic
-client/src/App.tsx         - App root with auth-gated routing
-client/src/hooks/use-auth.ts    - Auth hook (login, register, logout, user state)
-client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign-in)
-client/src/pages/dashboard.tsx  - Main dashboard with time filters, stats, table, Gmail
-client/src/pages/not-found.tsx  - 404 error page
-client/src/components/star-field.tsx       - Animated star background (adapts to theme)
-client/src/components/theme-provider.tsx   - Dark/light mode context + useTheme hook
-client/src/components/records-table.tsx    - Records data table (print-friendly)
+server/storage.ts         - Full CRUD operations (IStorage interface + DatabaseStorage)
+server/routes.ts          - API endpoints with role-based middleware
+server/openai.ts          - AI dual-classification + alert detection
+server/scheduler.ts       - Automated email scanning scheduler
+client/src/App.tsx         - App root with sidebar layout, auth gating, routing
+client/src/hooks/use-auth.ts    - Auth hook (login, register, logout, user state, role helpers)
+client/src/components/app-sidebar.tsx  - Sidebar navigation with role-based items + alert badge
+client/src/components/star-field.tsx   - Animated star background
+client/src/components/theme-provider.tsx - Dark/light mode context
+client/src/components/records-table.tsx  - Records data table (print-friendly)
 client/src/components/add-email-dialog.tsx - Single email form
 client/src/components/batch-upload-dialog.tsx - Batch processing
-client/src/components/gmail-fetch-dialog.tsx  - Gmail inbox search and email selection
+client/src/components/gmail-fetch-dialog.tsx  - Gmail inbox search
+client/src/pages/dashboard.tsx  - Dashboard with stats, time filters, records, cohort filter (admin)
+client/src/pages/students.tsx   - Student roster + student profile with attendance history
+client/src/pages/schedule.tsx   - Weekly schedule grid per cohort
+client/src/pages/alerts.tsx     - Alert feed with urgency badges, mark read
+client/src/pages/admin-cohorts.tsx - Admin cohort management + instructor assignment
+client/src/pages/instructors.tsx   - Admin instructor list
+client/src/pages/settings.tsx   - Scan schedule config, account info, Google connection
+client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign-in)
 ```
 
 ## API Endpoints
 ### Auth
-- `POST /api/auth/register` - Create account
+- `POST /api/auth/register` - Create account (with role)
 - `POST /api/auth/login` - Sign in
 - `POST /api/auth/logout` - Sign out
-- `POST /api/auth/demo` - Demo login with seeded data
-- `GET /api/auth/me` - Current user info (includes googleId)
+- `POST /api/auth/demo` - Demo login (admin + seeded cohorts, students, schedule, records, alerts)
+- `GET /api/auth/me` - Current user info (includes role, googleId)
 - `GET /api/auth/google` - Initiate Google OAuth flow
 - `GET /api/auth/google/callback` - Google OAuth callback
-- `GET /api/auth/google/status` - Check Google connection status
 
-### Gmail
-- `POST /api/gmail/fetch` - Fetch emails from user's Gmail inbox
+### Cohorts & Students
+- `GET/POST/PATCH/DELETE /api/cohorts` - Cohort CRUD (admin: all, instructor: own)
+- `GET/POST/PATCH/DELETE /api/students` - Student CRUD (admin: all, instructor: own cohorts)
+- `GET /api/students/:id` - Student profile with attendance records
+- `GET /api/instructors` - List all instructors (admin only)
 
-### Records (all require auth)
-- `GET /api/records` - List user's attendance records
-- `GET /api/stats` - Category counts for user
-- `POST /api/process-emails` - Process emails with AI (SSE)
-- `PATCH /api/records/:id/category` - Update category
-- `DELETE /api/records/:id` - Delete record
-- `GET /api/export/csv` - Download CSV report
-- `GET /api/export/doc` - Download DOCX report
-- `GET /api/export/json` - Download JSON report (for database import)
+### Schedules
+- `GET /api/schedules/:cohortId` - Schedule for a cohort
+- `POST/PATCH/DELETE /api/schedules` - Schedule CRUD
+
+### Alerts
+- `GET /api/alerts` - User's alerts (admin: all alerts)
+- `GET /api/alerts/unread-count` - Unread count
+- `PATCH /api/alerts/:id/read` - Mark alert read
+- `POST /api/alerts/mark-all-read` - Mark all read
+
+### Scan Configs
+- `GET/POST/PATCH/DELETE /api/scan-configs` - Scan schedule CRUD
+
+### Records & Export (with cohort ownership checks for instructors)
+- `GET /api/records` - Records (supports ?cohortId, ?studentId filters)
+- `GET /api/stats` - Category counts (supports ?cohortId)
+- `POST /api/process-emails` - Process emails with AI (SSE streaming)
+- `GET /api/export/csv|doc|json` - Export reports
 
 ## Database
 - PostgreSQL via Neon
-- Tables: `users` (with google_id, google_access_token, google_refresh_token), `attendance_records` (with user_id FK), `session` (auto-created by connect-pg-simple)
-- Managed with Drizzle ORM, push with `npm run db:push`
+- 7 Tables: `users` (with role, google fields), `cohorts`, `students`, `schedules`, `attendance_records` (with attendanceType, excuseCategory, needsResponse, urgency, alertReason), `alerts`, `scan_configs`, `session`
+- Managed with Drizzle ORM
+
+## Demo Account
+- Username: `demo`, role: admin — seeds 2 instructors, 4 cohorts, 12 students, schedule entries, 7 attendance records, 2 alerts
+- Instructor accounts: instructor_smith (L1/L2), instructor_jones (L3/L∞)
+
+## Important User Preferences
+- Do NOT tone down sparkle intensity — keep scale(2), strong box-shadows, anim-sparkle at full intensity
+- Star field: 120 stars dark mode, 20 corner sparkles light mode
 
 ## Environment Secrets
-- `SESSION_SECRET` - Used for express-session cookie signing
+- `SESSION_SECRET` - express-session cookie signing
 - `DATABASE_URL` - PostgreSQL connection string
-- `PULSE_GOOGLE_CLIENT_ID` - Google OAuth client ID (PULSE-specific)
-- `PULSE_GOOGLE_CLIENT_SECRET` - Google OAuth client secret (PULSE-specific)
-
-## Google OAuth Setup
-- Scopes: openid, userinfo.email, userinfo.profile, gmail.readonly
-- Callback URL: `https://{REPLIT_DOMAIN}/api/auth/google/callback`
-- Tokens stored in users table (google_access_token, google_refresh_token)
-- Token refresh handled automatically when access token expires
+- `PULSE_GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `PULSE_GOOGLE_CLIENT_SECRET` - Google OAuth client secret

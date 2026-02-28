@@ -1,14 +1,16 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+export const userRoles = ["admin", "instructor"] as const;
+export type UserRole = (typeof userRoles)[number];
 
 export const attendanceTypes = [
   "Absent",
   "Late/Tardy",
   "Unexcused",
 ] as const;
-
 export type AttendanceType = (typeof attendanceTypes)[number];
 
 export const excuseCategories = [
@@ -19,8 +21,10 @@ export const excuseCategories = [
   "Other",
   "None",
 ] as const;
-
 export type ExcuseCategory = (typeof excuseCategories)[number];
+
+export const cohortNames = ["L1", "L2", "L3", "L∞"] as const;
+export type CohortName = (typeof cohortNames)[number];
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -28,15 +32,42 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   displayName: text("display_name").notNull(),
+  role: text("role").notNull().default("instructor"),
   googleId: text("google_id").unique(),
   googleAccessToken: text("google_access_token"),
   googleRefreshToken: text("google_refresh_token"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const cohorts = pgTable("cohorts", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  instructorId: integer("instructor_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const students = pgTable("students", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  cohortId: integer("cohort_id").notNull().references(() => cohorts.id),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const schedules = pgTable("schedules", {
+  id: serial("id").primaryKey(),
+  cohortId: integer("cohort_id").notNull().references(() => cohorts.id),
+  dayOfWeek: integer("day_of_week").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const attendanceRecords = pgTable("attendance_records", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
+  studentId: integer("student_id").references(() => students.id),
   senderName: text("sender_name").notNull(),
   senderEmail: text("sender_email").notNull(),
   receivedAt: timestamp("received_at").notNull(),
@@ -46,23 +77,53 @@ export const attendanceRecords = pgTable("attendance_records", {
   messageSnippet: text("message_snippet").notNull(),
   status: text("status").notNull().default("pending"),
   batchId: text("batch_id"),
+  needsResponse: boolean("needs_response").default(false),
+  urgency: text("urgency").default("low"),
+  alertReason: text("alert_reason"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
+export const alerts = pgTable("alerts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  recordId: integer("record_id").notNull().references(() => attendanceRecords.id),
+  alertType: text("alert_type").notNull(),
+  message: text("message").notNull(),
+  urgency: text("urgency").notNull().default("low"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({
-  id: true,
-  createdAt: true,
+export const scanConfigs = pgTable("scan_configs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  scanTime: text("scan_time").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertCohortSchema = createInsertSchema(cohorts).omit({ id: true, createdAt: true });
+export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true });
+export const insertScheduleSchema = createInsertSchema(schedules).omit({ id: true, createdAt: true });
+export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({ id: true, createdAt: true });
+export const insertAlertSchema = createInsertSchema(alerts).omit({ id: true, createdAt: true });
+export const insertScanConfigSchema = createInsertSchema(scanConfigs).omit({ id: true, createdAt: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Cohort = typeof cohorts.$inferSelect;
+export type InsertCohort = z.infer<typeof insertCohortSchema>;
+export type Student = typeof students.$inferSelect;
+export type InsertStudent = z.infer<typeof insertStudentSchema>;
+export type Schedule = typeof schedules.$inferSelect;
+export type InsertSchedule = z.infer<typeof insertScheduleSchema>;
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
 export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
+export type Alert = typeof alerts.$inferSelect;
+export type InsertAlert = z.infer<typeof insertAlertSchema>;
+export type ScanConfig = typeof scanConfigs.$inferSelect;
+export type InsertScanConfig = z.infer<typeof insertScanConfigSchema>;
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -74,6 +135,7 @@ export const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   displayName: z.string().min(1, "Display name is required"),
+  role: z.enum(userRoles).default("instructor"),
 });
 
 export const emailInputSchema = z.object({
