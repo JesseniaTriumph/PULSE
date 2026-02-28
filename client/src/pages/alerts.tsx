@@ -25,9 +25,9 @@ interface EnrichedAlert extends Alert {
 }
 
 const urgencyConfig = {
-  high: { icon: AlertTriangle, color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20", label: "Urgent" },
-  medium: { icon: AlertCircle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", label: "Medium" },
-  low: { icon: Info, color: "text-sky-400", bg: "bg-sky-500/10 border-sky-500/20", label: "Low" },
+  high: { icon: AlertTriangle, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15 border-rose-500/30 dark:bg-rose-500/10 dark:border-rose-500/20", label: "Urgent" },
+  medium: { icon: AlertCircle, color: "text-amber-700 dark:text-amber-400", bg: "bg-amber-500/15 border-amber-500/30 dark:bg-amber-500/10 dark:border-amber-500/20", label: "Medium" },
+  low: { icon: Info, color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/15 border-sky-500/30 dark:bg-sky-500/10 dark:border-sky-500/20", label: "Low" },
 };
 
 export default function AlertsPage() {
@@ -135,8 +135,8 @@ export default function AlertsPage() {
       {!canSendEmail && (
         <Card className="border-amber-500/20 bg-amber-500/5">
           <CardContent className="p-3 flex items-center gap-3 text-sm">
-            <Mail className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span className="text-amber-300">Connect your Google account to reply directly to student emails from this portal.</span>
+            <Mail className="w-4 h-4 text-amber-700 dark:text-amber-400 flex-shrink-0" />
+            <span className="text-amber-800 dark:text-amber-300">Connect your Google account to reply directly to student emails from this portal.</span>
           </CardContent>
         </Card>
       )}
@@ -144,7 +144,7 @@ export default function AlertsPage() {
       {alertsList.length === 0 ? (
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Bell className="w-12 h-12 text-violet-400 mb-4" />
+            <Bell className="w-12 h-12 text-violet-600 dark:text-violet-400 mb-4" />
             <h3 className="text-lg font-medium mb-1">No alerts</h3>
             <p className="text-sm text-muted-foreground">When students send emails that need a response, alerts will appear here.</p>
           </CardContent>
@@ -169,11 +169,11 @@ export default function AlertsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge className={`text-xs border ${config.bg} ${config.color}`}>{config.label}</Badge>
-                      <Badge variant="outline" className={`text-xs border-violet-500/20 ${alert.alertType === "peer_mention" ? "border-cyan-500/30 text-cyan-300" : alert.alertType === "school_report" ? "border-emerald-500/30 text-emerald-300" : ""}`}>
+                      <Badge variant="outline" className={`text-xs border-violet-500/20 ${alert.alertType === "peer_mention" ? "border-cyan-500/40 text-cyan-700 dark:border-cyan-500/30 dark:text-cyan-300" : alert.alertType === "school_report" ? "border-emerald-500/40 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300" : ""}`}>
                         {alert.alertType === "urgent" ? "Urgent Response Needed" : alert.alertType === "peer_mention" ? "Peer Mention" : alert.alertType === "school_report" ? "School/Program Report" : "Action Needed"}
                       </Badge>
-                      {alert.alertType === "peer_mention" && <Users className="w-3.5 h-3.5 text-cyan-400" />}
-                      {alert.alertType === "school_report" && <School className="w-3.5 h-3.5 text-emerald-400" />}
+                      {alert.alertType === "peer_mention" && <Users className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />}
+                      {alert.alertType === "school_report" && <School className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
                       {!alert.isRead && <div className="w-2 h-2 bg-violet-500 rounded-full" />}
                     </div>
                     <p className="text-sm font-medium mb-1">{alert.message}</p>

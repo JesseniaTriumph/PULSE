@@ -1,0 +1,269 @@
+import { storage } from "./storage";
+import { categorizeExcuse } from "./openai";
+
+const ATTENDANCE_KEYWORDS = [
+  "absent", "absence", "excuse", "sick", "cannot attend", "won't be able",
+  "can't make it", "unable to attend", "not coming", "won't be in",
+  "missing class", "out today", "out sick", "not feeling well",
+  "under the weather", "late", "tardy", "running late", "delayed",
+  "will be late", "running behind", "held up", "stuck in traffic",
+  "stepping out", "leaving early", "emergency", "appointment", "called out",
+];
+
+const KEYWORD_REGEX = new RegExp(ATTENDANCE_KEYWORDS.join("|"), "i");
+
+interface SlackMessage {
+  type: string;
+  text: string;
+  user: string;
+  ts: string;
+  thread_ts?: string;
+}
+
+interface SlackChannel {
+  id: string;
+  name: string;
+  is_im: boolean;
+  is_mpim?: boolean;
+  is_channel?: boolean;
+  is_group?: boolean;
+  user?: string;
+}
+
+interface SlackUserInfo {
+  id: string;
+  real_name: string;
+  profile: {
+    email?: string;
+    real_name?: string;
+    display_name?: string;
+  };
+}
+
+async function slackApi(endpoint: string, token: string, params?: Record<string, string>): Promise<any> {
+  const url = new URL(`https://slack.com/api/${endpoint}`);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  }
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Slack API ${endpoint} returned ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(`Slack API ${endpoint} error: ${data.error}`);
+  }
+  return data;
+}
+
+const userCache = new Map<string, SlackUserInfo>();
+
+async function getUserInfo(userId: string, token: string): Promise<SlackUserInfo> {
+  if (userCache.has(userId)) return userCache.get(userId)!;
+  const data = await slackApi("users.info", token, { user: userId });
+  userCache.set(userId, data.user);
+  return data.user;
+}
+
+export async function scanSlackForUser(userId: number): Promise<number> {
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) {
+    console.log("[Slack Scanner] No SLACK_BOT_TOKEN configured, skipping Slack scan");
+    return 0;
+  }
+
+  const enabledChannelConfigs = await storage.getAllEnabledSlackChannelConfigs();
+  if (enabledChannelConfigs.length === 0) {
+    console.log("[Slack Scanner] No Slack channels configured, skipping");
+    return 0;
+  }
+
+  const allStudents = await storage.getStudentsByInstructor(userId);
+  const allStudentsGlobal = await storage.getAllStudents();
+  const studentPool = allStudents.length > 0 ? allStudents : allStudentsGlobal;
+
+  const oldest = String(Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000));
+  let processed = 0;
+
+  for (const channelConfig of enabledChannelConfigs) {
+    try {
+      const data = await slackApi("conversations.history", token, {
+        channel: channelConfig.channelId,
+        oldest,
+        limit: "50",
+      });
+
+      const messages: SlackMessage[] = (data.messages || []).filter(
+        (m: SlackMessage) => m.type === "message" && m.text && !m.thread_ts
+      );
+
+      for (const msg of messages) {
+        if (!KEYWORD_REGEX.test(msg.text)) continue;
+
+        try {
+          let senderName = "Unknown";
+          let senderEmail = "";
+
+          try {
+            const userInfo = await getUserInfo(msg.user, token);
+            senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
+            senderEmail = userInfo.profile?.email || "";
+          } catch {
+            senderName = msg.user;
+          }
+
+          const categorization = await categorizeExcuse(msg.text);
+          const snippet = msg.text.substring(0, 150).replace(/\n/g, " ").trim();
+          const msgDate = new Date(parseFloat(msg.ts) * 1000);
+
+          const matchedStudent = studentPool.find(
+            s => (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+              || s.name.toLowerCase() === senderName.toLowerCase()
+          );
+
+          const isDm = false;
+
+          const record = await storage.createRecord({
+            userId,
+            studentId: matchedStudent?.id || null,
+            senderName,
+            senderEmail: senderEmail || `slack:${msg.user}`,
+            receivedAt: msgDate,
+            emailBody: msg.text,
+            attendanceType: categorization.attendanceType,
+            excuseCategory: categorization.category,
+            messageSnippet: snippet + (msg.text.length > 150 ? "..." : ""),
+            status: "processed",
+            batchId: `slack-scan-${new Date().toISOString().split("T")[0]}`,
+            needsResponse: categorization.needsResponse,
+            urgency: categorization.urgency,
+            alertReason: categorization.alertReason,
+            mentionsStudent: categorization.mentionsStudent,
+            mentionsSchool: categorization.mentionsSchool,
+            peerOrSchoolDetail: categorization.peerOrSchoolDetail,
+            source: "slack",
+            slackChannelId: channelConfig.channelId,
+            slackChannelName: channelConfig.channelName,
+            slackMessageTs: msg.ts,
+            slackIsDm: isDm,
+          });
+
+          if (categorization.needsResponse) {
+            await storage.createAlert({
+              userId,
+              recordId: record.id,
+              alertType: categorization.urgency === "high" ? "urgent" : "action_needed",
+              message: categorization.alertReason || "This Slack message may need a response",
+              urgency: categorization.urgency,
+            });
+          }
+
+          processed++;
+        } catch (err) {
+          console.error(`[Slack Scanner] Error processing message in ${channelConfig.channelName}:`, err);
+        }
+      }
+    } catch (err) {
+      console.error(`[Slack Scanner] Error scanning channel ${channelConfig.channelName}:`, err);
+    }
+  }
+
+  try {
+    const dmData = await slackApi("conversations.list", token, {
+      types: "im",
+      limit: "100",
+    });
+
+    const dmChannels: SlackChannel[] = dmData.channels || [];
+
+    for (const dm of dmChannels) {
+      try {
+        const data = await slackApi("conversations.history", token, {
+          channel: dm.id,
+          oldest,
+          limit: "20",
+        });
+
+        const messages: SlackMessage[] = (data.messages || []).filter(
+          (m: SlackMessage) => m.type === "message" && m.text
+        );
+
+        for (const msg of messages) {
+          if (!KEYWORD_REGEX.test(msg.text)) continue;
+
+          try {
+            let senderName = "Unknown";
+            let senderEmail = "";
+
+            try {
+              const userInfo = await getUserInfo(msg.user, token);
+              senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
+              senderEmail = userInfo.profile?.email || "";
+            } catch {
+              senderName = msg.user;
+            }
+
+            const matchedStudent = studentPool.find(
+              s => (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+                || s.name.toLowerCase() === senderName.toLowerCase()
+            );
+
+            if (!matchedStudent) continue;
+
+            const categorization = await categorizeExcuse(msg.text);
+            const snippet = msg.text.substring(0, 150).replace(/\n/g, " ").trim();
+            const msgDate = new Date(parseFloat(msg.ts) * 1000);
+
+            const record = await storage.createRecord({
+              userId,
+              studentId: matchedStudent.id,
+              senderName,
+              senderEmail: senderEmail || `slack:${msg.user}`,
+              receivedAt: msgDate,
+              emailBody: msg.text,
+              attendanceType: categorization.attendanceType,
+              excuseCategory: categorization.category,
+              messageSnippet: snippet + (msg.text.length > 150 ? "..." : ""),
+              status: "processed",
+              batchId: `slack-scan-${new Date().toISOString().split("T")[0]}`,
+              needsResponse: categorization.needsResponse,
+              urgency: categorization.urgency,
+              alertReason: categorization.alertReason,
+              mentionsStudent: categorization.mentionsStudent,
+              mentionsSchool: categorization.mentionsSchool,
+              peerOrSchoolDetail: categorization.peerOrSchoolDetail,
+              source: "slack",
+              slackChannelId: dm.id,
+              slackChannelName: "DM",
+              slackMessageTs: msg.ts,
+              slackIsDm: true,
+            });
+
+            if (categorization.needsResponse) {
+              await storage.createAlert({
+                userId,
+                recordId: record.id,
+                alertType: categorization.urgency === "high" ? "urgent" : "action_needed",
+                message: categorization.alertReason || "This Slack DM may need a response",
+                urgency: categorization.urgency,
+              });
+            }
+
+            processed++;
+          } catch (err) {
+            console.error(`[Slack Scanner] Error processing DM:`, err);
+          }
+        }
+      } catch (err) {
+        console.error(`[Slack Scanner] Error scanning DM channel:`, err);
+      }
+    }
+  } catch (err) {
+    console.log("[Slack Scanner] Could not list DM channels (may need im:history scope):", (err as Error).message);
+  }
+
+  console.log(`[Slack Scanner] Processed ${processed} Slack messages for user ${userId}`);
+  return processed;
+}

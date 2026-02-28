@@ -29,19 +29,19 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const categoryBadgeColors: Record<string, string> = {
-  "Sick/Medical": "bg-rose-500/20 text-rose-300 border-rose-500/30",
-  Personal: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  "Program Event": "bg-sky-500/20 text-sky-300 border-sky-500/30",
-  "Technical Issue": "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  Other: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  None: "bg-slate-500/20 text-slate-300 border-slate-500/30",
-  Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  "Sick/Medical": "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
+  Personal: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
+  "Program Event": "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
+  "Technical Issue": "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
+  Other: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30",
+  None: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
+  Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
 
 const typeBadgeColors: Record<string, string> = {
-  Absent: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-  "Late/Tardy": "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  Absent: "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
+  "Late/Tardy": "bg-orange-500/20 text-orange-700 border-orange-500/40 dark:text-orange-300 dark:border-orange-500/30",
+  Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
 
 interface RecordsTableProps {
@@ -104,13 +104,13 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 <TableCell data-testid={`badge-source-${record.id}`}>
                   {(record.source || "gmail") === "gmail" ? (
                     <div className="flex flex-col items-center gap-0.5" title={record.emailSubject ? `Subject: ${record.emailSubject}` : "Gmail"}>
-                      <Mail className="w-4 h-4 text-blue-400" />
-                      <span className="text-[10px] text-blue-400/70">Gmail</span>
+                      <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70">Gmail</span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-0.5" title={record.slackIsDm ? "Slack DM" : `Slack: ${record.slackChannelName || "channel"}`}>
-                      <MessageSquare className="w-4 h-4 text-green-400" />
-                      <span className="text-[10px] text-green-400/70">
+                      <MessageSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      <span className="text-[10px] text-green-600/70 dark:text-green-400/70">
                         {record.slackIsDm ? "DM" : (record.slackChannelName || "Slack")}
                       </span>
                     </div>
@@ -229,13 +229,13 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                   <div className="flex items-center gap-1.5" data-testid="text-detail-source">
                     {(viewRecord.source || "gmail") === "gmail" ? (
                       <>
-                        <Mail className="w-4 h-4 text-blue-400" />
-                        <span className="text-sm text-blue-400">Gmail</span>
+                        <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm text-blue-600 dark:text-blue-400">Gmail</span>
                       </>
                     ) : (
                       <>
-                        <MessageSquare className="w-4 h-4 text-green-400" />
-                        <span className="text-sm text-green-400">
+                        <MessageSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        <span className="text-sm text-green-600 dark:text-green-400">
                           {viewRecord.slackIsDm ? "Slack DM" : `Slack — ${viewRecord.slackChannelName || "channel"}`}
                         </span>
                       </>

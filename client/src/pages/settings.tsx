@@ -6,17 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Settings as SettingsIcon, Plus, Trash2, Clock, ScanLine, Mail, Shield } from "lucide-react";
+import { Settings as SettingsIcon, Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import type { ScanConfig } from "@shared/schema";
 
-const defaultTimes = ["10:00", "18:25", "21:55"];
+const defaultTimes = ["10:00", "14:00", "18:25", "20:00", "21:55"];
 const timeLabels: Record<string, string> = {
   "10:00": "10:00 AM — Morning check",
+  "14:00": "2:00 PM — Afternoon scan",
   "18:25": "6:25 PM — Evening scan",
-  "21:55": "9:55 PM — Night scan",
+  "20:00": "8:00 PM — Night scan",
+  "21:55": "9:55 PM — Late night scan",
 };
 
 function formatTime(t: string) {
@@ -38,6 +40,15 @@ export default function SettingsPage() {
   const handleToggle = async (id: number, currentEnabled: boolean) => {
     try {
       await apiRequest("PATCH", `/api/scan-configs/${id}`, { enabled: !currentEnabled });
+      queryClient.invalidateQueries({ queryKey: ["/api/scan-configs"] });
+    } catch {
+      toast({ title: "Failed to update", variant: "destructive" });
+    }
+  };
+
+  const handleSourceToggle = async (id: number, field: "scanGmail" | "scanSlack", currentValue: boolean) => {
+    try {
+      await apiRequest("PATCH", `/api/scan-configs/${id}`, { [field]: !currentValue });
       queryClient.invalidateQueries({ queryKey: ["/api/scan-configs"] });
     } catch {
       toast({ title: "Failed to update", variant: "destructive" });
@@ -81,13 +92,13 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h2 className="text-2xl font-bold" data-testid="text-page-title">Settings</h2>
-        <p className="text-sm text-muted-foreground">Configure automated email scanning and preferences</p>
+        <p className="text-sm text-muted-foreground">Configure automated scanning and preferences</p>
       </div>
 
       <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="w-4 h-4 text-violet-400" />
+            <Shield className="w-4 h-4 text-violet-600 dark:text-violet-400" />
             Account
           </CardTitle>
         </CardHeader>
@@ -107,7 +118,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Google Connected</span>
             <Badge
-              className={user?.googleId ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-slate-500/20 text-slate-300 border-slate-500/30"}
+              className={user?.googleId ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" : "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30"}
               data-testid="text-google-status"
             >
               {user?.googleId ? "Connected" : "Not Connected"}
@@ -142,14 +153,13 @@ export default function SettingsPage() {
       <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ScanLine className="w-4 h-4 text-violet-400" />
-            Automated Email Scan Schedule
+            <ScanLine className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+            Automated Scan Schedule
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Configure when PULSE automatically scans your Gmail for attendance emails.
-            {!user?.googleId && " Connect your Google account first to enable scanning."}
+            Configure when PULSE automatically scans Gmail and Slack for attendance messages. Toggle each source independently per scan time.
           </p>
 
           {scanConfigs.length === 0 ? (
@@ -167,26 +177,54 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-3">
               {scanConfigs.map(config => (
-                <div key={config.id} className="flex items-center gap-3 bg-violet-500/5 rounded-lg p-3 group" data-testid={`scan-config-${config.id}`}>
-                  <Clock className="w-4 h-4 text-violet-400 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{formatTime(config.scanTime)}</p>
-                    <p className="text-xs text-muted-foreground">{timeLabels[config.scanTime] || "Custom scan time"}</p>
+                <div key={config.id} className="bg-violet-500/5 rounded-lg p-3 group" data-testid={`scan-config-${config.id}`}>
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-4 h-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{formatTime(config.scanTime)}</p>
+                      <p className="text-xs text-muted-foreground">{timeLabels[config.scanTime] || "Custom scan time"}</p>
+                    </div>
+                    <Switch
+                      checked={config.enabled}
+                      onCheckedChange={() => handleToggle(config.id, config.enabled)}
+                      data-testid={`switch-scan-${config.id}`}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDelete(config.id)}
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7 hover:bg-rose-500/10 hover:text-rose-400"
+                      data-testid={`button-delete-scan-${config.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
-                  <Switch
-                    checked={config.enabled}
-                    onCheckedChange={() => handleToggle(config.id, config.enabled)}
-                    data-testid={`switch-scan-${config.id}`}
-                  />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(config.id)}
-                    className="opacity-0 group-hover:opacity-100 h-7 w-7 hover:bg-rose-500/10 hover:text-rose-400"
-                    data-testid={`button-delete-scan-${config.id}`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                  {config.enabled && (
+                    <div className="flex items-center gap-4 mt-2 ml-7 pt-2 border-t border-violet-500/10">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor={`gmail-${config.id}`}>Gmail</Label>
+                        <Switch
+                          id={`gmail-${config.id}`}
+                          checked={config.scanGmail}
+                          onCheckedChange={() => handleSourceToggle(config.id, "scanGmail", config.scanGmail)}
+                          className="scale-75"
+                          data-testid={`switch-gmail-${config.id}`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <Label className="text-xs text-muted-foreground cursor-pointer" htmlFor={`slack-${config.id}`}>Slack</Label>
+                        <Switch
+                          id={`slack-${config.id}`}
+                          checked={config.scanSlack}
+                          onCheckedChange={() => handleSourceToggle(config.id, "scanSlack", config.scanSlack)}
+                          className="scale-75"
+                          data-testid={`switch-slack-${config.id}`}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

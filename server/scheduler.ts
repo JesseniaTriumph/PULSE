@@ -1,5 +1,6 @@
 import { storage } from "./storage";
 import { categorizeExcuse } from "./openai";
+import { scanSlackForUser } from "./slack-scanner";
 
 let lastCheckedMinute = "";
 
@@ -21,7 +22,24 @@ export function startScheduler() {
 
       for (const config of matchingConfigs) {
         try {
-          await runAutomatedScan(config.userId);
+          const sources: string[] = [];
+          if (config.scanGmail) sources.push("Gmail");
+          if (config.scanSlack) sources.push("Slack");
+
+          if (sources.length === 0) {
+            console.log(`[Scheduler] Config ${config.id} has no sources enabled, skipping`);
+            continue;
+          }
+
+          console.log(`[Scheduler] Scanning ${sources.join(" + ")} for user ${config.userId}`);
+
+          if (config.scanGmail) {
+            await runGmailScan(config.userId);
+          }
+
+          if (config.scanSlack) {
+            await scanSlackForUser(config.userId);
+          }
         } catch (error) {
           console.error(`[Scheduler] Scan failed for user ${config.userId}:`, error);
         }
@@ -34,10 +52,10 @@ export function startScheduler() {
   console.log("[Scheduler] Started - checking every 30 seconds");
 }
 
-async function runAutomatedScan(userId: number) {
+async function runGmailScan(userId: number) {
   const user = await storage.getUserById(userId);
   if (!user || !user.googleAccessToken) {
-    console.log(`[Scheduler] User ${userId} has no Google token, skipping`);
+    console.log(`[Scheduler] User ${userId} has no Google token, skipping Gmail scan`);
     return;
   }
 
@@ -76,7 +94,7 @@ async function runAutomatedScan(userId: number) {
     const messages = listData.messages || [];
 
     if (messages.length === 0) {
-      console.log(`[Scheduler] No new messages for user ${userId}`);
+      console.log(`[Scheduler] No new Gmail messages for user ${userId}`);
       return;
     }
 
@@ -96,6 +114,7 @@ async function runAutomatedScan(userId: number) {
         const headers = detail.payload?.headers || [];
         const from = headers.find((h: any) => h.name === "From")?.value || "";
         const date = headers.find((h: any) => h.name === "Date")?.value || "";
+        const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
 
         const nameMatch = from.match(/^"?([^"<]+)"?\s*<?/);
         const emailMatch = from.match(/<([^>]+)>/);
@@ -136,6 +155,10 @@ async function runAutomatedScan(userId: number) {
           needsResponse: categorization.needsResponse,
           urgency: categorization.urgency,
           alertReason: categorization.alertReason,
+          source: "gmail",
+          gmailMessageId: msg.id,
+          gmailThreadId: detail.threadId || null,
+          emailSubject: subject || null,
         });
 
         if (categorization.needsResponse) {
@@ -150,13 +173,13 @@ async function runAutomatedScan(userId: number) {
 
         processed++;
       } catch (err) {
-        console.error(`[Scheduler] Error processing message:`, err);
+        console.error(`[Scheduler] Error processing Gmail message:`, err);
       }
     }
 
-    console.log(`[Scheduler] Processed ${processed} emails for user ${userId}`);
+    console.log(`[Scheduler] Processed ${processed} Gmail messages for user ${userId}`);
   } catch (error) {
-    console.error(`[Scheduler] Error during scan for user ${userId}:`, error);
+    console.error(`[Scheduler] Error during Gmail scan for user ${userId}:`, error);
   }
 }
 

@@ -69,9 +69,11 @@ export function setupAuth(app: Express) {
         role: role || "instructor",
       });
 
-      await storage.createScanConfig({ userId: user.id, scanTime: "10:00", enabled: true });
-      await storage.createScanConfig({ userId: user.id, scanTime: "18:25", enabled: true });
-      await storage.createScanConfig({ userId: user.id, scanTime: "21:55", enabled: true });
+      await storage.createScanConfig({ userId: user.id, scanTime: "10:00", enabled: true, scanGmail: true, scanSlack: true });
+      await storage.createScanConfig({ userId: user.id, scanTime: "14:00", enabled: true, scanGmail: true, scanSlack: true });
+      await storage.createScanConfig({ userId: user.id, scanTime: "18:25", enabled: true, scanGmail: true, scanSlack: true });
+      await storage.createScanConfig({ userId: user.id, scanTime: "20:00", enabled: true, scanGmail: true, scanSlack: true });
+      await storage.createScanConfig({ userId: user.id, scanTime: "21:55", enabled: true, scanGmail: true, scanSlack: true });
 
       req.session.userId = user.id;
 
@@ -160,9 +162,11 @@ export function setupAuth(app: Express) {
       if (needsSeeding) {
         const scanConfigs = await storage.getScanConfigsByUser(user!.id);
         if (scanConfigs.length === 0) {
-          await storage.createScanConfig({ userId: user!.id, scanTime: "10:00", enabled: true });
-          await storage.createScanConfig({ userId: user!.id, scanTime: "18:25", enabled: true });
-          await storage.createScanConfig({ userId: user!.id, scanTime: "21:55", enabled: true });
+          await storage.createScanConfig({ userId: user!.id, scanTime: "10:00", enabled: true, scanGmail: true, scanSlack: true });
+          await storage.createScanConfig({ userId: user!.id, scanTime: "14:00", enabled: true, scanGmail: true, scanSlack: true });
+          await storage.createScanConfig({ userId: user!.id, scanTime: "18:25", enabled: true, scanGmail: true, scanSlack: true });
+          await storage.createScanConfig({ userId: user!.id, scanTime: "20:00", enabled: true, scanGmail: true, scanSlack: true });
+          await storage.createScanConfig({ userId: user!.id, scanTime: "21:55", enabled: true, scanGmail: true, scanSlack: true });
         }
 
         const instructorPassword = await bcrypt.hash("instructor123", 10);

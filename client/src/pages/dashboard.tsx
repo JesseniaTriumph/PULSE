@@ -78,38 +78,38 @@ const categoryConfig: Record<
 > = {
   "Sick/Medical": {
     icon: Stethoscope,
-    color: "text-rose-400",
-    bgClass: "bg-rose-500/10 border-rose-500/20",
+    color: "text-rose-600 dark:text-rose-400",
+    bgClass: "bg-rose-500/15 border-rose-500/30 dark:bg-rose-500/10 dark:border-rose-500/20",
     glowClass: "shadow-rose-500/10",
   },
   Personal: {
     icon: User,
-    color: "text-amber-400",
-    bgClass: "bg-amber-500/10 border-amber-500/20",
+    color: "text-amber-700 dark:text-amber-400",
+    bgClass: "bg-amber-500/15 border-amber-500/30 dark:bg-amber-500/10 dark:border-amber-500/20",
     glowClass: "shadow-amber-500/10",
   },
   "Program Event": {
     icon: CalendarCheck,
-    color: "text-sky-400",
-    bgClass: "bg-sky-500/10 border-sky-500/20",
+    color: "text-sky-600 dark:text-sky-400",
+    bgClass: "bg-sky-500/15 border-sky-500/30 dark:bg-sky-500/10 dark:border-sky-500/20",
     glowClass: "shadow-sky-500/10",
   },
   "Technical Issue": {
     icon: Wifi,
-    color: "text-violet-400",
-    bgClass: "bg-violet-500/10 border-violet-500/20",
+    color: "text-violet-600 dark:text-violet-400",
+    bgClass: "bg-violet-500/15 border-violet-500/30 dark:bg-violet-500/10 dark:border-violet-500/20",
     glowClass: "shadow-violet-500/10",
   },
   Other: {
     icon: HelpCircle,
-    color: "text-emerald-400",
-    bgClass: "bg-emerald-500/10 border-emerald-500/20",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bgClass: "bg-emerald-500/15 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/20",
     glowClass: "shadow-emerald-500/10",
   },
   None: {
     icon: XCircle,
-    color: "text-slate-400",
-    bgClass: "bg-slate-500/10 border-slate-500/20",
+    color: "text-slate-600 dark:text-slate-400",
+    bgClass: "bg-slate-500/15 border-slate-500/30 dark:bg-slate-500/10 dark:border-slate-500/20",
     glowClass: "shadow-slate-500/10",
   },
 };
@@ -364,7 +364,7 @@ export default function Dashboard() {
               variant={filterType === "all" ? "default" : "outline"}
               onClick={() => setFilterType("all")}
               data-testid="button-type-all"
-              className={filterType === "all" ? "bg-gradient-to-r from-violet-600 to-indigo-600 h-7 text-xs" : "border-violet-500/30 hover:bg-violet-500/10 h-7 text-xs"}
+              className={filterType === "all" ? "bg-gradient-to-r from-violet-600 to-indigo-600 h-7 text-xs" : "border-violet-500/40 dark:border-violet-500/30 hover:bg-violet-500/10 text-violet-700 dark:text-violet-300 h-7 text-xs"}
             >
               All ({timeFilteredRecords.length})
             </Button>
@@ -373,7 +373,7 @@ export default function Dashboard() {
               variant={filterType === "Absent" ? "default" : "outline"}
               onClick={() => setFilterType(filterType === "Absent" ? "all" : "Absent")}
               data-testid="button-type-absent"
-              className={filterType === "Absent" ? "bg-gradient-to-r from-rose-600 to-rose-500 h-7 text-xs" : "border-rose-500/30 hover:bg-rose-500/10 text-rose-400 h-7 text-xs"}
+              className={filterType === "Absent" ? "bg-gradient-to-r from-rose-600 to-rose-500 h-7 text-xs" : "border-rose-500/40 dark:border-rose-500/30 hover:bg-rose-500/10 text-rose-700 dark:text-rose-400 h-7 text-xs"}
             >
               Absent ({timeFilteredRecords.filter(r => r.attendanceType === "Absent").length})
             </Button>
@@ -382,7 +382,7 @@ export default function Dashboard() {
               variant={filterType === "Late/Tardy" ? "default" : "outline"}
               onClick={() => setFilterType(filterType === "Late/Tardy" ? "all" : "Late/Tardy")}
               data-testid="button-type-late"
-              className={filterType === "Late/Tardy" ? "bg-gradient-to-r from-orange-600 to-orange-500 h-7 text-xs" : "border-orange-500/30 hover:bg-orange-500/10 text-orange-400 h-7 text-xs"}
+              className={filterType === "Late/Tardy" ? "bg-gradient-to-r from-orange-600 to-orange-500 h-7 text-xs" : "border-orange-500/40 dark:border-orange-500/30 hover:bg-orange-500/10 text-orange-700 dark:text-orange-400 h-7 text-xs"}
             >
               Late/Tardy ({timeFilteredRecords.filter(r => r.attendanceType === "Late/Tardy").length})
             </Button>
@@ -391,7 +391,7 @@ export default function Dashboard() {
               variant={filterType === "Unexcused" ? "default" : "outline"}
               onClick={() => setFilterType(filterType === "Unexcused" ? "all" : "Unexcused")}
               data-testid="button-type-unexcused"
-              className={filterType === "Unexcused" ? "bg-gradient-to-r from-slate-600 to-slate-500 h-7 text-xs" : "border-slate-500/30 hover:bg-slate-500/10 text-slate-400 h-7 text-xs"}
+              className={filterType === "Unexcused" ? "bg-gradient-to-r from-slate-700 to-slate-600 dark:from-slate-600 dark:to-slate-500 h-7 text-xs" : "border-slate-500/40 dark:border-slate-500/30 hover:bg-slate-500/10 text-slate-700 dark:text-slate-400 h-7 text-xs"}
             >
               Unexcused ({timeFilteredRecords.filter(r => r.attendanceType === "Unexcused").length})
             </Button>
@@ -401,7 +401,7 @@ export default function Dashboard() {
               variant={filterSource === "gmail" ? "default" : "outline"}
               onClick={() => setFilterSource(filterSource === "gmail" ? "all" : "gmail")}
               data-testid="button-source-gmail"
-              className={filterSource === "gmail" ? "bg-gradient-to-r from-blue-600 to-blue-500 h-7 text-xs" : "border-blue-500/30 hover:bg-blue-500/10 text-blue-400 h-7 text-xs"}
+              className={filterSource === "gmail" ? "bg-gradient-to-r from-blue-600 to-blue-500 h-7 text-xs" : "border-blue-500/40 dark:border-blue-500/30 hover:bg-blue-500/10 text-blue-700 dark:text-blue-400 h-7 text-xs"}
             >
               <Mail className="w-3 h-3 mr-1" />
               Gmail ({timeFilteredRecords.filter(r => (r.source || "gmail") === "gmail").length})
@@ -411,7 +411,7 @@ export default function Dashboard() {
               variant={filterSource === "slack" ? "default" : "outline"}
               onClick={() => setFilterSource(filterSource === "slack" ? "all" : "slack")}
               data-testid="button-source-slack"
-              className={filterSource === "slack" ? "bg-gradient-to-r from-green-600 to-green-500 h-7 text-xs" : "border-green-500/30 hover:bg-green-500/10 text-green-400 h-7 text-xs"}
+              className={filterSource === "slack" ? "bg-gradient-to-r from-green-600 to-green-500 h-7 text-xs" : "border-green-500/40 dark:border-green-500/30 hover:bg-green-500/10 text-green-700 dark:text-green-400 h-7 text-xs"}
             >
               <MessageSquare className="w-3 h-3 mr-1" />
               Slack ({timeFilteredRecords.filter(r => r.source === "slack").length})

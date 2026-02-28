@@ -368,12 +368,14 @@ export async function registerRoutes(
 
   app.post("/api/scan-configs", requireAuth, async (req, res) => {
     try {
-      const { scanTime, enabled } = req.body;
+      const { scanTime, enabled, scanGmail, scanSlack } = req.body;
       if (!scanTime) return res.status(400).json({ error: "scanTime is required" });
       const config = await storage.createScanConfig({
         userId: req.session.userId!,
         scanTime,
         enabled: enabled !== false,
+        scanGmail: scanGmail !== false,
+        scanSlack: scanSlack !== false,
       });
       res.status(201).json(config);
     } catch (error) {

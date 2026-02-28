@@ -126,6 +126,8 @@ export const scanConfigs = pgTable("scan_configs", {
   userId: integer("user_id").notNull().references(() => users.id),
   scanTime: text("scan_time").notNull(),
   enabled: boolean("enabled").notNull().default(true),
+  scanGmail: boolean("scan_gmail").notNull().default(true),
+  scanSlack: boolean("scan_slack").notNull().default(true),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

@@ -17,24 +17,24 @@ import type { Student, Cohort, AttendanceRecord } from "@shared/schema";
 import { studentStatuses } from "@shared/schema";
 
 const categoryBadgeColors: Record<string, string> = {
-  "Sick/Medical": "bg-rose-500/20 text-rose-300 border-rose-500/30",
-  Personal: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  "Program Event": "bg-sky-500/20 text-sky-300 border-sky-500/30",
-  "Technical Issue": "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  Other: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  None: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  "Sick/Medical": "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
+  Personal: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
+  "Program Event": "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
+  "Technical Issue": "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
+  Other: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30",
+  None: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
 
 const typeBadgeColors: Record<string, string> = {
-  Absent: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-  "Late/Tardy": "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  Unexcused: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  Absent: "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
+  "Late/Tardy": "bg-orange-500/20 text-orange-700 border-orange-500/40 dark:text-orange-300 dark:border-orange-500/30",
+  Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
 
 const statusConfig: Record<string, { color: string; icon: typeof GraduationCap }> = {
-  Active: { color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon: GraduationCap },
-  Graduated: { color: "bg-violet-500/20 text-violet-300 border-violet-500/30", icon: Award },
-  Hired: { color: "bg-sky-500/20 text-sky-300 border-sky-500/30", icon: Briefcase },
+  Active: { color: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30", icon: GraduationCap },
+  Graduated: { color: "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30", icon: Award },
+  Hired: { color: "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30", icon: Briefcase },
 };
 
 export default function StudentsPage() {
@@ -192,20 +192,20 @@ export default function StudentsPage() {
           </Card>
           <Card className="border-rose-500/20 bg-rose-500/5">
             <CardContent className="p-4">
-              <p className="text-xs text-rose-400 uppercase tracking-wide">Absences</p>
-              <p className="text-2xl font-bold mt-1 text-rose-400" data-testid="text-student-absences">{absences}</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wide">Absences</p>
+              <p className="text-2xl font-bold mt-1 text-rose-600 dark:text-rose-400" data-testid="text-student-absences">{absences}</p>
             </CardContent>
           </Card>
           <Card className="border-orange-500/20 bg-orange-500/5">
             <CardContent className="p-4">
-              <p className="text-xs text-orange-400 uppercase tracking-wide">Late/Tardy</p>
-              <p className="text-2xl font-bold mt-1 text-orange-400" data-testid="text-student-tardies">{tardies}</p>
+              <p className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wide">Late/Tardy</p>
+              <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-orange-400" data-testid="text-student-tardies">{tardies}</p>
             </CardContent>
           </Card>
           <Card className="border-slate-500/20 bg-slate-500/5">
             <CardContent className="p-4">
-              <p className="text-xs text-slate-400 uppercase tracking-wide">Unexcused</p>
-              <p className="text-2xl font-bold mt-1 text-slate-400" data-testid="text-student-unexcused">{unexcused}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 uppercase tracking-wide">Unexcused</p>
+              <p className="text-2xl font-bold mt-1 text-slate-600 dark:text-slate-400" data-testid="text-student-unexcused">{unexcused}</p>
             </CardContent>
           </Card>
         </div>
@@ -342,7 +342,7 @@ export default function StudentsPage() {
       ) : filteredStudents.length === 0 ? (
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <GraduationCap className="w-12 h-12 text-violet-400 mb-4" />
+            <GraduationCap className="w-12 h-12 text-violet-600 dark:text-violet-400 mb-4" />
             <h3 className="text-lg font-medium mb-1">No students found</h3>
             <p className="text-sm text-muted-foreground">Add students to your classes to start tracking attendance.</p>
           </CardContent>
