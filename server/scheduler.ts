@@ -1,6 +1,7 @@
 import { storage } from "./storage";
 import { categorizeExcuse } from "./openai";
 import { scanSlackForUser } from "./slack-scanner";
+import { isBulkOrAutoMail } from "./google-auth";
 
 let lastCheckedMinute = "";
 
@@ -100,6 +101,8 @@ async function runGmailScan(userId: number) {
 
     const allStudents = await storage.getStudentsByInstructor(userId);
     let processed = 0;
+    let skippedBulk = 0;
+    let skippedCooldown = 0;
 
     for (const msg of messages.slice(0, 20)) {
       try {
@@ -112,6 +115,14 @@ async function runGmailScan(userId: number) {
         const detail = await detailRes.json();
 
         const headers = detail.payload?.headers || [];
+
+        const bulkCheck = isBulkOrAutoMail(headers);
+        if (bulkCheck.isBulk) {
+          console.log(`[Scheduler] Skipping bulk mail: ${bulkCheck.reason}`);
+          skippedBulk++;
+          continue;
+        }
+
         const from = headers.find((h: any) => h.name === "From")?.value || "";
         const date = headers.find((h: any) => h.name === "Date")?.value || "";
         const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
@@ -120,6 +131,16 @@ async function runGmailScan(userId: number) {
         const emailMatch = from.match(/<([^>]+)>/);
         const senderName = nameMatch ? nameMatch[1].trim() : from;
         const senderEmail = emailMatch ? emailMatch[1] : from;
+
+        const existingCooldown = await storage.getAutoReplyCooldown(userId, senderEmail);
+        if (existingCooldown) {
+          const expiresAt = new Date(existingCooldown.expiresAt);
+          if (expiresAt > new Date()) {
+            console.log(`[Scheduler] Skipping ${senderEmail} - cooldown active`);
+            skippedCooldown++;
+            continue;
+          }
+        }
 
         let body = "";
         const parts = detail.payload?.parts || [];
@@ -159,6 +180,11 @@ async function runGmailScan(userId: number) {
           gmailMessageId: msg.id,
           gmailThreadId: detail.threadId || null,
           emailSubject: subject || null,
+          aiConfidence: categorization.confidence,
+          aiConfidenceTier: categorization.confidenceTier,
+          requiresManualReview: categorization.requiresManualReview,
+          assessmentAction: categorization.recommendedAssessmentAction,
+          lmsSynced: false,
         });
 
         if (categorization.needsResponse) {
@@ -169,6 +195,8 @@ async function runGmailScan(userId: number) {
             message: categorization.alertReason || "This email may need a response",
             urgency: categorization.urgency,
           });
+
+          await storage.setAutoReplyCooldown(userId, senderEmail, 7);
         }
 
         processed++;

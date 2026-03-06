@@ -1,5 +1,6 @@
 import { storage } from "./storage";
 import { categorizeExcuse } from "./openai";
+import { getExcuseCategoryEmoji, getExcuseCategoryTag } from "./slack-commands";
 
 const ATTENDANCE_KEYWORDS = [
   "absent", "absence", "excuse", "sick", "cannot attend", "won't be able",
@@ -86,6 +87,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
 
   const oldest = String(Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000));
   let processed = 0;
+  let skippedCooldown = 0;
 
   for (const channelConfig of enabledChannelConfigs) {
     try {
@@ -112,6 +114,18 @@ export async function scanSlackForUser(userId: number): Promise<number> {
             senderEmail = userInfo.profile?.email || "";
           } catch {
             senderName = msg.user;
+          }
+
+          if (senderEmail) {
+            const existingCooldown = await storage.getAutoReplyCooldown(userId, senderEmail);
+            if (existingCooldown) {
+              const expiresAt = new Date(existingCooldown.expiresAt);
+              if (expiresAt > new Date()) {
+                console.log(`[Slack Scanner] Skipping ${senderEmail} - cooldown active`);
+                skippedCooldown++;
+                continue;
+              }
+            }
           }
 
           const categorization = await categorizeExcuse(msg.text);
@@ -148,9 +162,14 @@ export async function scanSlackForUser(userId: number): Promise<number> {
             slackChannelName: channelConfig.channelName,
             slackMessageTs: msg.ts,
             slackIsDm: isDm,
+            aiConfidence: categorization.confidence,
+            aiConfidenceTier: categorization.confidenceTier,
+            requiresManualReview: categorization.requiresManualReview,
+            assessmentAction: categorization.recommendedAssessmentAction,
+            lmsSynced: false,
           });
 
-          if (categorization.needsResponse) {
+          if (categorization.needsResponse && senderEmail) {
             await storage.createAlert({
               userId,
               recordId: record.id,
@@ -158,6 +177,8 @@ export async function scanSlackForUser(userId: number): Promise<number> {
               message: categorization.alertReason || "This Slack message may need a response",
               urgency: categorization.urgency,
             });
+
+            await storage.setAutoReplyCooldown(userId, senderEmail, 7);
           }
 
           processed++;
@@ -212,6 +233,18 @@ export async function scanSlackForUser(userId: number): Promise<number> {
 
             if (!matchedStudent) continue;
 
+            if (senderEmail) {
+              const existingCooldown = await storage.getAutoReplyCooldown(userId, senderEmail);
+              if (existingCooldown) {
+                const expiresAt = new Date(existingCooldown.expiresAt);
+                if (expiresAt > new Date()) {
+                  console.log(`[Slack Scanner] Skipping DM from ${senderEmail} - cooldown active`);
+                  skippedCooldown++;
+                  continue;
+                }
+              }
+            }
+
             const categorization = await categorizeExcuse(msg.text);
             const snippet = msg.text.substring(0, 150).replace(/\n/g, " ").trim();
             const msgDate = new Date(parseFloat(msg.ts) * 1000);
@@ -239,9 +272,14 @@ export async function scanSlackForUser(userId: number): Promise<number> {
               slackChannelName: "DM",
               slackMessageTs: msg.ts,
               slackIsDm: true,
+              aiConfidence: categorization.confidence,
+              aiConfidenceTier: categorization.confidenceTier,
+              requiresManualReview: categorization.requiresManualReview,
+              assessmentAction: categorization.recommendedAssessmentAction,
+              lmsSynced: false,
             });
 
-            if (categorization.needsResponse) {
+            if (categorization.needsResponse && senderEmail) {
               await storage.createAlert({
                 userId,
                 recordId: record.id,
@@ -249,6 +287,8 @@ export async function scanSlackForUser(userId: number): Promise<number> {
                 message: categorization.alertReason || "This Slack DM may need a response",
                 urgency: categorization.urgency,
               });
+
+              await storage.setAutoReplyCooldown(userId, senderEmail, 7);
             }
 
             processed++;

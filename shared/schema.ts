@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, boolean, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -14,12 +14,11 @@ export const attendanceTypes = [
 export type AttendanceType = (typeof attendanceTypes)[number];
 
 export const excuseCategories = [
-  "Sick/Medical",
-  "Personal",
-  "Program Event",
-  "Technical Issue",
-  "Other",
-  "None",
+  "Medical",
+  "Family",
+  "Administrative",
+  "Technical",
+  "Unexcused",
 ] as const;
 export type ExcuseCategory = (typeof excuseCategories)[number];
 
@@ -98,6 +97,13 @@ export const attendanceRecords = pgTable("attendance_records", {
   slackChannelName: text("slack_channel_name"),
   slackMessageTs: text("slack_message_ts"),
   slackIsDm: boolean("slack_is_dm").default(false),
+  aiConfidence: real("ai_confidence"),
+  aiConfidenceTier: text("ai_confidence_tier"),
+  requiresManualReview: boolean("requires_manual_review").default(false),
+  assessmentAction: text("assessment_action").default("none"),
+  lmsSynced: boolean("lms_synced").default(false),
+  lmsSyncStatus: text("lms_sync_status"),
+  lmsExternalId: text("lms_external_id"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -110,6 +116,44 @@ export const alerts = pgTable("alerts", {
   urgency: text("urgency").notNull().default("low"),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const autoReplyCooldowns = pgTable("auto_reply_cooldowns", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  senderEmail: text("sender_email").notNull(),
+  lastReplyAt: timestamp("last_reply_at").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const lmsTypes = ["agilix_buzz", "d2l_brightspace", "canvas", "blackboard", "custom"] as const;
+export const assessmentActions = ["none", "excuse", "zero_out", "makeup_allowed"] as const;
+
+export const lmsConfigs = pgTable("lms_configs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  lmsType: text("lms_type").notNull(),
+  apiUrl: text("api_url").notNull(),
+  apiKey: text("api_key").notNull(),
+  apiSecret: text("api_secret"),
+  institutionId: text("institution_id"),
+  enabled: boolean("enabled").notNull().default(true),
+  syncAttendance: boolean("sync_attendance").notNull().default(true),
+  defaultAssessmentAction: text("default_assessment_action").notNull().default("excuse"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const lmsSyncLogs = pgTable("lms_sync_logs", {
+  id: serial("id").primaryKey(),
+  recordId: integer("record_id").notNull().references(() => attendanceRecords.id),
+  lmsConfigId: integer("lms_config_id").notNull().references(() => lmsConfigs.id),
+  syncType: text("sync_type").notNull(),
+  syncStatus: text("sync_status").notNull(),
+  lmsResponse: text("lms_response"),
+  errorMessage: text("error_message"),
+  syncedAt: timestamp("synced_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const slackChannelConfigs = pgTable("slack_channel_configs", {
@@ -139,6 +183,9 @@ export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords
 export const insertAlertSchema = createInsertSchema(alerts).omit({ id: true, createdAt: true });
 export const insertSlackChannelConfigSchema = createInsertSchema(slackChannelConfigs).omit({ id: true, createdAt: true });
 export const insertScanConfigSchema = createInsertSchema(scanConfigs).omit({ id: true, createdAt: true });
+export const insertAutoReplyCooldownSchema = createInsertSchema(autoReplyCooldowns).omit({ id: true, createdAt: true });
+export const insertLmsConfigSchema = createInsertSchema(lmsConfigs).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertLmsSyncLogSchema = createInsertSchema(lmsSyncLogs).omit({ id: true, syncedAt: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -156,6 +203,14 @@ export type SlackChannelConfig = typeof slackChannelConfigs.$inferSelect;
 export type InsertSlackChannelConfig = z.infer<typeof insertSlackChannelConfigSchema>;
 export type ScanConfig = typeof scanConfigs.$inferSelect;
 export type InsertScanConfig = z.infer<typeof insertScanConfigSchema>;
+export type AutoReplyCooldown = typeof autoReplyCooldowns.$inferSelect;
+export type InsertAutoReplyCooldown = z.infer<typeof insertAutoReplyCooldownSchema>;
+export type LmsConfig = typeof lmsConfigs.$inferSelect;
+export type InsertLmsConfig = z.infer<typeof insertLmsConfigSchema>;
+export type LmsSyncLog = typeof lmsSyncLogs.$inferSelect;
+export type InsertLmsSyncLog = z.infer<typeof insertLmsSyncLogSchema>;
+export type LmsType = (typeof lmsTypes)[number];
+export type AssessmentAction = (typeof assessmentActions)[number];
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),

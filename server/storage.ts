@@ -1,6 +1,6 @@
 import { db } from "./db";
 import {
-  users, attendanceRecords, cohorts, students, schedules, alerts, scanConfigs, slackChannelConfigs,
+  users, attendanceRecords, cohorts, students, schedules, alerts, scanConfigs, slackChannelConfigs, autoReplyCooldowns, lmsConfigs, lmsSyncLogs,
   type User, type InsertUser,
   type AttendanceRecord, type InsertAttendanceRecord,
   type Cohort, type InsertCohort,
@@ -9,8 +9,11 @@ import {
   type Alert, type InsertAlert,
   type SlackChannelConfig, type InsertSlackChannelConfig,
   type ScanConfig, type InsertScanConfig,
+  type AutoReplyCooldown, type InsertAutoReplyCooldown,
+  type LmsConfig, type InsertLmsConfig,
+  type LmsSyncLog, type InsertLmsSyncLog,
 } from "@shared/schema";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, inArray, gt, lte } from "drizzle-orm";
 
 export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
@@ -79,6 +82,20 @@ export interface IStorage {
   getAllEnabledScanConfigs(): Promise<ScanConfig[]>;
   updateScanConfig(id: number, data: Partial<InsertScanConfig>): Promise<ScanConfig | undefined>;
   deleteScanConfig(id: number): Promise<void>;
+
+  getAutoReplyCooldown(userId: number, senderEmail: string): Promise<AutoReplyCooldown | undefined>;
+  setAutoReplyCooldown(userId: number, senderEmail: string, cooldownDays: number): Promise<AutoReplyCooldown>;
+  deleteExpiredCooldowns(): Promise<void>;
+
+  getLmsConfigsByUser(userId: number): Promise<LmsConfig[]>;
+  getLmsConfigById(id: number): Promise<LmsConfig | undefined>;
+  createLmsConfig(config: InsertLmsConfig): Promise<LmsConfig>;
+  updateLmsConfig(id: number, data: Partial<InsertLmsConfig>): Promise<LmsConfig | undefined>;
+  deleteLmsConfig(id: number): Promise<void>;
+
+  createLmsSyncLog(log: InsertLmsSyncLog): Promise<LmsSyncLog>;
+  getLmsSyncLogsByRecord(recordId: number): Promise<LmsSyncLog[]>;
+  updateRecordLmsSync(recordId: number, synced: boolean, externalId?: string, action?: string): Promise<AttendanceRecord | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -400,6 +417,84 @@ export class DatabaseStorage implements IStorage {
 
   async deleteScanConfig(id: number): Promise<void> {
     await db.delete(scanConfigs).where(eq(scanConfigs.id, id));
+  }
+
+  async getAutoReplyCooldown(userId: number, senderEmail: string): Promise<AutoReplyCooldown | undefined> {
+    const now = new Date();
+    const [cooldown] = await db.select().from(autoReplyCooldowns)
+      .where(and(eq(autoReplyCooldowns.userId, userId), eq(autoReplyCooldowns.senderEmail, senderEmail), gt(autoReplyCooldowns.expiresAt, now)));
+    return cooldown;
+  }
+
+  async setAutoReplyCooldown(userId: number, senderEmail: string, cooldownDays: number): Promise<AutoReplyCooldown> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + cooldownDays * 24 * 60 * 60 * 1000);
+
+    const [existing] = await db.select().from(autoReplyCooldowns)
+      .where(and(eq(autoReplyCooldowns.userId, userId), eq(autoReplyCooldowns.senderEmail, senderEmail)));
+
+    if (existing) {
+      const [updated] = await db.update(autoReplyCooldowns)
+        .set({ lastReplyAt: now, expiresAt })
+        .where(and(eq(autoReplyCooldowns.userId, userId), eq(autoReplyCooldowns.senderEmail, senderEmail)))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db.insert(autoReplyCooldowns).values({
+      userId,
+      senderEmail,
+      lastReplyAt: now,
+      expiresAt,
+    }).returning();
+    return created;
+  }
+
+  async deleteExpiredCooldowns(): Promise<void> {
+    const now = new Date();
+    await db.delete(autoReplyCooldowns).where(lte(autoReplyCooldowns.expiresAt, now));
+  }
+
+  async getLmsConfigsByUser(userId: number): Promise<LmsConfig[]> {
+    return db.select().from(lmsConfigs).where(eq(lmsConfigs.userId, userId));
+  }
+
+  async getLmsConfigById(id: number): Promise<LmsConfig | undefined> {
+    const [config] = await db.select().from(lmsConfigs).where(eq(lmsConfigs.id, id));
+    return config;
+  }
+
+  async createLmsConfig(config: InsertLmsConfig): Promise<LmsConfig> {
+    const [created] = await db.insert(lmsConfigs).values(config).returning();
+    return created;
+  }
+
+  async updateLmsConfig(id: number, data: Partial<InsertLmsConfig>): Promise<LmsConfig | undefined> {
+    const [updated] = await db.update(lmsConfigs).set({ ...data, updatedAt: new Date() }).where(eq(lmsConfigs.id, id)).returning();
+    return updated;
+  }
+
+  async deleteLmsConfig(id: number): Promise<void> {
+    await db.delete(lmsConfigs).where(eq(lmsConfigs.id, id));
+  }
+
+  async createLmsSyncLog(log: InsertLmsSyncLog): Promise<LmsSyncLog> {
+    const [created] = await db.insert(lmsSyncLogs).values(log).returning();
+    return created;
+  }
+
+  async getLmsSyncLogsByRecord(recordId: number): Promise<LmsSyncLog[]> {
+    return db.select().from(lmsSyncLogs).where(eq(lmsSyncLogs.recordId, recordId));
+  }
+
+  async updateRecordLmsSync(recordId: number, synced: boolean, externalId?: string, action?: string): Promise<AttendanceRecord | undefined> {
+    const updateData: Record<string, any> = { lmsSynced: synced };
+    if (externalId) updateData.lmsExternalId = externalId;
+    if (action) updateData.assessmentAction = action;
+    if (synced) updateData.lmsSyncStatus = "synced";
+
+    const [updated] = await db.update(attendanceRecords).set(updateData).where(eq(attendanceRecords.id, recordId)).returning();
+    return updated;
   }
 }
 

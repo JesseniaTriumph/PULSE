@@ -5,6 +5,8 @@ import { emailInputSchema, batchEmailInputSchema, excuseCategories, insertCohort
 import { categorizeExcuse } from "./openai";
 import { randomUUID } from "crypto";
 import { requireAuth } from "./auth";
+import { handleSlackInteraction, handleSlackEvent } from "./slack-commands";
+import crypto from "crypto";
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session.userId) {
@@ -518,11 +520,29 @@ export async function registerRoutes(
       const allStudents = await storage.getStudentsByInstructor(userId);
 
       const results = [];
+      let cooldownSkipped = 0;
+
       for (let i = 0; i < emails.length; i++) {
         const email = emails[i];
         sendEvent({ type: "processing", index: i, name: email.senderName });
 
         try {
+          const existingCooldown = await storage.getAutoReplyCooldown(userId, email.senderEmail);
+          if (existingCooldown) {
+            const expiresAt = new Date(existingCooldown.expiresAt);
+            if (expiresAt > new Date()) {
+              console.log(`[Cooldown] Skipping ${email.senderEmail} - cooldown active until ${expiresAt.toISOString()}`);
+              cooldownSkipped++;
+              sendEvent({
+                type: "cooldown-skipped",
+                index: i,
+                senderEmail: email.senderEmail,
+                reason: "Within 7-day cooldown period",
+              });
+              continue;
+            }
+          }
+
           const categorization = await categorizeExcuse(email.emailBody);
           const snippet = email.emailBody.substring(0, 150).replace(/\n/g, " ").trim();
 
@@ -549,6 +569,11 @@ export async function registerRoutes(
             mentionsStudent: categorization.mentionsStudent,
             mentionsSchool: categorization.mentionsSchool,
             peerOrSchoolDetail: categorization.peerOrSchoolDetail,
+            aiConfidence: categorization.confidence,
+            aiConfidenceTier: categorization.confidenceTier,
+            requiresManualReview: categorization.requiresManualReview,
+            assessmentAction: categorization.recommendedAssessmentAction,
+            lmsSynced: false,
           });
 
           if (categorization.needsResponse) {
@@ -570,6 +595,8 @@ export async function registerRoutes(
               message: alertMessage,
               urgency: categorization.urgency,
             });
+
+            await storage.setAutoReplyCooldown(userId, email.senderEmail, 7);
           }
 
           results.push(record);
@@ -590,7 +617,13 @@ export async function registerRoutes(
         }
       }
 
-      sendEvent({ type: "complete", total: emails.length, processed: results.length, batchId });
+      sendEvent({
+        type: "complete",
+        total: emails.length,
+        processed: results.length,
+        batchId,
+        cooldownSkipped,
+      });
       res.end();
     } catch (error) {
       console.error("Error processing emails:", error);
@@ -855,6 +888,167 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting slack channel config:", error);
       res.status(500).json({ error: "Failed to delete config" });
+    }
+  });
+
+  app.get("/api/lms-configs", requireAuth, async (req, res) => {
+    try {
+      const configs = await storage.getLmsConfigsByUser(req.session.userId!);
+      res.json(configs);
+    } catch (error) {
+      console.error("Error fetching LMS configs:", error);
+      res.status(500).json({ error: "Failed to fetch LMS configs" });
+    }
+  });
+
+  app.post("/api/lms-configs", requireAuth, async (req, res) => {
+    try {
+      const { lmsType, apiUrl, apiKey, apiSecret, institutionId, enabled, syncAttendance, defaultAssessmentAction } = req.body;
+      if (!lmsType || !apiUrl || !apiKey) {
+        return res.status(400).json({ error: "lmsType, apiUrl, and apiKey are required" });
+      }
+      const config = await storage.createLmsConfig({
+        userId: req.session.userId!,
+        lmsType,
+        apiUrl,
+        apiKey,
+        apiSecret: apiSecret || null,
+        institutionId: institutionId || null,
+        enabled: enabled !== false,
+        syncAttendance: syncAttendance !== false,
+        defaultAssessmentAction: defaultAssessmentAction || "excuse",
+      });
+      res.status(201).json(config);
+    } catch (error) {
+      console.error("Error creating LMS config:", error);
+      res.status(500).json({ error: "Failed to create LMS config" });
+    }
+  });
+
+  app.patch("/api/lms-configs/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const config = await storage.updateLmsConfig(id, req.body);
+      if (!config) return res.status(404).json({ error: "Config not found" });
+      res.json(config);
+    } catch (error) {
+      console.error("Error updating LMS config:", error);
+      res.status(500).json({ error: "Failed to update LMS config" });
+    }
+  });
+
+  app.delete("/api/lms-configs/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteLmsConfig(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting LMS config:", error);
+      res.status(500).json({ error: "Failed to delete LMS config" });
+    }
+  });
+
+  app.post("/api/records/:id/lms-sync", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const record = await storage.getRecordById(id);
+      if (!record || record.userId !== req.session.userId!) {
+        return res.status(404).json({ error: "Record not found" });
+      }
+
+      const { action, assessmentName, dueDate } = req.body;
+      const validActions = ["none", "excuse", "zero_out", "makeup_allowed"];
+      if (!validActions.includes(action)) {
+        return res.status(400).json({ error: "Invalid assessment action" });
+      }
+
+      const { syncToLms } = await import("./lms-integration");
+      const result = await syncToLms(
+        req.session.userId!,
+        id,
+        record.senderEmail,
+        record.senderName,
+        assessmentName || `Attendance - ${new Date(record.receivedAt).toLocaleDateString()}`,
+        action,
+        record.alertReason || undefined,
+        dueDate
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error syncing to LMS:", error);
+      res.status(500).json({ error: "Failed to sync to LMS" });
+    }
+  });
+
+  app.get("/api/records/:id/lms-logs", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const record = await storage.getRecordById(id);
+      if (!record || record.userId !== req.session.userId!) {
+        return res.status(404).json({ error: "Record not found" });
+      }
+
+      const logs = await storage.getLmsSyncLogsByRecord(id);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching LMS sync logs:", error);
+      res.status(500).json({ error: "Failed to fetch LMS sync logs" });
+    }
+  });
+
+  // Slack slash commands and interactive messages
+  app.post("/api/slack/interactions", async (req, res) => {
+    try {
+      const signingSecret = process.env.SLACK_SIGNING_SECRET;
+
+      if (signingSecret) {
+        const signature = req.headers["x-slack-signature"] as string;
+        const timestamp = req.headers["x-slack-request-timestamp"] as string;
+        const body = JSON.stringify(req.body);
+
+        const hash = crypto.createHmac("sha256", signingSecret).update(`v0:${timestamp}:${body}`).digest("hex");
+        const computedSignature = `v0=${hash}`;
+
+        if (signature !== computedSignature) {
+          console.warn("[Slack] Invalid signature");
+          return res.status(401).json({ error: "Invalid signature" });
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        if (Math.abs(now - parseInt(timestamp)) > 300) {
+          console.warn("[Slack] Request timestamp too old");
+          return res.status(401).json({ error: "Request timestamp too old" });
+        }
+      }
+
+      const result = await handleSlackInteraction(req.body);
+      res.status(result.status).send();
+    } catch (error) {
+      console.error("[Slack] Error handling interaction:", error);
+      res.status(500).json({ error: "Failed to handle Slack interaction" });
+    }
+  });
+
+  // Slack event subscription
+  app.post("/api/slack/events", async (req, res) => {
+    try {
+      const { type, challenge, event, team_id } = req.body;
+
+      // URL verification challenge
+      if (type === "url_verification") {
+        return res.send(challenge);
+      }
+
+      // Handle events
+      if (type === "event_callback" && event) {
+        await handleSlackEvent(event, team_id);
+      }
+
+      res.status(200).send();
+    } catch (error) {
+      console.error("[Slack] Error handling event:", error);
+      res.status(500).json({ error: "Failed to handle Slack event" });
     }
   });
 

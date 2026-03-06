@@ -13,6 +13,41 @@ const SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
+const MESSAGE_ID_REGEX = /^<[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*>$/;
+
+const BULK_MAIL_INDICATORS = {
+  headers: ["list-id", "precedence", "auto-submitted", "x-auto-response-suppress"],
+  precedenceValues: ["bulk", "list", "junk"],
+  autoSubmittedValues: ["auto-replied", "auto-generated", "auto-notified"],
+};
+
+function isBulkOrAutoMail(headers: { name: string; value: string }[]): { isBulk: boolean; reason: string } {
+  const headerMap = new Map(headers.map(h => [h.name.toLowerCase(), h.value]));
+
+  if (headerMap.has("list-id")) {
+    return { isBulk: true, reason: "List-Id header present (mailing list)" };
+  }
+
+  const precedence = headerMap.get("precedence");
+  if (precedence && BULK_MAIL_INDICATORS.precedenceValues.some(v => precedence.toLowerCase().includes(v))) {
+    return { isBulk: true, reason: `Precedence: ${precedence}` };
+  }
+
+  const autoSubmitted = headerMap.get("auto-submitted");
+  if (autoSubmitted && BULK_MAIL_INDICATORS.autoSubmittedValues.some(v => autoSubmitted.toLowerCase().includes(v))) {
+    return { isBulk: true, reason: `Auto-Submitted: ${autoSubmitted}` };
+  }
+
+  const xAutoResponse = headerMap.get("x-auto-response-suppress");
+  if (xAutoResponse && xAutoResponse.toLowerCase() !== "none") {
+    return { isBulk: true, reason: "X-Auto-Response-Suppress header present" };
+  }
+
+  return { isBulk: false, reason: "" };
+}
+
+export { isBulkOrAutoMail };
+
 function getRedirectUri(req: Request): string {
   const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
   const host = req.headers["x-forwarded-host"] || req.headers.host;
@@ -217,11 +252,14 @@ export function setupGoogleAuth(app: Express) {
         `Subject: ${safeSubject}`,
         "MIME-Version: 1.0",
         'Content-Type: text/plain; charset="UTF-8"',
+        "X-Auto-Response-Suppress: All",
+        "X-PULSE-AutoReply: v1",
+        "X-Mailer: PULSE-Attendance-System",
       ];
 
-      if (inReplyTo) {
-        headers.push(`In-Reply-To: <${sanitize(inReplyTo)}>`);
-        headers.push(`References: <${sanitize(inReplyTo)}>`);
+      if (inReplyTo && MESSAGE_ID_REGEX.test(inReplyTo)) {
+        headers.push(`In-Reply-To: ${inReplyTo}`);
+        headers.push(`References: ${inReplyTo}`);
       }
 
       const rawMessage = [...headers, "", safeBody].join("\r\n");
@@ -364,6 +402,7 @@ async function refreshAccessToken(userId: number, refreshToken: string): Promise
 
 async function fetchEmailDetails(messages: { id: string }[], accessToken: string) {
   const emails = [];
+  let skippedBulk = 0;
 
   for (const msg of messages.slice(0, 50)) {
     try {
@@ -386,6 +425,14 @@ async function fetchEmailDetails(messages: { id: string }[], accessToken: string
       };
 
       const headers = msgData.payload.headers;
+
+      const bulkCheck = isBulkOrAutoMail(headers);
+      if (bulkCheck.isBulk) {
+        console.log(`[Gmail Fetch] Skipping bulk/auto mail: ${bulkCheck.reason}`);
+        skippedBulk++;
+        continue;
+      }
+
       const from = headers.find((h) => h.name.toLowerCase() === "from")?.value || "";
       const subject = headers.find((h) => h.name.toLowerCase() === "subject")?.value || "";
       const date = headers.find((h) => h.name.toLowerCase() === "date")?.value || "";
@@ -427,6 +474,10 @@ async function fetchEmailDetails(messages: { id: string }[], accessToken: string
     } catch (err) {
       console.error("Error fetching email detail:", err);
     }
+  }
+
+  if (skippedBulk > 0) {
+    console.log(`[Gmail Fetch] Skipped ${skippedBulk} bulk/auto emails`);
   }
 
   return emails;

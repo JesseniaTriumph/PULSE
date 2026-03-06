@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Settings as SettingsIcon, Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Settings as SettingsIcon, Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare, AlertTriangle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import type { ScanConfig } from "@shared/schema";
+import type { ScanConfig, SlackChannelConfig, Cohort } from "@shared/schema";
 
 const defaultTimes = ["10:00", "14:00", "18:25", "20:00", "21:55"];
 const timeLabels: Record<string, string> = {
@@ -32,9 +34,19 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [newTime, setNewTime] = useState("");
+  const [selectedCohortForSlack, setSelectedCohortForSlack] = useState<string>("");
 
   const { data: scanConfigs = [], isLoading } = useQuery<ScanConfig[]>({
     queryKey: ["/api/scan-configs"],
+  });
+
+  const { data: slackChannels = [], isLoading: isLoadingSlack, error: slackError } = useQuery<SlackChannelConfig[]>({
+    queryKey: ["/api/slack-channels"],
+    retry: false,
+  });
+
+  const { data: cohorts = [] } = useQuery<Cohort[]>({
+    queryKey: ["/api/cohorts"],
   });
 
   const handleToggle = async (id: number, currentEnabled: boolean) => {
@@ -147,6 +159,79 @@ export default function SettingsPage() {
               </Button>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Slack Integration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {(() => {
+            const isAuthError = slackError && 'response' in slackError && 
+              ((slackError.response as Response)?.status === 401 || (slackError.response as Response)?.status === 403);
+            
+            if (isAuthError) {
+              return (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Slack Integration Inactive: SLACK_BOT_TOKEN is missing or has insufficient permissions. Please check Replit Secrets.
+                  </AlertDescription>
+                </Alert>
+              );
+            }
+            if (isLoadingSlack) {
+              return <p className="text-sm text-muted-foreground">Loading Slack channels...</p>;
+            }
+            if (slackChannels.length === 0) {
+              return <p className="text-sm text-muted-foreground">No Slack channels configured. Configure channels via API or admin panel.</p>;
+            }
+            return (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="slack-cohort-select">Assign to Class</Label>
+                  <Select value={selectedCohortForSlack} onValueChange={setSelectedCohortForSlack}>
+                    <SelectTrigger id="slack-cohort-select" className="border-violet-500/20">
+                      <SelectValue placeholder="Select a class to assign Slack channels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cohorts.map(cohort => (
+                        <SelectItem key={cohort.id} value={String(cohort.id)}>
+                          {cohort.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedCohortForSlack && (
+                  <div className="space-y-2">
+                    <Label>Configured Channels</Label>
+                    <div className="space-y-2">
+                      {slackChannels.filter(ch => ch.cohortId === parseInt(selectedCohortForSlack)).map(channel => (
+                        <div key={channel.id} className="flex items-center justify-between bg-violet-500/5 rounded-lg p-3">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-sm font-medium">{channel.channelName}</span>
+                            <Badge variant="outline" className="text-xs">#{channel.channelId}</Badge>
+                          </div>
+                          <Badge variant="outline" className={channel.enabled ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" : "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30"}>
+                            {channel.enabled ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                      ))}
+                      {slackChannels.filter(ch => ch.cohortId === parseInt(selectedCohortForSlack)).length === 0 && (
+                        <p className="text-sm text-muted-foreground">No channels assigned to this class.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 

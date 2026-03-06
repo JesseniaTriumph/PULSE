@@ -2,17 +2,7 @@ import { useMemo } from "react";
 import { useTheme } from "./theme-provider";
 
 const STAR_COLORS = [
-  { color: "white", glow: "rgba(255, 255, 255, 0.5)" },
-  { color: "#c8c8ff", glow: "rgba(180, 170, 255, 0.5)" },
-  { color: "#ffe8c8", glow: "rgba(255, 220, 180, 0.5)" },
-  { color: "#c8dfff", glow: "rgba(180, 200, 255, 0.5)" },
-  { color: "#ffd0d0", glow: "rgba(255, 200, 200, 0.4)" },
-];
-
-const LIGHT_SPARKLE_COLORS = [
-  { color: "rgba(139, 92, 246, 0.5)", glow: "rgba(139, 92, 246, 0.3)" },
-  { color: "rgba(99, 102, 241, 0.4)", glow: "rgba(99, 102, 241, 0.25)" },
-  { color: "rgba(168, 85, 247, 0.45)", glow: "rgba(168, 85, 247, 0.25)" },
+  { color: "var(--foreground)", glow: "var(--foreground)" },
 ];
 
 type StarAnim = "anim-soft" | "anim-flash" | "anim-flicker" | "anim-sparkle";
@@ -69,7 +59,6 @@ function pickDarkStarProps(i: number) {
 }
 
 function pickCornerSparkle(i: number) {
-  const colorPick = LIGHT_SPARKLE_COLORS[Math.floor(Math.random() * LIGHT_SPARKLE_COLORS.length)];
   const corner = Math.floor(Math.random() * 4);
 
   let left: string;
@@ -99,10 +88,10 @@ function pickCornerSparkle(i: number) {
     anim,
     duration: `${8 + Math.random() * 12}s`,
     delay: `${Math.random() * 15}s`,
-    color: colorPick.color,
-    glow: colorPick.glow,
-    minOpacity: 0,
-    maxOpacity: 0.6 + Math.random() * 0.4,
+    color: "var(--foreground)",
+    glow: "var(--foreground)",
+    minOpacity: 0.8,
+    maxOpacity: 1.0,
   };
 }
 
