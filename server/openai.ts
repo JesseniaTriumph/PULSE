@@ -8,7 +8,7 @@ const openai = new OpenAI({
 
 export interface ClassificationResult {
   attendanceType: string;
-  category: "Medical" | "Family" | "Administrative" | "Technical" | "Other" | "Unexcused";
+  category: "Medical" | "Family" | "Administrative" | "Technical" | "Networking" | "Other" | "Unexcused";
   confidence: number;
   confidenceTier: "low" | "medium" | "high";
   reasoning: string;
@@ -35,7 +35,8 @@ CLASSIFICATION 2 — Institutional Excuse Categories (use these four categories)
 - "Family" — Family emergencies, death in family, childcare/eldercare emergencies. Phrases: family emergency, funeral, memorial, passed away, died, bereavement, family crisis, relative hospitalized, family member sick, childcare emergency, eldercare
 - "Administrative" — Legal obligations, court appearances, jury duty, administrative requirements. Phrases: jury duty, subpoena, court date, legal obligation, immigration, visa, government office, DMV, passport, tribunal, deposition
 - "Technical" — Internet, equipment, transportation, infrastructure problems. Phrases: internet down, WiFi, power outage, laptop broken, computer crashed, car broke down, vehicle trouble, train cancelled, bus delayed, can't log in, server issue
-- "Other" — Legitimate situations that don't fit Medical/Family/Administrative/Technical. Use for: job interviews, work conflicts, housing emergencies (eviction, locked out, no heat), personal emergencies, financial situations. Student provides a real explanation but it falls outside the other four categories.
+- "Networking" — Professional development events, career-building activities, industry events. Phrases: networking event, mixer, gala, pitch competition, demo day, hackathon, career fair, job fair, luma, partiful, eventbrite, meetup, tech talk, fireside chat, panel discussion, speaker series, conference, info session, alumni event, coffee chat, informational interview, industry event. Use when the student is attending a legitimate professional/career development opportunity.
+- "Other" — Legitimate situations that don't fit any other category. Use for: work conflicts, housing emergencies (eviction, locked out, no heat), personal emergencies, financial situations. Student provides a real explanation but it falls outside the other categories.
 - "Unexcused" — No valid reason, vague excuses, or not a genuine notification. Use when student provides no details or clearly invalid excuse.
 
 DUAL-THRESHOLD CONFIDENCE SYSTEM:
@@ -71,7 +72,7 @@ ASSESSMENT ACTION RECOMMENDATION:
 
 Respond in JSON with these fields:
 - "attendanceType": one of "Absent", "Late/Tardy", "Unexcused"
-- "category": one of "Medical", "Family", "Administrative", "Technical", "Other", "Unexcused"
+- "category": one of "Medical", "Family", "Administrative", "Technical", "Networking", "Other", "Unexcused"
 - "confidence": number 0-1 (vague excuses get 0.4-0.6)
 - "reasoning": brief one-sentence explanation including why this confidence level
 - "needsResponse": boolean
@@ -88,7 +89,7 @@ const MODEL_TIERS = [
   { model: "gpt-4o", label: "full" },
 ] as const;
 
-const validCategories = ["Medical", "Family", "Administrative", "Technical", "Other", "Unexcused"];
+const validCategories = ["Medical", "Family", "Administrative", "Technical", "Networking", "Other", "Unexcused"];
 const validTypes = ["Absent", "Late/Tardy", "Unexcused"];
 const validUrgencies = ["low", "medium", "high"];
 
@@ -121,7 +122,6 @@ function parseResponse(content: string): ClassificationResult | null {
     // Medium confidence (0.4-0.7) triggers Slack alert but is still valid
     // High confidence (>0.7) is auto-verified
     const requiresManualReview = false; // low confidence already returned null above
-    const shouldTriggerSlackAlert = confidenceTier === "medium";
 
     const mentionsStudent = !!parsed.mentionsStudent;
     const mentionsSchool = !!parsed.mentionsSchool;
@@ -159,7 +159,7 @@ function parseResponse(content: string): ClassificationResult | null {
 function getDefaultAssessmentAction(category: ClassificationResult["category"], attendanceType: string): "none" | "excuse" | "zero_out" | "makeup_allowed" {
   // Institutional category mapping for assessment actions
   if (attendanceType === "Unexcused" && category === "Unexcused") return "zero_out";
-  if (category === "Medical" || category === "Family" || category === "Administrative" || category === "Other") return "excuse";
+  if (category === "Medical" || category === "Family" || category === "Administrative" || category === "Networking" || category === "Other") return "excuse";
   if (category === "Technical") return "makeup_allowed";
   if (attendanceType === "Late/Tardy") return "none";
   return "excuse";
@@ -292,6 +292,25 @@ const KEYWORD_MAP = {
   Family: ["family emergency", "funeral", "memorial", "passed away", "died", "bereavement", "family crisis", "relative hospitalized", "family member sick", "childcare", "eldercare", "death in the family", "family situation", "family matter"],
   Administrative: ["jury duty", "subpoena", "court date", "legal obligation", "immigration", "visa appointment", "government office", "dmv", "passport", "tribunal", "deposition", "legal matter"],
   Technical: ["internet down", "no internet", "wifi", "power outage", "laptop broken", "computer crashed", "car broke down", "vehicle trouble", "train cancelled", "bus delayed", "can't log in", "connection issues", "no power", "outage"],
+  Networking: [
+    // Platforms (very high signal)
+    "luma", "lu.ma", "partiful", "eventbrite", "eventbee", "splash", "hopin", "guild",
+    // Event types
+    "networking event", "networking opportunity", "networking mixer", "networking session",
+    "mixer", "gala", "pitch competition", "pitch event", "pitch night", "pitch contest",
+    "demo day", "demo night", "hackathon", "hack-a-thon", "career fair", "job fair",
+    "tech talk", "techtalk", "fireside chat", "panel discussion", "panel event",
+    "speaker series", "speaker event", "info session", "information session",
+    "conference", "summit", "symposium", "industry event", "professional event",
+    "alumni event", "alumni network", "alumni meetup",
+    // Activities
+    "coffee chat", "informational interview", "info interview", "meet with recruiter",
+    "recruiter meeting", "industry connection", "building connections", "professional development",
+    "career development", "career event", "career opportunity",
+    // Catchall phrases
+    "networking with", "attending a networking", "going to a networking",
+    "professional mixer", "industry mixer", "startup event", "venture event",
+  ],
   Other: ["job interview", "interview today", "work conflict", "called into work", "got called in", "work emergency", "housing", "locked out", "eviction", "no heat", "gas leak", "financial", "personal emergency", "personal situation", "personal matter"],
 };
 

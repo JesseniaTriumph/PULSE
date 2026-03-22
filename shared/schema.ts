@@ -18,6 +18,7 @@ export const excuseCategories = [
   "Family",
   "Administrative",
   "Technical",
+  "Networking",
   "Other",
   "Unexcused",
 ] as const;

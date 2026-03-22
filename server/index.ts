@@ -12,6 +12,7 @@ for (const key of REQUIRED_ENV) {
 import { registerRoutes } from "./routes";
 import { setupAuth } from "./auth";
 import { setupGoogleAuth } from "./google-auth";
+import { runMigrations } from "./migrations";
 import { startScheduler } from "./scheduler";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -76,6 +77,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await runMigrations();
   await setupAuth(app);
   setupGoogleAuth(app);
 

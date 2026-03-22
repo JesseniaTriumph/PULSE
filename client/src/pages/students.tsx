@@ -22,6 +22,7 @@ const categoryBadgeColors: Record<string, string> = {
   Family: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
   Administrative: "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
   Technical: "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
+  Networking: "bg-teal-500/20 text-teal-700 border-teal-500/40 dark:text-teal-300 dark:border-teal-500/30",
   Other: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30",
   Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
