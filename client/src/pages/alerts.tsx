@@ -39,6 +39,7 @@ export default function AlertsPage() {
   const [replyAlert, setReplyAlert] = useState<EnrichedAlert | null>(null);
   const [replyBody, setReplyBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [detailAlert, setDetailAlert] = useState<EnrichedAlert | null>(null);
 
   const { data: alertsList = [], isLoading } = useQuery<EnrichedAlert[]>({
@@ -86,10 +87,21 @@ export default function AlertsPage() {
     }
   };
 
-  const openReplyDialog = (alert: EnrichedAlert) => {
+  const openReplyDialog = async (alert: EnrichedAlert) => {
     setReplyAlert(alert);
     setReplyBody("");
     setReplyDialogOpen(true);
+    if (!alert.record) return;
+    setDraftLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/ai/draft-reply", { recordId: alert.recordId });
+      const data = await res.json();
+      if (data.draft) setReplyBody(data.draft);
+    } catch {
+      // draft failed silently — instructor can type manually
+    } finally {
+      setDraftLoading(false);
+    }
   };
 
   const handleSendReply = async () => {
@@ -326,12 +338,21 @@ export default function AlertsPage() {
                 <p className="whitespace-pre-wrap">{replyAlert.record.messageSnippet}</p>
               </div>
               <div>
-                <Label>Your Reply</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label>Your Reply</Label>
+                  {draftLoading && (
+                    <span className="text-xs text-muted-foreground animate-pulse">AI drafting...</span>
+                  )}
+                  {!draftLoading && replyBody && (
+                    <span className="text-xs text-violet-500">AI draft — edit as needed</span>
+                  )}
+                </div>
                 <Textarea
                   value={replyBody}
                   onChange={e => setReplyBody(e.target.value)}
-                  placeholder="Type your response..."
-                  className="border-violet-500/20 min-h-[120px] mt-1"
+                  placeholder={draftLoading ? "Generating draft..." : "Type your response..."}
+                  className="border-violet-500/20 min-h-[120px]"
+                  disabled={draftLoading}
                   data-testid="textarea-reply-body"
                 />
               </div>
@@ -341,7 +362,7 @@ export default function AlertsPage() {
             <Button variant="outline" onClick={() => setReplyDialogOpen(false)} className="border-violet-500/20">Cancel</Button>
             <Button
               onClick={handleSendReply}
-              disabled={!replyBody.trim() || sending}
+              disabled={!replyBody.trim() || sending || draftLoading}
               data-testid="button-send-reply"
               className="bg-gradient-to-r from-violet-600 to-indigo-600"
             >

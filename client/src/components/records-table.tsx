@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, Mail, MessageSquare, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { Trash2, Eye, Mail, MessageSquare, RefreshCw, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import type { AttendanceRecord, LmsConfig } from "@shared/schema";
 import { excuseCategories, assessmentActions } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -134,7 +134,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
           </TableHeader>
           <TableBody>
             {records.map((record) => (
-              <TableRow key={record.id} data-testid={`row-record-${record.id}`} className="border-violet-500/10 hover:bg-violet-500/5">
+              <TableRow key={record.id} data-testid={`row-record-${record.id}`} className={`border-violet-500/10 hover:bg-violet-500/5 ${record.requiresManualReview ? "bg-yellow-500/5" : ""}`}>
                 <TableCell data-testid={`badge-source-${record.id}`}>
                   {(record.source || "gmail") === "gmail" ? (
                     <div className="flex flex-col items-center gap-0.5" title={record.emailSubject ? `Subject: ${record.emailSubject}` : "Gmail"}>
@@ -152,7 +152,14 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 </TableCell>
                 <TableCell className="font-medium" data-testid={`text-name-${record.id}`}>
                   <div>
-                    {record.senderName}
+                    <span className="flex items-center gap-1.5">
+                      {record.requiresManualReview && (
+                        <span title="Low AI confidence — review recommended" data-testid={`icon-review-${record.id}`}>
+                          <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                        </span>
+                      )}
+                      {record.senderName}
+                    </span>
                     {(record.source || "gmail") === "gmail" && record.emailSubject && (
                       <p className="text-[11px] text-muted-foreground truncate max-w-[140px]" title={record.emailSubject}>
                         {record.emailSubject}
@@ -299,6 +306,30 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                     {viewRecord.excuseCategory}
                   </Badge>
                 </div>
+                {viewRecord.aiConfidence != null && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      AI Confidence
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[80px]">
+                        <div
+                          className={`h-full rounded-full ${
+                            viewRecord.aiConfidenceTier === "high" ? "bg-emerald-500" :
+                            viewRecord.aiConfidenceTier === "medium" ? "bg-yellow-500" : "bg-rose-500"
+                          }`}
+                          style={{ width: `${Math.round((viewRecord.aiConfidence ?? 0) * 100)}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-medium ${
+                        viewRecord.aiConfidenceTier === "high" ? "text-emerald-600 dark:text-emerald-400" :
+                        viewRecord.aiConfidenceTier === "medium" ? "text-yellow-600 dark:text-yellow-400" : "text-rose-600 dark:text-rose-400"
+                      }`}>
+                        {Math.round((viewRecord.aiConfidence ?? 0) * 100)}% {viewRecord.aiConfidenceTier}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
               {(viewRecord.source || "gmail") === "gmail" && viewRecord.emailSubject && (
                 <div>

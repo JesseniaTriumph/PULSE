@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Briefcase, Award, ArrowRightLeft, MessageSquare, Check, X, AtSign } from "lucide-react";
+import { StudentImportDialog } from "@/components/student-import-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +46,7 @@ export default function StudentsPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moveStudentId, setMoveStudentId] = useState<number | null>(null);
   const [moveTarget, setMoveTarget] = useState("");
@@ -432,9 +434,14 @@ export default function StudentsPage() {
           <h2 className="text-2xl font-bold" data-testid="text-page-title">Student Roster</h2>
           <p className="text-sm text-muted-foreground">{students.length} students across {cohorts.length} classes</p>
         </div>
-        <Button size="sm" onClick={() => setAddDialogOpen(true)} data-testid="button-add-student" className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700">
-          <Plus className="w-4 h-4 mr-1.5" /> Add Student
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="button-import-roster" className="border-violet-500/30 hover:bg-violet-500/10">
+            <AtSign className="w-4 h-4 mr-1.5" /> Import Roster
+          </Button>
+          <Button size="sm" onClick={() => setAddDialogOpen(true)} data-testid="button-add-student" className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700">
+            <Plus className="w-4 h-4 mr-1.5" /> Add Student
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -600,6 +607,8 @@ export default function StudentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StudentImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
     </div>
   );
 }

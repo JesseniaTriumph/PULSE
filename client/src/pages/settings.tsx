@@ -8,11 +8,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare, AlertTriangle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import type { ScanConfig, SlackChannelConfig, Cohort } from "@shared/schema";
+import type { ScanConfig, SlackChannelConfig, Cohort, LmsConfig } from "@shared/schema";
+import { lmsTypes, assessmentActions } from "@shared/schema";
 
 const defaultTimes = ["10:00", "14:00", "18:25", "20:00", "21:55"];
 const timeLabels: Record<string, string> = {
@@ -37,6 +38,14 @@ export default function SettingsPage() {
   const [newChannelId, setNewChannelId] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelCohortId, setNewChannelCohortId] = useState<string>("");
+  const [newChannelToken, setNewChannelToken] = useState("");
+  const [lmsFormOpen, setLmsFormOpen] = useState(false);
+  const [newLmsType, setNewLmsType] = useState<string>("");
+  const [newLmsUrl, setNewLmsUrl] = useState("");
+  const [newLmsKey, setNewLmsKey] = useState("");
+  const [newLmsSecret, setNewLmsSecret] = useState("");
+  const [newLmsInstitutionId, setNewLmsInstitutionId] = useState("");
+  const [newLmsAction, setNewLmsAction] = useState<string>("excuse");
   const isAdmin = user?.role === "admin";
 
   const { data: scanConfigs = [], isLoading } = useQuery<ScanConfig[]>({
@@ -50,6 +59,10 @@ export default function SettingsPage() {
 
   const { data: cohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
+  });
+
+  const { data: lmsConfigs = [] } = useQuery<LmsConfig[]>({
+    queryKey: ["/api/lms-configs"],
   });
 
   const handleToggle = async (id: number, currentEnabled: boolean) => {
@@ -111,11 +124,13 @@ export default function SettingsPage() {
         channelId: newChannelId.trim(),
         channelName: newChannelName.trim(),
         cohortId: parseInt(newChannelCohortId),
+        ...(newChannelToken.trim() ? { slackBotToken: newChannelToken.trim() } : {}),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/slack-channels"] });
       setNewChannelId("");
       setNewChannelName("");
       setNewChannelCohortId("");
+      setNewChannelToken("");
       toast({ title: `#${newChannelName.trim()} added` });
     } catch {
       toast({ title: "Failed to add channel", variant: "destructive" });
@@ -139,6 +154,68 @@ export default function SettingsPage() {
     } catch {
       toast({ title: "Failed to update channel", variant: "destructive" });
     }
+  };
+
+  const handleAddLmsConfig = async () => {
+    if (!newLmsType || !newLmsUrl.trim() || !newLmsKey.trim()) {
+      toast({ title: "LMS type, URL, and API key are required", variant: "destructive" });
+      return;
+    }
+    try {
+      await apiRequest("POST", "/api/lms-configs", {
+        lmsType: newLmsType,
+        apiUrl: newLmsUrl.trim(),
+        apiKey: newLmsKey.trim(),
+        ...(newLmsSecret.trim() ? { apiSecret: newLmsSecret.trim() } : {}),
+        ...(newLmsInstitutionId.trim() ? { institutionId: newLmsInstitutionId.trim() } : {}),
+        defaultAssessmentAction: newLmsAction,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/lms-configs"] });
+      setNewLmsType("");
+      setNewLmsUrl("");
+      setNewLmsKey("");
+      setNewLmsSecret("");
+      setNewLmsInstitutionId("");
+      setNewLmsAction("excuse");
+      setLmsFormOpen(false);
+      toast({ title: "LMS connection added" });
+    } catch {
+      toast({ title: "Failed to add LMS connection", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteLmsConfig = async (id: number) => {
+    try {
+      await apiRequest("DELETE", `/api/lms-configs/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/lms-configs"] });
+      toast({ title: "LMS connection removed" });
+    } catch {
+      toast({ title: "Failed to remove LMS connection", variant: "destructive" });
+    }
+  };
+
+  const handleToggleLmsConfig = async (id: number, currentEnabled: boolean) => {
+    try {
+      await apiRequest("PATCH", `/api/lms-configs/${id}`, { enabled: !currentEnabled });
+      queryClient.invalidateQueries({ queryKey: ["/api/lms-configs"] });
+    } catch {
+      toast({ title: "Failed to update LMS connection", variant: "destructive" });
+    }
+  };
+
+  const lmsTypeLabels: Record<string, string> = {
+    agilix_buzz: "Agilix Buzz",
+    d2l_brightspace: "D2L Brightspace",
+    canvas: "Canvas",
+    blackboard: "Blackboard",
+    custom: "Custom",
+  };
+
+  const actionLabels: Record<string, string> = {
+    none: "No action",
+    excuse: "Excuse absence",
+    zero_out: "Zero out grade",
+    makeup_allowed: "Allow makeup",
   };
 
   const missingDefaults = defaultTimes.filter(t => !scanConfigs.some(sc => sc.scanTime === t));
@@ -241,6 +318,13 @@ export default function SettingsPage() {
                   data-testid="input-slack-channel-name"
                 />
               </div>
+              <Input
+                placeholder="Bot token override — optional (xoxb-…)"
+                value={newChannelToken}
+                onChange={e => setNewChannelToken(e.target.value)}
+                className="border-violet-500/20 font-mono text-xs"
+                data-testid="input-slack-bot-token"
+              />
               <div className="flex gap-2">
                 <Select value={newChannelCohortId} onValueChange={setNewChannelCohortId}>
                   <SelectTrigger className="border-violet-500/20 flex-1" data-testid="select-slack-cohort">
@@ -309,6 +393,146 @@ export default function SettingsPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            LMS Integration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Connect your Learning Management System so PULSE can automatically excuse absences, zero out grades, or allow makeups when a student's message is processed.
+          </p>
+
+          {lmsConfigs.length > 0 && (
+            <div className="space-y-2">
+              {lmsConfigs.map(cfg => (
+                <div key={cfg.id} className="flex items-center justify-between bg-indigo-500/5 rounded-lg p-3 group" data-testid={`lms-config-${cfg.id}`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{lmsTypeLabels[cfg.lmsType] ?? cfg.lmsType}</p>
+                    <p className="text-xs text-muted-foreground truncate">{cfg.apiUrl}</p>
+                    <p className="text-xs text-muted-foreground">Default: {actionLabels[cfg.defaultAssessmentAction] ?? cfg.defaultAssessmentAction}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Switch
+                      checked={cfg.enabled}
+                      onCheckedChange={() => handleToggleLmsConfig(cfg.id, cfg.enabled)}
+                      className="scale-75"
+                      data-testid={`switch-lms-${cfg.id}`}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDeleteLmsConfig(cfg.id)}
+                      className="opacity-0 group-hover:opacity-100 h-7 w-7 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
+                      data-testid={`button-delete-lms-${cfg.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-indigo-500/30 hover:bg-indigo-500/10"
+              onClick={() => setLmsFormOpen(v => !v)}
+              data-testid="button-toggle-lms-form"
+            >
+              {lmsFormOpen ? <ChevronUp className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+              {lmsFormOpen ? "Cancel" : "Add LMS Connection"}
+            </Button>
+          </div>
+
+          {lmsFormOpen && (
+            <div className="space-y-3 pt-2 border-t border-violet-500/10">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-xs">LMS Type</Label>
+                  <Select value={newLmsType} onValueChange={setNewLmsType}>
+                    <SelectTrigger className="border-violet-500/20" data-testid="select-lms-type">
+                      <SelectValue placeholder="Select LMS…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lmsTypes.map(t => (
+                        <SelectItem key={t} value={t}>{lmsTypeLabels[t] ?? t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">API URL</Label>
+                  <Input
+                    value={newLmsUrl}
+                    onChange={e => setNewLmsUrl(e.target.value)}
+                    placeholder="https://your-lms.example.com/api"
+                    className="border-violet-500/20 text-sm"
+                    data-testid="input-lms-url"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">API Key</Label>
+                  <Input
+                    value={newLmsKey}
+                    onChange={e => setNewLmsKey(e.target.value)}
+                    placeholder="API key"
+                    className="border-violet-500/20 text-sm font-mono"
+                    data-testid="input-lms-key"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">API Secret (optional)</Label>
+                  <Input
+                    value={newLmsSecret}
+                    onChange={e => setNewLmsSecret(e.target.value)}
+                    placeholder="API secret"
+                    className="border-violet-500/20 text-sm font-mono"
+                    data-testid="input-lms-secret"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Institution ID (optional)</Label>
+                  <Input
+                    value={newLmsInstitutionId}
+                    onChange={e => setNewLmsInstitutionId(e.target.value)}
+                    placeholder="e.g. 12345"
+                    className="border-violet-500/20 text-sm"
+                    data-testid="input-lms-institution"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Default Action</Label>
+                  <Select value={newLmsAction} onValueChange={setNewLmsAction}>
+                    <SelectTrigger className="border-violet-500/20" data-testid="select-lms-action">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assessmentActions.map(a => (
+                        <SelectItem key={a} value={a}>{actionLabels[a] ?? a}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleAddLmsConfig}
+                disabled={!newLmsType || !newLmsUrl.trim() || !newLmsKey.trim()}
+                className="bg-gradient-to-r from-indigo-600 to-violet-600"
+                data-testid="button-save-lms"
+              >
+                <Plus className="w-4 h-4 mr-1" /> Save LMS Connection
+              </Button>
             </div>
           )}
         </CardContent>

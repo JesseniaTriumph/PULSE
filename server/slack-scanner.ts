@@ -1,14 +1,101 @@
 import { storage } from "./storage";
 import { categorizeExcuse } from "./openai";
-import { getExcuseCategoryEmoji, getExcuseCategoryTag } from "./slack-commands";
 
 const ATTENDANCE_KEYWORDS = [
-  "absent", "absence", "excuse", "sick", "cannot attend", "won't be able",
-  "can't make it", "unable to attend", "not coming", "won't be in",
-  "missing class", "out today", "out sick", "not feeling well",
-  "under the weather", "late", "tardy", "running late", "delayed",
-  "will be late", "running behind", "held up", "stuck in traffic",
-  "stepping out", "leaving early", "emergency", "appointment", "called out",
+  // ── Absence / not attending ──────────────────────────────────────────────
+  "absent", "absence", "not coming", "won't be in", "won't be there",
+  "can't come", "can't be there", "cannot attend", "unable to attend",
+  "not going to make it", "not gonna make it", "won't make it",
+  "can't make it", "missing class", "missing today", "missing session",
+  "out today", "out tomorrow", "not in today", "won't be attending",
+  "skipping", "called out", "calling out", "won't be able",
+  "something came up", "something happened", "personal matter",
+  "personal issue", "personal reasons", "family matter", "family situation",
+  "unexpected", "unforeseen", "unavailable",
+
+  // ── Lateness / partial attendance ────────────────────────────────────────
+  "late", "tardy", "running late", "running a bit late", "running behind",
+  "will be late", "going to be late", "few minutes late", "a little late",
+  "held up", "delayed", "delay", "stepping out", "leaving early",
+  "arrive late", "getting there late", "on my way", "heading there",
+  "few mins", "a few minutes",
+
+  // ── Health / medical ─────────────────────────────────────────────────────
+  "sick", "ill", "illness", "not feeling well", "under the weather",
+  "fever", "flu", "cold", "covid", "positive test", "tested positive",
+  "quarantine", "migraine", "headache", "stomach", "stomachache",
+  "food poisoning", "nausea", "nauseous", "throwing up", "vomiting",
+  "injury", "injured", "hospital", "hospitalized", "ER", "emergency room",
+  "urgent care", "ambulance", "doctor", "dr.", "doctor's appointment",
+  "specialist", "follow-up", "blood work", "lab", "MRI", "X-ray",
+  "physical therapy", "PT", "therapy", "mental health", "anxiety",
+  "panic attack", "depression", "overwhelmed", "burned out", "burnout",
+  "surgery", "procedure", "medication", "prescription", "pharmacy",
+  "dentist", "dental", "optometrist", "eye doctor", "OB", "prenatal",
+  "pregnant", "pregnancy",
+
+  // ── Family / caretaking / parenting ──────────────────────────────────────
+  "emergency", "family emergency", "funeral", "bereavement", "passed away",
+  "death in the family", "died", "passing", "wake", "memorial", "mourning",
+  "grieving", "loss",
+  "my kid", "my child", "my son", "my daughter", "my baby",
+  "school pickup", "school drop off", "school dropoff", "daycare", "day care",
+  "babysitter", "childcare", "pediatrician", "child is sick", "kid is sick",
+  "parent-teacher", "custody", "visitation",
+  "my mom", "my dad", "my mother", "my father", "my parent", "my parents",
+  "my grandma", "my grandpa", "my grandmother", "my grandfather",
+  "my brother", "my sister", "my sibling", "my aunt", "my uncle",
+  "taking care of", "caring for", "caretaker", "caregiver",
+  "nursing home", "assisted living", "dialysis",
+  "my partner", "my spouse", "my husband", "my wife",
+  "my boyfriend", "my girlfriend", "domestic situation",
+
+  // ── Work / employment conflicts ───────────────────────────────────────────
+  "work ran over", "work ran late", "work conflict", "called into work",
+  "got called in", "work emergency", "shift", "overtime",
+  "interview", "job interview", "internship",
+
+  // ── Housing / home emergencies ────────────────────────────────────────────
+  "apartment", "landlord", "eviction", "housing court",
+  "moving", "move out", "plumber", "repair", "maintenance",
+  "gas leak", "fire", "break in", "robbery", "theft",
+  "lockout", "locked out", "no heat", "boiler",
+
+  // ── Legal / government / benefits ─────────────────────────────────────────
+  "jury duty", "court", "court date", "hearing", "arraignment", "probation",
+  "legal", "immigration", "visa", "DMV", "passport", "social security",
+  "public assistance", "benefits office", "HRA", "social services",
+  "housing authority", "NYCHA", "Section 8",
+
+  // ── NYC transit (MTA / subway / buses / rail) ─────────────────────────────
+  "subway", "train", "the train", "my train", "MTA", "metro",
+  "PATH", "LIRR", "NJ Transit", "bus", "stuck on the train",
+  "stuck on the subway", "train delay", "train is delayed",
+  "subway delay", "signal problem", "track problem", "track work",
+  "service disruption", "no service", "train not running",
+  "A train", "B train", "C train", "D train", "E train", "F train",
+  "G train", "J train", "L train", "M train", "N train", "Q train",
+  "R train", "W train", "Z train", "1 train", "2 train", "3 train",
+  "4 train", "5 train", "6 train", "7 train", "ferry", "no ride",
+  "can't get a ride",
+
+  // ── Traffic / road ────────────────────────────────────────────────────────
+  "stuck in traffic", "traffic", "accident", "car accident",
+  "car broke down", "vehicle", "uber", "lyft", "car service",
+  "flat tire", "towed",
+
+  // ── Weather (NYC) ─────────────────────────────────────────────────────────
+  "snow", "snowstorm", "blizzard", "ice", "icy", "storm", "hurricane",
+  "flooding", "flood", "power outage", "heat wave", "no AC",
+
+  // ── Technical / connectivity ──────────────────────────────────────────────
+  "internet", "wifi", "wi-fi", "connection", "no connection",
+  "internet down", "internet out", "laptop", "computer", "crashed",
+  "can't log in", "can't connect", "power out", "hotspot",
+
+  // ── General excuse language ───────────────────────────────────────────────
+  "excuse", "reaching out", "wanted to let you know", "just wanted to let you know",
+  "heads up", "giving you a heads up", "letting you know",
 ];
 
 const KEYWORD_REGEX = new RegExp(ATTENDANCE_KEYWORDS.join("|"), "i");
@@ -70,15 +157,11 @@ async function getUserInfo(userId: string, token: string): Promise<SlackUserInfo
 }
 
 export async function scanSlackForUser(userId: number): Promise<number> {
-  const token = process.env.SLACK_BOT_TOKEN;
-  if (!token) {
-    console.log("[Slack Scanner] No SLACK_BOT_TOKEN configured, skipping Slack scan");
-    return 0;
-  }
+  const globalToken = process.env.SLACK_BOT_TOKEN;
 
-  const enabledChannelConfigs = await storage.getAllEnabledSlackChannelConfigs();
+  const enabledChannelConfigs = await storage.getEnabledSlackChannelConfigsByUser(userId);
   if (enabledChannelConfigs.length === 0) {
-    console.log("[Slack Scanner] No Slack channels configured, skipping");
+    console.log(`[Slack Scanner] No Slack channels configured for user ${userId}, skipping`);
     return 0;
   }
 
@@ -91,8 +174,13 @@ export async function scanSlackForUser(userId: number): Promise<number> {
   let skippedCooldown = 0;
 
   for (const channelConfig of enabledChannelConfigs) {
+    const channelToken = (channelConfig as any).slackBotToken || globalToken;
+    if (!channelToken) {
+      console.log(`[Slack Scanner] No bot token for channel ${channelConfig.channelName}, skipping`);
+      continue;
+    }
     try {
-      const data = await slackApi("conversations.history", token, {
+      const data = await slackApi("conversations.history", channelToken, {
         channel: channelConfig.channelId,
         oldest,
         limit: "50",
@@ -112,7 +200,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
           let senderEmail = "";
 
           try {
-            const userInfo = await getUserInfo(msg.user, token);
+            const userInfo = await getUserInfo(msg.user, channelToken);
             senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
             senderEmail = userInfo.profile?.email || "";
           } catch {
@@ -144,6 +232,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
           const matchedStudent = studentPool.find(s =>
             (s.slackUserId && s.slackUserId === msg.user)
             || (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+            || (senderEmail && (s.alternateEmails || []).some(ae => ae.toLowerCase() === senderEmail.toLowerCase()))
             || s.name.toLowerCase() === senderName.toLowerCase()
           );
 
@@ -200,7 +289,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
       // Scan thread replies for top-level messages that have replies
       for (const parent of threadParents) {
         try {
-          const threadData = await slackApi("conversations.replies", token, {
+          const threadData = await slackApi("conversations.replies", channelToken, {
             channel: channelConfig.channelId,
             ts: parent.ts,
             oldest,
@@ -219,7 +308,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
               let senderEmail = "";
 
               try {
-                const userInfo = await getUserInfo(reply.user, token);
+                const userInfo = await getUserInfo(reply.user, channelToken);
                 senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
                 senderEmail = userInfo.profile?.email || "";
               } catch {
@@ -240,6 +329,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
               const matchedStudent = studentPool.find(s =>
                 (s.slackUserId && s.slackUserId === reply.user)
                 || (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+                || (senderEmail && (s.alternateEmails || []).some(ae => ae.toLowerCase() === senderEmail.toLowerCase()))
                 || s.name.toLowerCase() === senderName.toLowerCase()
               );
 
@@ -302,8 +392,13 @@ export async function scanSlackForUser(userId: number): Promise<number> {
     }
   }
 
+  if (!globalToken) {
+    console.log(`[Slack Scanner] Processed ${processed} Slack messages for user ${userId}`);
+    return processed;
+  }
+
   try {
-    const dmData = await slackApi("conversations.list", token, {
+    const dmData = await slackApi("conversations.list", globalToken, {
       types: "im",
       limit: "100",
     });
@@ -312,7 +407,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
 
     for (const dm of dmChannels) {
       try {
-        const data = await slackApi("conversations.history", token, {
+        const data = await slackApi("conversations.history", globalToken, {
           channel: dm.id,
           oldest,
           limit: "20",
@@ -330,7 +425,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
             let senderEmail = "";
 
             try {
-              const userInfo = await getUserInfo(msg.user, token);
+              const userInfo = await getUserInfo(msg.user, globalToken);
               senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
               senderEmail = userInfo.profile?.email || "";
             } catch {
@@ -340,6 +435,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
             const matchedStudent = studentPool.find(s =>
               (s.slackUserId && s.slackUserId === msg.user)
               || (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+              || (senderEmail && (s.alternateEmails || []).some(ae => ae.toLowerCase() === senderEmail.toLowerCase()))
               || s.name.toLowerCase() === senderName.toLowerCase()
             );
 

@@ -222,6 +222,7 @@ async function runGmailScan(userId: number) {
         // Only process emails from students on the roster — skip non-roster senders entirely
         const matchedStudent = allStudents.find(
           s => s.email.toLowerCase() === senderEmail.toLowerCase()
+            || (s.alternateEmails || []).some(ae => ae.toLowerCase() === senderEmail.toLowerCase())
             || s.name.toLowerCase() === senderName.toLowerCase()
         );
 

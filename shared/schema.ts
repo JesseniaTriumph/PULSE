@@ -56,6 +56,7 @@ export const students = pgTable("students", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull(),
+  alternateEmails: text("alternate_emails").array(),
   cohortId: integer("cohort_id").notNull().references(() => cohorts.id),
   status: text("status").notNull().default("Active"),
   slackUserId: text("slack_user_id"),
@@ -164,6 +165,7 @@ export const slackChannelConfigs = pgTable("slack_channel_configs", {
   channelId: text("channel_id").notNull(),
   channelName: text("channel_name").notNull(),
   enabled: boolean("enabled").notNull().default(true),
+  slackBotToken: text("slack_bot_token"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

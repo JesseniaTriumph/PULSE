@@ -33,6 +33,7 @@ export interface IStorage {
   deleteCohort(id: number): Promise<void>;
 
   createStudent(student: InsertStudent): Promise<Student>;
+  bulkCreateStudents(rows: InsertStudent[]): Promise<{ created: number; skipped: number }>;
   getStudentById(id: number): Promise<Student | undefined>;
   getStudentsByCohort(cohortId: number): Promise<Student[]>;
   getStudentsByInstructor(instructorId: number): Promise<Student[]>;
@@ -76,6 +77,7 @@ export interface IStorage {
   getSlackChannelConfigsByCohort(cohortId: number): Promise<SlackChannelConfig[]>;
   getAllSlackChannelConfigs(): Promise<SlackChannelConfig[]>;
   getAllEnabledSlackChannelConfigs(): Promise<SlackChannelConfig[]>;
+  getEnabledSlackChannelConfigsByUser(userId: number): Promise<SlackChannelConfig[]>;
   updateSlackChannelConfig(id: number, data: Partial<InsertSlackChannelConfig>): Promise<SlackChannelConfig | undefined>;
   deleteSlackChannelConfig(id: number): Promise<void>;
 
@@ -172,6 +174,18 @@ export class DatabaseStorage implements IStorage {
   async createStudent(student: InsertStudent): Promise<Student> {
     const [created] = await db.insert(students).values(student).returning();
     return created;
+  }
+
+  async bulkCreateStudents(rows: InsertStudent[]): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+    for (const row of rows) {
+      const existing = await db.select().from(students).where(eq(students.email, row.email)).limit(1);
+      if (existing.length > 0) { skipped++; continue; }
+      await db.insert(students).values(row);
+      created++;
+    }
+    return { created, skipped };
   }
 
   async getStudentById(id: number): Promise<Student | undefined> {
@@ -404,6 +418,18 @@ export class DatabaseStorage implements IStorage {
 
   async getAllEnabledSlackChannelConfigs(): Promise<SlackChannelConfig[]> {
     return db.select().from(slackChannelConfigs).where(eq(slackChannelConfigs.enabled, true));
+  }
+
+  async getEnabledSlackChannelConfigsByUser(userId: number): Promise<SlackChannelConfig[]> {
+    // Join through cohorts so we only return channels belonging to this instructor's cohorts.
+    // Admins pass userId=-1 convention is not used here; callers that want all channels
+    // should use getAllEnabledSlackChannelConfigs() directly.
+    const rows = await db
+      .select({ config: slackChannelConfigs })
+      .from(slackChannelConfigs)
+      .innerJoin(cohorts, eq(slackChannelConfigs.cohortId, cohorts.id))
+      .where(and(eq(slackChannelConfigs.enabled, true), eq(cohorts.instructorId, userId)));
+    return rows.map(r => r.config);
   }
 
   async updateSlackChannelConfig(id: number, data: Partial<InsertSlackChannelConfig>): Promise<SlackChannelConfig | undefined> {

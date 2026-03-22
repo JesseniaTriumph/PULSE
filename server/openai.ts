@@ -386,7 +386,7 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
       }
 
       if (isFinalTier) {
-        console.warn("[WARNG] Final Tier Quality Threshold Not Met");
+        console.warn("[WARN] Final Tier Quality Threshold Not Met");
         const fallbackResult: ClassificationResult = {
           attendanceType: "Absent",
           category: "Unexcused",
@@ -413,7 +413,7 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
       console.error(`[AI] ${tier.label} failed (${isRateLimit ? "rate limited" : isOverloaded ? "overloaded" : error?.message || "unknown"}), trying next tier...`);
 
       if (isFinalTier) {
-        console.warn("[WARNG] Final Tier Quality Threshold Not Met");
+        console.warn("[WARN] Final Tier Quality Threshold Not Met");
         const fallbackResult: ClassificationResult = {
           attendanceType: "Absent",
           category: "Unexcused",
