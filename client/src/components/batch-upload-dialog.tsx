@@ -105,6 +105,7 @@ export function BatchUploadDialog({ open, onOpenChange }: BatchUploadDialogProps
       const response = await fetch("/api/process-emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ emails }),
       });
 
@@ -248,9 +249,9 @@ export function BatchUploadDialog({ open, onOpenChange }: BatchUploadDialogProps
                 </Button>
               </TabsContent>
               <TabsContent value="upload" className="space-y-3">
-                <div
-                  className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
+                <Label
+                  htmlFor="batch-upload-input"
+                  className="block border-2 border-dashed rounded-md p-8 text-center cursor-pointer transition-colors"
                   data-testid="dropzone-upload"
                 >
                   <FileUp className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
@@ -260,13 +261,15 @@ export function BatchUploadDialog({ open, onOpenChange }: BatchUploadDialogProps
                   <p className="text-xs text-muted-foreground">
                     CSV format: Name, Email, Date, Body columns
                   </p>
-                </div>
+                </Label>
                 <input
+                  id="batch-upload-input"
                   ref={fileInputRef}
                   type="file"
                   accept=".json,.csv"
                   className="hidden"
                   onChange={handleFileUpload}
+                  aria-label="Upload JSON or CSV file"
                 />
                 {jsonInput && (
                   <div className="space-y-2">

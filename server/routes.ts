@@ -584,6 +584,7 @@ export async function registerRoutes(
 
           const matchedStudent = allStudents.find(
             s => s.email.toLowerCase() === email.senderEmail.toLowerCase()
+              || (s.alternateEmails ?? []).some(ae => ae.toLowerCase() === email.senderEmail.toLowerCase())
               || s.name.toLowerCase() === email.senderName.toLowerCase()
           );
 
