@@ -76,13 +76,15 @@ export function setupAuth(app: Express) {
       await storage.createScanConfig({ userId: user.id, scanTime: "21:55", enabled: true, scanGmail: true, scanSlack: true });
 
       req.session.userId = user.id;
-
-      res.status(201).json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ error: "Session save failed" });
+        res.status(201).json({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+        });
       });
     } catch (error) {
       console.error("Error registering user:", error);
@@ -110,14 +112,16 @@ export function setupAuth(app: Express) {
       }
 
       req.session.userId = user.id;
-
-      res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-        googleId: user.googleId || null,
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ error: "Session save failed" });
+        res.json({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          googleId: user.googleId || null,
+        });
       });
     } catch (error) {
       console.error("Error logging in:", error);
@@ -382,14 +386,19 @@ export function setupAuth(app: Express) {
       }
 
       req.session.userId = user.id;
-
-      res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-        googleId: user.googleId || null,
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ error: "Session save failed" });
+        }
+        res.json({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          googleId: user.googleId || null,
+        });
       });
     } catch (error) {
       console.error("Error with demo login:", error);
