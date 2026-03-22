@@ -29,6 +29,7 @@ import type { AttendanceRecord, LmsConfig } from "@shared/schema";
 import { excuseCategories, assessmentActions } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { cn, getPercentageWidthClass } from "@/lib/utils";
 
 const categoryBadgeColors: Record<string, string> = {
   Medical: "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
@@ -188,9 +189,9 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
 
   return (
     <>
-      <div className="print-header" style={{ display: "none" }}>
-        <h1 style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "4px" }}>PULSE - Attendance Report</h1>
-        <p style={{ fontSize: "13px", color: "#666" }}>
+      <div className="print-header hidden">
+        <h1>PULSE - Attendance Report</h1>
+        <p>
           Period: {timePeriod || "All Time"} | Total Records: {records.length} | Generated: {new Date().toLocaleDateString()}
         </p>
       </div>
@@ -440,11 +441,13 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[80px]">
                         <div
-                          className={`h-full rounded-full ${
+                          className={cn(
+                            "h-full rounded-full",
+                            getPercentageWidthClass(Math.round((viewRecord.aiConfidence ?? 0) * 100)),
                             viewRecord.aiConfidenceTier === "high" ? "bg-emerald-500" :
                             viewRecord.aiConfidenceTier === "medium" ? "bg-yellow-500" : "bg-rose-500"
-                          }`}
-                          style={{ width: `${Math.round((viewRecord.aiConfidence ?? 0) * 100)}%` }}
+                          )}
+                          aria-hidden="true"
                         />
                       </div>
                       <span className={`text-xs font-medium ${
