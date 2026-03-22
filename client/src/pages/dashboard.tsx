@@ -24,6 +24,7 @@ import {
   Clock,
   MessageSquare,
   TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 import type { AttendanceRecord, Cohort } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -174,6 +175,7 @@ export default function Dashboard() {
 
   const [filterType, setFilterType] = useState<string>("all");
   const [filterSource, setFilterSource] = useState<string>("all");
+  const [filterReview, setFilterReview] = useState<boolean>(false);
 
   const typeFilteredRecords = filterType === "all"
     ? timeFilteredRecords
@@ -183,9 +185,15 @@ export default function Dashboard() {
     ? typeFilteredRecords
     : typeFilteredRecords.filter((r) => (r.source || "gmail") === filterSource);
 
-  const filteredRecords = filterCategory
-    ? sourceFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
+  const reviewFilteredRecords = filterReview
+    ? sourceFilteredRecords.filter((r) => r.requiresManualReview)
     : sourceFilteredRecords;
+
+  const filteredRecords = filterCategory
+    ? reviewFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
+    : reviewFilteredRecords;
+
+  const needsReviewCount = timeFilteredRecords.filter(r => r.requiresManualReview).length;
 
   const periodStats = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -503,6 +511,18 @@ export default function Dashboard() {
             >
               Unexcused ({timeFilteredRecords.filter(r => r.attendanceType === "Unexcused").length})
             </Button>
+            {needsReviewCount > 0 && (
+              <Button
+                size="sm"
+                variant={filterReview ? "default" : "outline"}
+                onClick={() => setFilterReview(!filterReview)}
+                data-testid="button-needs-review"
+                className={filterReview ? "bg-gradient-to-r from-yellow-600 to-amber-500 h-7 text-xs" : "border-yellow-500/40 dark:border-yellow-500/30 hover:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 h-7 text-xs"}
+              >
+                <AlertTriangle className="w-3 h-3 mr-1" />
+                Needs Review ({needsReviewCount})
+              </Button>
+            )}
             <div className="w-px h-5 bg-violet-500/20 mx-1" />
             <Button
               size="sm"

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -22,19 +23,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, Mail, MessageSquare, Hash } from "lucide-react";
-import type { AttendanceRecord } from "@shared/schema";
-import { excuseCategories } from "@shared/schema";
+import { Trash2, Eye, Mail, MessageSquare, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import type { AttendanceRecord, LmsConfig } from "@shared/schema";
+import { excuseCategories, assessmentActions } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const categoryBadgeColors: Record<string, string> = {
-  "Sick/Medical": "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
-  Personal: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
-  "Program Event": "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
-  "Technical Issue": "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
+  Medical: "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
+  Family: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
+  Administrative: "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
+  Technical: "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
   Other: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30",
-  None: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
   Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
 
@@ -49,9 +49,43 @@ interface RecordsTableProps {
   timePeriod?: string;
 }
 
+const actionLabels: Record<string, string> = {
+  none: "No action",
+  excuse: "Excuse absence",
+  zero_out: "Zero out grade",
+  makeup_allowed: "Allow makeup",
+};
+
 export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
   const [viewRecord, setViewRecord] = useState<AttendanceRecord | null>(null);
+  const [syncAction, setSyncAction] = useState<string>("excuse");
+  const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
+
+  const { data: lmsConfigs = [] } = useQuery<LmsConfig[]>({
+    queryKey: ["/api/lms-configs"],
+  });
+
+  const hasLms = lmsConfigs.some(c => c.enabled);
+
+  const handleLmsSync = async (record: AttendanceRecord) => {
+    if (!hasLms) {
+      toast({ title: "No LMS configured", description: "Add an LMS connection in Settings first.", variant: "destructive" });
+      return;
+    }
+    setSyncing(true);
+    try {
+      await apiRequest("POST", `/api/records/${record.id}/lms-sync`, { action: syncAction });
+      queryClient.invalidateQueries({ queryKey: ["/api/records"] });
+      toast({ title: "Synced to LMS", description: `Action: ${actionLabels[syncAction]}` });
+      // refresh viewRecord data
+      setViewRecord(prev => prev ? { ...prev, lmsSynced: true, lmsSyncStatus: "success", assessmentAction: syncAction } : prev);
+    } catch {
+      toast({ title: "LMS sync failed", variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleCategoryChange = async (id: number, category: string) => {
     try {
@@ -164,10 +198,17 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 </TableCell>
                 <TableCell className="no-print">
                   <div className="flex items-center justify-end gap-1">
+                    {record.lmsSynced && (
+                      <CheckCircle2
+                        className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"
+                        title="Synced to LMS"
+                        data-testid={`icon-lms-synced-${record.id}`}
+                      />
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => setViewRecord(record)}
+                      onClick={() => { setViewRecord(record); setSyncAction(record.assessmentAction && record.assessmentAction !== "none" ? record.assessmentAction : "excuse"); }}
                       data-testid={`button-view-${record.id}`}
                       className="hover:bg-violet-500/10"
                     >
@@ -284,6 +325,55 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 <div className="rounded-md bg-background/60 border border-violet-500/10 p-3 text-sm whitespace-pre-wrap max-h-60 overflow-auto" data-testid="text-detail-body">
                   {viewRecord.emailBody}
                 </div>
+              </div>
+
+              <div className="rounded-md border border-indigo-500/20 bg-indigo-500/5 p-3 space-y-3">
+                <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">LMS Sync</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {viewRecord.lmsSynced ? (
+                    <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Synced — {viewRecord.lmsSyncStatus || "success"}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <XCircle className="w-4 h-4" />
+                      Not yet synced
+                    </span>
+                  )}
+                  {viewRecord.assessmentAction && viewRecord.assessmentAction !== "none" && (
+                    <Badge variant="outline" className="text-xs border-indigo-500/30 text-indigo-700 dark:text-indigo-300">
+                      {actionLabels[viewRecord.assessmentAction] ?? viewRecord.assessmentAction}
+                    </Badge>
+                  )}
+                </div>
+                {hasLms && (
+                  <div className="flex items-center gap-2">
+                    <Select value={syncAction} onValueChange={setSyncAction}>
+                      <SelectTrigger className="h-8 w-[160px] border-indigo-500/20 text-xs" data-testid="select-lms-sync-action">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assessmentActions.filter(a => a !== "none").map(a => (
+                          <SelectItem key={a} value={a} className="text-xs">{actionLabels[a]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      className="h-8 bg-gradient-to-r from-indigo-600 to-violet-600 text-xs"
+                      onClick={() => handleLmsSync(viewRecord)}
+                      disabled={syncing}
+                      data-testid="button-lms-sync"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
+                      {syncing ? "Syncing…" : "Sync to LMS"}
+                    </Button>
+                  </div>
+                )}
+                {!hasLms && (
+                  <p className="text-xs text-muted-foreground">No LMS connected — add one in Settings.</p>
+                )}
               </div>
             </div>
           )}
