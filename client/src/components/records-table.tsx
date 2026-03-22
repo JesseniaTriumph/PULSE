@@ -280,6 +280,22 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                         ))}
                       </SelectContent>
                     </Select>
+                    {/* Classification method indicator */}
+                    {record.aiConfidenceTier ? (
+                      <span className={`mt-1 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                        record.aiConfidenceTier === "high"
+                          ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400"
+                          : record.aiConfidenceTier === "medium"
+                          ? "bg-yellow-500/10 text-yellow-700 border-yellow-500/30 dark:text-yellow-400"
+                          : "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-400"
+                      }`}>
+                        AI · {record.aiConfidenceTier}
+                      </span>
+                    ) : (
+                      <span className="mt-1 inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full border bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-400">
+                        Keyword
+                      </span>
+                    )}
                   </div>
                   <span className="hidden print-category">{record.excuseCategory}</span>
                 </TableCell>
@@ -387,6 +403,35 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                     {viewRecord.excuseCategory}
                   </Badge>
                 </div>
+                {viewRecord.urgency && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Urgency
+                    </p>
+                    <Badge className={`border text-xs ${
+                      viewRecord.urgency === "high"
+                        ? "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300"
+                        : viewRecord.urgency === "medium"
+                        ? "bg-orange-500/20 text-orange-700 border-orange-500/40 dark:text-orange-300"
+                        : "bg-slate-500/20 text-slate-600 border-slate-500/30 dark:text-slate-400"
+                    }`}>
+                      {viewRecord.urgency}
+                    </Badge>
+                    {viewRecord.needsResponse && (
+                      <span className="ml-2 text-xs text-orange-600 dark:text-orange-400 font-medium">· Reply needed</span>
+                    )}
+                  </div>
+                )}
+                {viewRecord.aiConfidence == null && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Classification
+                    </p>
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-500/10 border border-slate-500/20 px-2 py-0.5 rounded-full">
+                      Keyword match
+                    </span>
+                  </div>
+                )}
                 {viewRecord.aiConfidence != null && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
