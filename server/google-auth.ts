@@ -3,8 +3,8 @@ import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
-const GOOGLE_CLIENT_ID = process.env.PULSE_GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.PULSE_GOOGLE_CLIENT_SECRET;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.PULSE_GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || process.env.PULSE_GOOGLE_CLIENT_SECRET;
 const SCOPES = [
   "openid",
   "https://www.googleapis.com/auth/userinfo.email",
