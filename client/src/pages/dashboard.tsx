@@ -44,6 +44,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Cell,
 } from "recharts";
 import {
   startOfDay, endOfDay,
@@ -158,18 +159,6 @@ export default function Dashboard() {
     },
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery<{
-    total: number;
-    byCategory: Record<string, number>;
-  }>({
-    queryKey: ["/api/stats", { cohortId: filterCohort !== "all" ? filterCohort : undefined }],
-    queryFn: async () => {
-      const url = filterCohort !== "all" ? `/api/stats?cohortId=${filterCohort}` : "/api/stats";
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch stats");
-      return res.json();
-    },
-  });
 
   const timeFilteredRecords = useMemo(() => {
     const range = getTimePeriodRange(timePeriod);
@@ -183,6 +172,7 @@ export default function Dashboard() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterSource, setFilterSource] = useState<string>("all");
   const [filterReview, setFilterReview] = useState<boolean>(false);
+  const [filterNeedsResponse, setFilterNeedsResponse] = useState<boolean>(false);
 
   const typeFilteredRecords = filterType === "all"
     ? timeFilteredRecords
@@ -196,11 +186,16 @@ export default function Dashboard() {
     ? sourceFilteredRecords.filter((r) => r.requiresManualReview)
     : sourceFilteredRecords;
 
-  const filteredRecords = filterCategory
-    ? reviewFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
+  const responseFilteredRecords = filterNeedsResponse
+    ? reviewFilteredRecords.filter((r) => r.needsResponse)
     : reviewFilteredRecords;
 
+  const filteredRecords = filterCategory
+    ? responseFilteredRecords.filter((r) => r.excuseCategory === filterCategory)
+    : responseFilteredRecords;
+
   const needsReviewCount = timeFilteredRecords.filter(r => r.requiresManualReview).length;
+  const needsResponseCount = timeFilteredRecords.filter(r => r.needsResponse).length;
 
   const periodStats = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -229,6 +224,39 @@ export default function Dashboard() {
     }
     return Array.from(buckets.values());
   }, [timeFilteredRecords, timePeriod]);
+
+  const categoryChartData = useMemo(() => {
+    return Object.entries(periodStats.byCategory)
+      .filter(([, count]) => count > 0)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [periodStats]);
+
+  const CATEGORY_COLORS: Record<string, string> = {
+    Medical: "#f43f5e",
+    Family: "#f59e0b",
+    Administrative: "#0ea5e9",
+    Technical: "#7c3aed",
+    Networking: "#14b8a6",
+    Other: "#10b981",
+    Unexcused: "#64748b",
+  };
+
+  const confidenceData = useMemo(() => {
+    const counts = { high: 0, medium: 0, low: 0, keyword: 0 };
+    for (const r of timeFilteredRecords) {
+      if (!r.aiConfidenceTier) counts.keyword++;
+      else if (r.aiConfidenceTier === "high") counts.high++;
+      else if (r.aiConfidenceTier === "medium") counts.medium++;
+      else counts.low++;
+    }
+    return [
+      { label: "Keyword (free)", count: counts.keyword, color: "#10b981" },
+      { label: "AI High", count: counts.high, color: "#7c3aed" },
+      { label: "AI Medium", count: counts.medium, color: "#f59e0b" },
+      { label: "AI Low", count: counts.low, color: "#f43f5e" },
+    ].filter(d => d.count > 0);
+  }, [timeFilteredRecords]);
 
   const topStudents = useMemo(() => {
     const counts = new Map<string, number>();
@@ -371,7 +399,7 @@ export default function Dashboard() {
                 Total
               </span>
             </div>
-            {statsLoading ? (
+            {recordsLoading ? (
               <Skeleton className="h-8 w-12" />
             ) : (
               <p className="text-2xl font-bold" data-testid="text-stat-total">
@@ -402,7 +430,7 @@ export default function Dashboard() {
                     {category}
                   </span>
                 </div>
-                {statsLoading ? (
+                {recordsLoading ? (
                   <Skeleton className="h-8 w-12" />
                 ) : (
                   <p className="text-2xl font-bold">{count}</p>
@@ -468,6 +496,61 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+
+          {categoryChartData.length > 0 && (
+            <Card className="lg:col-span-2 border-violet-500/10 bg-card/60 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Reason Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={categoryChartData} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={90} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      cursor={{ fill: "hsl(var(--muted)/0.3)" }}
+                    />
+                    <Bar dataKey="count" name="Records" radius={[0, 3, 3, 0]}>
+                      {categoryChartData.map((entry) => (
+                        <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category] ?? "#7c3aed"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {confidenceData.length > 0 && (
+            <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Classification Method</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2.5 pt-1">
+                  {confidenceData.map((d) => (
+                    <div key={d.label} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-medium truncate">{d.label}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{d.count}</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${(d.count / timeFilteredRecords.length) * 100}%`, backgroundColor: d.color }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-3">Keyword = free · AI = costs API credits</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -528,6 +611,18 @@ export default function Dashboard() {
               >
                 <AlertTriangle className="w-3 h-3 mr-1" />
                 Needs Review ({needsReviewCount})
+              </Button>
+            )}
+            {needsResponseCount > 0 && (
+              <Button
+                size="sm"
+                variant={filterNeedsResponse ? "default" : "outline"}
+                onClick={() => setFilterNeedsResponse(!filterNeedsResponse)}
+                data-testid="button-needs-response"
+                className={filterNeedsResponse ? "bg-gradient-to-r from-orange-600 to-rose-500 h-7 text-xs" : "border-orange-500/40 dark:border-orange-500/30 hover:bg-orange-500/10 text-orange-700 dark:text-orange-400 h-7 text-xs"}
+              >
+                <Mail className="w-3 h-3 mr-1" />
+                Needs Reply ({needsResponseCount})
               </Button>
             )}
             <div className="w-px h-5 bg-violet-500/20 mx-1" />

@@ -23,7 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, Mail, MessageSquare, RefreshCw, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Trash2, Eye, Mail, MessageSquare, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import type { AttendanceRecord, LmsConfig } from "@shared/schema";
 import { excuseCategories, assessmentActions } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -85,6 +86,10 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
   const [viewRecord, setViewRecord] = useState<AttendanceRecord | null>(null);
   const [syncAction, setSyncAction] = useState<string>("excuse");
   const [syncing, setSyncing] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyBody, setReplyBody] = useState("");
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
   const { data: lmsConfigs = [] } = useQuery<LmsConfig[]>({
@@ -109,6 +114,53 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
       toast({ title: "LMS sync failed", variant: "destructive" });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleDraftReply = async (record: AttendanceRecord) => {
+    setDraftLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/ai/draft-reply", { recordId: record.id });
+      const data = await res.json();
+      if (data.draft) setReplyBody(data.draft);
+    } catch {
+      // silent — instructor can type manually
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  const handleSendReply = async (record: AttendanceRecord) => {
+    if (!replyBody.trim()) return;
+    setSending(true);
+    try {
+      if (record.source === "slack") {
+        await apiRequest("POST", "/api/slack/send", {
+          channelId: record.slackChannelId,
+          threadTs: record.slackMessageTs || undefined,
+          body: replyBody,
+        });
+      } else {
+        await apiRequest("POST", "/api/gmail/send", {
+          to: record.senderEmail,
+          subject: `Re: ${record.emailSubject || record.messageSnippet?.substring(0, 60) || "Your message"}`,
+          body: replyBody,
+          inReplyTo: record.gmailMessageId || undefined,
+          threadId: record.gmailThreadId || undefined,
+        });
+      }
+      toast({ title: record.source === "slack" ? "Slack reply sent" : "Reply sent" });
+      setReplyOpen(false);
+      setReplyBody("");
+    } catch {
+      toast({
+        title: record.source === "slack"
+          ? "Failed to send Slack reply — check SLACK_BOT_TOKEN"
+          : "Failed to send reply — ensure Google account is connected",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
     }
   };
 
@@ -183,6 +235,12 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                           <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
                         </span>
                       )}
+                      {!record.requiresManualReview && record.urgency === "high" && (
+                        <span title="High urgency" className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 inline-block" />
+                      )}
+                      {!record.requiresManualReview && record.urgency === "medium" && record.needsResponse && (
+                        <span title="Needs reply" className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 inline-block" />
+                      )}
                       {record.senderName}
                     </span>
                     {(record.source || "gmail") === "gmail" && record.emailSubject && (
@@ -231,11 +289,9 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 <TableCell className="no-print">
                   <div className="flex items-center justify-end gap-1">
                     {record.lmsSynced && (
-                      <CheckCircle2
-                        className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"
-                        title="Synced to LMS"
-                        data-testid={`icon-lms-synced-${record.id}`}
-                      />
+                      <span title="Synced to LMS" data-testid={`icon-lms-synced-${record.id}`}>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      </span>
                     )}
                     <Button
                       size="icon"
@@ -263,8 +319,8 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
         </Table>
       </div>
 
-      <Dialog open={!!viewRecord} onOpenChange={() => setViewRecord(null)}>
-        <DialogContent className="max-w-lg border-violet-500/20 bg-card/95 backdrop-blur-md">
+      <Dialog open={!!viewRecord} onOpenChange={() => { setViewRecord(null); setReplyOpen(false); setReplyBody(""); }}>
+        <DialogContent className="max-w-lg border-violet-500/20 bg-card/95 backdrop-blur-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{viewRecord?.source === "slack" ? "Message Details" : "Email Details"}</DialogTitle>
           </DialogHeader>
@@ -429,6 +485,63 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                 )}
                 {!hasLms && (
                   <p className="text-xs text-muted-foreground">No LMS connected — add one in Settings.</p>
+                )}
+              </div>
+
+              {/* Reply panel */}
+              <div className="rounded-md border border-violet-500/20 bg-violet-500/5 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300 uppercase tracking-wide">
+                    {viewRecord.source === "slack" ? "Reply in Slack" : "Send Reply"}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                    onClick={() => { setReplyOpen(o => !o); if (!replyOpen && !replyBody) handleDraftReply(viewRecord); }}
+                  >
+                    {replyOpen ? <ChevronUp className="w-3.5 h-3.5 mr-1" /> : <ChevronDown className="w-3.5 h-3.5 mr-1" />}
+                    {replyOpen ? "Collapse" : "Compose"}
+                  </Button>
+                </div>
+                {replyOpen && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        To: {viewRecord.source === "slack"
+                          ? `#${viewRecord.slackChannelName || viewRecord.slackChannelId}`
+                          : viewRecord.senderEmail}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-xs text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+                        onClick={() => handleDraftReply(viewRecord)}
+                        disabled={draftLoading}
+                      >
+                        <Sparkles className={`w-3 h-3 mr-1 ${draftLoading ? "animate-pulse" : ""}`} />
+                        {draftLoading ? "Drafting…" : "Re-draft"}
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={replyBody}
+                      onChange={e => setReplyBody(e.target.value)}
+                      placeholder={draftLoading ? "AI is drafting a reply…" : "Type a reply or click Re-draft to generate one…"}
+                      className="text-sm min-h-[100px] border-violet-500/20 bg-background/60 resize-none"
+                      disabled={draftLoading}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        className="h-8 bg-gradient-to-r from-violet-600 to-indigo-600 text-xs"
+                        onClick={() => handleSendReply(viewRecord)}
+                        disabled={!replyBody.trim() || sending || draftLoading}
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1.5" />
+                        {sending ? "Sending…" : viewRecord.source === "slack" ? "Send to Slack" : "Send Email"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
