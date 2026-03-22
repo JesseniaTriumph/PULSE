@@ -67,7 +67,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  setupAuth(app);
+  await setupAuth(app);
   setupGoogleAuth(app);
 
   await registerRoutes(httpServer, app);

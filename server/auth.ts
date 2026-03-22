@@ -20,14 +20,25 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-export function setupAuth(app: Express) {
+export async function setupAuth(app: Express) {
+  // Create session table manually — avoids connect-pg-simple reading table.sql from disk
+  // (which fails when bundled with esbuild since the asset isn't copied to dist/)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid" varchar NOT NULL COLLATE "default",
+      "sess" json NOT NULL,
+      "expire" timestamp(6) NOT NULL,
+      CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+  `);
+
   const PgStore = connectPgSimple(session);
 
   app.use(
     session({
       store: new PgStore({
         pool: pool,
-        createTableIfMissing: true,
       }),
       secret: process.env.SESSION_SECRET!,
       resave: false,
