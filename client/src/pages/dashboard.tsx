@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   Wifi,
   HelpCircle,
+  Network,
   XCircle,
   FileDown,
   FileText,
@@ -111,6 +112,12 @@ const categoryConfig: Record<
     color: "text-violet-600 dark:text-violet-400",
     bgClass: "bg-violet-500/15 border-violet-500/30 dark:bg-violet-500/10 dark:border-violet-500/20",
     glowClass: "shadow-violet-500/10",
+  },
+  Networking: {
+    icon: Network,
+    color: "text-teal-600 dark:text-teal-400",
+    bgClass: "bg-teal-500/15 border-teal-500/30 dark:bg-teal-500/10 dark:border-teal-500/20",
+    glowClass: "shadow-teal-500/10",
   },
   Other: {
     icon: HelpCircle,

@@ -34,6 +34,7 @@ const categoryBadgeColors: Record<string, string> = {
   Family: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
   Administrative: "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
   Technical: "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
+  Networking: "bg-teal-500/20 text-teal-700 border-teal-500/40 dark:text-teal-300 dark:border-teal-500/30",
   Other: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30",
   Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
@@ -55,6 +56,30 @@ const actionLabels: Record<string, string> = {
   zero_out: "Zero out grade",
   makeup_allowed: "Allow makeup",
 };
+
+const CATEGORY_PRIORITY: Record<string, number> = {
+  Unexcused: 0,
+  Medical: 1,
+  Family: 2,
+  Administrative: 3,
+  Technical: 4,
+  Networking: 5,
+  Other: 6,
+};
+
+function sortRecords(records: AttendanceRecord[]): AttendanceRecord[] {
+  return [...records].sort((a, b) => {
+    // 1. Needs review first
+    if (a.requiresManualReview && !b.requiresManualReview) return -1;
+    if (!a.requiresManualReview && b.requiresManualReview) return 1;
+    // 2. By category priority
+    const aPriority = CATEGORY_PRIORITY[a.excuseCategory] ?? 7;
+    const bPriority = CATEGORY_PRIORITY[b.excuseCategory] ?? 7;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    // 3. Newest first within same category
+    return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
+  });
+}
 
 export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
   const [viewRecord, setViewRecord] = useState<AttendanceRecord | null>(null);
@@ -133,7 +158,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {records.map((record) => (
+            {sortRecords(records).map((record) => (
               <TableRow key={record.id} data-testid={`row-record-${record.id}`} className={`border-violet-500/10 hover:bg-violet-500/5 ${record.requiresManualReview ? "bg-yellow-500/5" : ""}`}>
                 <TableCell data-testid={`badge-source-${record.id}`}>
                   {(record.source || "gmail") === "gmail" ? (
