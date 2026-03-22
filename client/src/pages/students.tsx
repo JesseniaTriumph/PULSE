@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Briefcase, Award, ArrowRightLeft, MessageSquare, Check, X } from "lucide-react";
+import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Briefcase, Award, ArrowRightLeft, MessageSquare, Check, X, AtSign } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -17,12 +17,12 @@ import type { Student, Cohort, AttendanceRecord } from "@shared/schema";
 import { studentStatuses } from "@shared/schema";
 
 const categoryBadgeColors: Record<string, string> = {
-  "Sick/Medical": "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
-  Personal: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
-  "Program Event": "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
-  "Technical Issue": "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
+  Medical: "bg-rose-500/20 text-rose-700 border-rose-500/40 dark:text-rose-300 dark:border-rose-500/30",
+  Family: "bg-amber-500/20 text-amber-800 border-amber-500/40 dark:text-amber-300 dark:border-amber-500/30",
+  Administrative: "bg-sky-500/20 text-sky-700 border-sky-500/40 dark:text-sky-300 dark:border-sky-500/30",
+  Technical: "bg-violet-500/20 text-violet-700 border-violet-500/40 dark:text-violet-300 dark:border-violet-500/30",
   Other: "bg-emerald-500/20 text-emerald-700 border-emerald-500/40 dark:text-emerald-300 dark:border-emerald-500/30",
-  None: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
+  Unexcused: "bg-slate-500/20 text-slate-700 border-slate-500/40 dark:text-slate-300 dark:border-slate-500/30",
 };
 
 const typeBadgeColors: Record<string, string> = {
@@ -51,6 +51,7 @@ export default function StudentsPage() {
   const [newStudent, setNewStudent] = useState({ name: "", email: "", cohortId: "" });
   const [slackIdEdit, setSlackIdEdit] = useState(false);
   const [slackIdValue, setSlackIdValue] = useState("");
+  const [altEmailInput, setAltEmailInput] = useState("");
 
   const { data: students = [], isLoading: studentsLoading } = useQuery<Student[]>({
     queryKey: ["/api/students"],
@@ -139,6 +140,43 @@ export default function StudentsPage() {
   };
 
   const moveStudentObj = moveStudentId ? students.find(s => s.id === moveStudentId) : null;
+
+  const handleAddAlternateEmail = async (student: Student) => {
+    const email = altEmailInput.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      toast({ title: "Enter a valid email address", variant: "destructive" });
+      return;
+    }
+    const existing = [student.email.toLowerCase(), ...(student.alternateEmails || []).map(e => e.toLowerCase())];
+    if (existing.includes(email)) {
+      toast({ title: "Email already on this student", variant: "destructive" });
+      return;
+    }
+    try {
+      await apiRequest("PATCH", `/api/students/${student.id}`, {
+        alternateEmails: [...(student.alternateEmails || []), email],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/students", student.id] });
+      setAltEmailInput("");
+      toast({ title: "Alternate email added" });
+    } catch {
+      toast({ title: "Failed to add alternate email", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveAlternateEmail = async (student: Student, email: string) => {
+    try {
+      await apiRequest("PATCH", `/api/students/${student.id}`, {
+        alternateEmails: (student.alternateEmails || []).filter(e => e !== email),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/students", student.id] });
+      toast({ title: "Alternate email removed" });
+    } catch {
+      toast({ title: "Failed to remove alternate email", variant: "destructive" });
+    }
+  };
 
   const handleSaveSlackId = async (studentId: number) => {
     try {
@@ -262,6 +300,48 @@ export default function StudentsPage() {
             <p className="text-xs text-muted-foreground mt-2">
               Slack User ID enables automatic message matching. Find it in Slack under a member's profile → More → Copy member ID.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AtSign className="w-4 h-4 text-violet-500" /> Alternate Emails
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Add any other email addresses this student uses (Slack profile email, personal email, etc.) so messages sent from any of them are matched correctly.
+            </p>
+            {(student.alternateEmails || []).length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {(student.alternateEmails || []).map(email => (
+                  <span key={email} className="flex items-center gap-1 text-xs bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20 rounded-full px-2.5 py-1">
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAlternateEmail(student, email)}
+                      className="ml-1 hover:text-rose-500 transition-colors"
+                      aria-label={`Remove ${email}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={altEmailInput}
+                onChange={e => setAltEmailInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAddAlternateEmail(student)}
+                placeholder="other@email.com"
+                className="h-8 text-sm border-violet-500/20 max-w-xs"
+              />
+              <Button size="sm" variant="outline" className="h-8 border-violet-500/20" onClick={() => handleAddAlternateEmail(student)}>
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

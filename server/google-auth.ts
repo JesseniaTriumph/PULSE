@@ -88,7 +88,7 @@ export function setupGoogleAuth(app: Express) {
       clientIdSet: !!GOOGLE_CLIENT_ID,
       clientIdPrefix: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 25) + "..." : null,
       clientSecretSet: !!GOOGLE_CLIENT_SECRET,
-      hint: "If clientId looks wrong, re-check PULSE_GOOGLE_CLIENT_ID in Replit Secrets. The redirect URI in Google Console must exactly match: https://53e82104-7131-4dd1-b9aa-34ec8a5a2d54-00-nixix7l2kl4k.picard.replit.dev/api/auth/google/callback"
+      hint: "Redirect URI is built dynamically from request headers. Ensure your Google Cloud Console OAuth credentials include the exact redirect URI shown in redirectUri above."
     });
   });
 

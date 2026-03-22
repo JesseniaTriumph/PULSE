@@ -39,6 +39,7 @@ const EXCUSE_CATEGORY_EMOJIS: Record<string, string> = {
   "Family": ":pray:",
   "Administrative": ":courthouse:",
   "Technical": ":computer:",
+  "Other": ":pushpin:",
   "Unexcused": ":no_entry:",
 };
 
@@ -47,6 +48,7 @@ const EXCUSE_CATEGORY_TAGS: Record<string, string> = {
   "Family": "#family-emergency",
   "Administrative": "#administrative",
   "Technical": "#technical",
+  "Other": "#other",
   "Unexcused": "#unexcused",
 };
 
@@ -122,7 +124,7 @@ async function handlePulseRecap(payload: SlackInteractionPayload): Promise<any> 
     // Get recent records
     const allRecords = await storage.getAllRecordsAdmin();
     let recentRecords = allRecords
-      .filter(r => r.attendanceType !== "Late/Tardy" || r.excuseCategory !== "None")
+      .filter(r => r.attendanceType !== "Late/Tardy" || r.excuseCategory !== "Unexcused")
       .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
       .slice(0, 5);
 
@@ -212,7 +214,7 @@ Keep it brief and actionable. Use bullet points.`;
 
     // Add trend warning if concerning pattern detected
     const medicalCount = categoryCounts["Medical/Hospitalization"] || 0;
-    const unexcusedCount = categoryCounts["None"] || 0;
+    const unexcusedCount = categoryCounts["Unexcused"] || 0;
 
     if (medicalCount >= 3) {
       blocks.push({
