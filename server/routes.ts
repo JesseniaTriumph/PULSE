@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { emailInputSchema, batchEmailInputSchema, excuseCategories, insertCohortSchema, insertStudentSchema, insertScheduleSchema } from "@shared/schema";
-import { categorizeExcuse } from "./openai";
+import { categorizeExcuse, generateReplyDraft } from "./openai";
 import { randomUUID } from "crypto";
 import { requireAuth } from "./auth";
 import { handleSlackInteraction, handleSlackEvent } from "./slack-commands";
@@ -126,6 +126,39 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/students/import", requireAuth, async (req, res) => {
+    try {
+      const { students: rows, cohortId } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ error: "students array is required" });
+      }
+      const parsed: Array<{ name: string; email: string; cohortId: number; slackUserId?: string }> = [];
+      const errors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r.name?.trim() || !r.email?.trim()) {
+          errors.push(`Row ${i + 1}: name and email are required`);
+          continue;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email.trim())) {
+          errors.push(`Row ${i + 1}: invalid email "${r.email}"`);
+          continue;
+        }
+        const resolvedCohortId = parseInt(r.cohortId || cohortId);
+        if (!resolvedCohortId) {
+          errors.push(`Row ${i + 1}: cohortId is required`);
+          continue;
+        }
+        parsed.push({ name: r.name.trim(), email: r.email.trim().toLowerCase(), cohortId: resolvedCohortId, ...(r.slackUserId ? { slackUserId: r.slackUserId.trim() } : {}) });
+      }
+      const result = await storage.bulkCreateStudents(parsed);
+      res.json({ ...result, errors });
+    } catch (error) {
+      console.error("Error importing students:", error);
+      res.status(500).json({ error: "Failed to import students" });
+    }
+  });
+
   app.post("/api/students", requireAuth, async (req, res) => {
     try {
       const { name, email, cohortId } = req.body;
@@ -155,7 +188,7 @@ export async function registerRoutes(
         }
       }
 
-      const allowedFields: Record<string, boolean> = { status: true, cohortId: true, name: true, email: true, slackUserId: true };
+      const allowedFields: Record<string, boolean> = { status: true, cohortId: true, name: true, email: true, slackUserId: true, alternateEmails: true };
       const updateData: Record<string, any> = {};
       for (const key of Object.keys(req.body)) {
         if (!allowedFields[key]) continue;
@@ -859,11 +892,11 @@ export async function registerRoutes(
 
   app.post("/api/slack-channels", requireAdmin, async (req, res) => {
     try {
-      const { cohortId, channelId, channelName } = req.body;
+      const { cohortId, channelId, channelName, slackBotToken } = req.body;
       if (!cohortId || !channelId || !channelName) {
         return res.status(400).json({ error: "cohortId, channelId, and channelName are required" });
       }
-      const config = await storage.createSlackChannelConfig({ cohortId, channelId, channelName });
+      const config = await storage.createSlackChannelConfig({ cohortId, channelId, channelName, slackBotToken: slackBotToken || null });
       res.status(201).json(config);
     } catch (error) {
       console.error("Error creating slack channel config:", error);
@@ -896,6 +929,28 @@ export async function registerRoutes(
 
   app.get("/api/slack/status", requireAuth, async (_req, res) => {
     res.json({ connected: !!process.env.SLACK_BOT_TOKEN });
+  });
+
+  app.post("/api/ai/draft-reply", requireAuth, async (req, res) => {
+    try {
+      const { recordId } = req.body;
+      if (!recordId) return res.status(400).json({ error: "recordId required" });
+
+      const record = await storage.getRecordById(recordId);
+      if (!record) return res.status(404).json({ error: "Record not found" });
+
+      const draft = await generateReplyDraft(record.emailBody, {
+        senderName: record.senderName,
+        attendanceType: record.attendanceType,
+        category: record.excuseCategory,
+        assessmentAction: record.assessmentAction || "none",
+      });
+
+      res.json({ draft });
+    } catch (error) {
+      console.error("Error generating reply draft:", error);
+      res.status(500).json({ error: "Failed to generate draft" });
+    }
   });
 
   app.post("/api/slack/send", requireAuth, async (req, res) => {
@@ -1058,30 +1113,36 @@ export async function registerRoutes(
     }
   });
 
+  function verifySlackSignature(req: Request, res: Response): boolean {
+    const signingSecret = process.env.SLACK_SIGNING_SECRET;
+    if (!signingSecret) {
+      res.status(500).json({ error: "Slack signing secret not configured" });
+      return false;
+    }
+    const signature = req.headers["x-slack-signature"] as string;
+    const timestamp = req.headers["x-slack-request-timestamp"] as string;
+    if (!signature || !timestamp) {
+      res.status(401).json({ error: "Missing Slack signature headers" });
+      return false;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - parseInt(timestamp)) > 300) {
+      res.status(401).json({ error: "Request timestamp too old" });
+      return false;
+    }
+    const body = JSON.stringify(req.body);
+    const hash = crypto.createHmac("sha256", signingSecret).update(`v0:${timestamp}:${body}`).digest("hex");
+    if (`v0=${hash}` !== signature) {
+      res.status(401).json({ error: "Invalid signature" });
+      return false;
+    }
+    return true;
+  }
+
   // Slack slash commands and interactive messages
   app.post("/api/slack/interactions", async (req, res) => {
     try {
-      const signingSecret = process.env.SLACK_SIGNING_SECRET;
-
-      if (signingSecret) {
-        const signature = req.headers["x-slack-signature"] as string;
-        const timestamp = req.headers["x-slack-request-timestamp"] as string;
-        const body = JSON.stringify(req.body);
-
-        const hash = crypto.createHmac("sha256", signingSecret).update(`v0:${timestamp}:${body}`).digest("hex");
-        const computedSignature = `v0=${hash}`;
-
-        if (signature !== computedSignature) {
-          console.warn("[Slack] Invalid signature");
-          return res.status(401).json({ error: "Invalid signature" });
-        }
-
-        const now = Math.floor(Date.now() / 1000);
-        if (Math.abs(now - parseInt(timestamp)) > 300) {
-          console.warn("[Slack] Request timestamp too old");
-          return res.status(401).json({ error: "Request timestamp too old" });
-        }
-      }
+      if (!verifySlackSignature(req, res)) return;
 
       const result = await handleSlackInteraction(req.body);
       res.status(result.status).send();
@@ -1096,12 +1157,13 @@ export async function registerRoutes(
     try {
       const { type, challenge, event, team_id } = req.body;
 
-      // URL verification challenge
+      // URL verification challenge — skip signature check for initial Slack setup
       if (type === "url_verification") {
         return res.send(challenge);
       }
 
-      // Handle events
+      if (!verifySlackSignature(req, res)) return;
+
       if (type === "event_callback" && event) {
         await handleSlackEvent(event, team_id);
       }

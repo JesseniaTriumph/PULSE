@@ -1,5 +1,14 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+
+// Fail fast on missing required env vars
+const REQUIRED_ENV = ["SESSION_SECRET", "DATABASE_URL"];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`FATAL: Missing required environment variable: ${key}`);
+    process.exit(1);
+  }
+}
 import { registerRoutes } from "./routes";
 import { setupAuth } from "./auth";
 import { setupGoogleAuth } from "./google-auth";

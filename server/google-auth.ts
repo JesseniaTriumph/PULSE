@@ -64,10 +64,6 @@ export function setupGoogleAuth(app: Express) {
     const state = crypto.randomBytes(16).toString("hex");
     req.session.oauthState = state;
 
-    console.log("[Google OAuth] Redirect URI:", redirectUri);
-    console.log("[Google OAuth] Client ID prefix:", GOOGLE_CLIENT_ID?.substring(0, 20) + "...");
-    console.log("[Google OAuth] Headers - host:", req.headers.host, "x-forwarded-host:", req.headers["x-forwarded-host"], "x-forwarded-proto:", req.headers["x-forwarded-proto"]);
-
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
       redirect_uri: redirectUri,
@@ -79,18 +75,19 @@ export function setupGoogleAuth(app: Express) {
     });
 
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-    console.log("[Google OAuth] Full auth URL:", authUrl);
     res.redirect(authUrl);
   });
 
-  app.get("/api/auth/google/debug", (_req: Request, res: Response) => {
-    res.json({
-      clientIdSet: !!GOOGLE_CLIENT_ID,
-      clientIdPrefix: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 25) + "..." : null,
-      clientSecretSet: !!GOOGLE_CLIENT_SECRET,
-      hint: "Redirect URI is built dynamically from request headers. Ensure your Google Cloud Console OAuth credentials include the exact redirect URI shown in redirectUri above."
+  if (process.env.NODE_ENV !== "production") {
+    app.get("/api/auth/google/debug", (_req: Request, res: Response) => {
+      res.json({
+        clientIdSet: !!GOOGLE_CLIENT_ID,
+        clientIdPrefix: GOOGLE_CLIENT_ID ? GOOGLE_CLIENT_ID.substring(0, 25) + "..." : null,
+        clientSecretSet: !!GOOGLE_CLIENT_SECRET,
+        hint: "Redirect URI is built dynamically from request headers. Ensure your Google Cloud Console OAuth credentials include the exact redirect URI shown in redirectUri above."
+      });
     });
-  });
+  }
 
   app.get("/api/auth/google/callback", async (req: Request, res: Response) => {
     try {
