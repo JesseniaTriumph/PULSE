@@ -6,7 +6,7 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system bu
 ## Architecture
 - **Frontend**: React + Vite + Tailwind CSS + Shadcn UI (wouter for routing, @tanstack/react-query)
 - **Backend**: Express.js + PostgreSQL (Drizzle ORM) + OpenAI AI Integrations
-- **AI**: Multi-LLM fallback system using Replit AI Integrations (OpenAI): tries gpt-5-nano (cheapest) → gpt-5-mini → gpt-5.2 (most capable). Performs dual-classification (attendanceType + excuseCategory), alert detection (needsResponse, urgency, alertReason), and peer/school mention detection (mentionsStudent, mentionsSchool, peerOrSchoolDetail)
+- **AI**: Hybrid two-stage classification system. Stage 1: keyword pre-classifier (free, zero API calls) handles ~80% of emails. Stage 2: OpenAI fallback (gpt-4o-mini → gpt-4o escalation) for ambiguous cases only. Roster-only pre-filter skips non-enrolled senders before any classification. Performs dual-classification (attendanceType + category), alert detection (needsResponse, urgency, alertReason), and peer/school mention detection (mentionsStudent, mentionsSchool, peerOrSchoolDetail)
 - **Auth**: Session-based auth with bcrypt, express-session + connect-pg-simple; Google OAuth for sign-in + Gmail access (read + send); role-based access (admin/instructor)
 - **Theme**: Dark/light mode with ThemeProvider (localStorage persistence); dark mode: full star field (120 stars), light mode: subtle corner sparkles (20 sparkles); CSS variables in :root (light) and .dark (dark); Tailwind darkMode: ["class"]
 - **Scheduler**: Interval-based scanner (every 30s) checking configured scan times; per-source flags (scanGmail, scanSlack) control which sources to scan at each time; auto-fetches Gmail and/or Slack, processes messages, creates alerts
@@ -26,7 +26,7 @@ PULSE is a space-themed, multi-tenant AI-powered attendance management system bu
   - Both filters work together (e.g., show only Late/Tardy + Personal records)
 - Alert system with mark read/unread, urgency levels (low/medium/high), peer mentions (student-about-student), and school/program reports (about Pursuit, classes, curriculum, instructors)
 - Direct email reply from Alerts page: compose reply → sent via instructor's Gmail with proper email threading (In-Reply-To, References headers, Gmail threadId)
-- Multi-LLM fallback: nano → mini → full model chain to minimize costs; escalates only on low confidence (<0.4) or failure
+- Hybrid AI: keyword pre-classifier (free) → gpt-4o-mini → gpt-4o fallback; roster-only filter skips non-students before any classification
 - Automated scanning at 5 configurable times (default: 10:00 AM, 2:00 PM, 6:25 PM, 8:00 PM, 9:55 PM)
 - Per-source scan control: each scan time has independent Gmail and Slack toggles in Settings
 - Slack scanning: scans configured channels and DMs for attendance keywords, processes through AI, creates records with Slack metadata
@@ -138,10 +138,14 @@ client/src/pages/auth.tsx       - Login/Register page (space themed, Google sign
 
 ## Environment Secrets
 - `SESSION_SECRET` - express-session cookie signing
-- `DATABASE_URL` - PostgreSQL connection string
-- `PULSE_GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `PULSE_GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `SLACK_BOT_TOKEN` - Slack Bot User OAuth Token (optional; needed for Slack scanning; scopes: channels:history, groups:history, im:history, channels:read, users:read, users:read.email, chat:write)
+- `DATABASE_URL` - PostgreSQL connection string (Supabase session pooler)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `OPENAI_API_KEY` - OpenAI API key (required for AI classification of ambiguous emails)
+- `SLACK_BOT_TOKEN` - Slack Bot User OAuth Token (xoxb-...; needed for Slack scanning; scopes: channels:history, groups:history, im:history, channels:read, users:read, users:read.email, chat:write, groups:read)
+- `SLACK_SIGNING_SECRET` - Slack app signing secret
+- `SLACK_CLIENT_ID` - Slack app client ID
+- `SLACK_APP_ID` - Slack app ID
 
 ## Security Notes
 - PATCH /api/students/:id enforces instructor ownership (can only modify students in their own classes)

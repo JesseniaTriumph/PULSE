@@ -60,7 +60,67 @@ async function runGmailScan(userId: number) {
     return;
   }
 
-  const searchQuery = "newer_than:1d (absent OR absence OR excuse OR sick OR cannot attend OR won't be able OR can't make it OR unable to attend OR not coming OR won't be in OR missing class OR out today OR out sick OR not feeling well OR under the weather OR late OR tardy OR running late OR delayed OR will be late OR running behind OR held up OR stuck in traffic OR stepping out OR leaving early OR emergency OR appointment OR called out)";
+  const searchQuery = [
+    "newer_than:1d",
+    "(",
+    // Absence / not attending
+    "absent OR absence OR \"not coming\" OR \"won't be in\" OR \"won't be there\"",
+    "OR \"can't come\" OR \"cannot attend\" OR \"unable to attend\"",
+    "OR \"not going to make it\" OR \"not gonna make it\" OR \"won't make it\" OR \"can't make it\"",
+    "OR \"missing class\" OR \"missing today\" OR \"out today\" OR \"called out\" OR \"calling out\"",
+    "OR \"something came up\" OR \"something happened\" OR \"personal matter\" OR \"personal issue\"",
+    "OR \"family matter\" OR \"family situation\" OR \"unexpected\" OR \"unavailable\"",
+    "OR \"wanted to let you know\" OR \"letting you know\" OR \"heads up\"",
+    // Lateness
+    "OR late OR tardy OR \"running late\" OR \"running behind\" OR \"will be late\"",
+    "OR \"leaving early\" OR \"stepping out\" OR delayed OR \"held up\"",
+    "OR \"few minutes late\" OR \"a little late\"",
+    // Health / medical
+    "OR sick OR ill OR illness OR fever OR flu OR covid OR quarantine",
+    "OR migraine OR headache OR hospital OR \"urgent care\" OR \"emergency room\"",
+    "OR doctor OR \"doctor's appointment\" OR specialist OR \"follow-up\"",
+    "OR \"not feeling well\" OR \"under the weather\" OR injury OR injured",
+    "OR \"food poisoning\" OR nausea OR \"throwing up\" OR vomiting",
+    "OR \"mental health\" OR anxiety OR \"panic attack\" OR depression OR overwhelmed OR burnout",
+    "OR therapy OR surgery OR procedure OR medication OR prescription OR pharmacy",
+    "OR dentist OR dental OR optometrist OR prenatal OR pregnant",
+    "OR \"blood work\" OR \"physical therapy\"",
+    // Family / caretaking / parenting
+    "OR emergency OR \"family emergency\" OR funeral OR bereavement OR \"passed away\"",
+    "OR died OR wake OR memorial OR mourning OR grieving OR loss",
+    "OR \"my kid\" OR \"my child\" OR \"my son\" OR \"my daughter\" OR \"my baby\"",
+    "OR \"school pickup\" OR \"school drop off\" OR daycare OR childcare OR babysitter",
+    "OR pediatrician OR \"child is sick\" OR \"kid is sick\"",
+    "OR \"my mom\" OR \"my dad\" OR \"my mother\" OR \"my father\" OR \"my parent\"",
+    "OR \"my grandma\" OR \"my grandpa\" OR \"my brother\" OR \"my sister\"",
+    "OR \"taking care of\" OR caregiver OR caretaker OR \"nursing home\"",
+    "OR \"my partner\" OR \"my spouse\" OR \"my husband\" OR \"my wife\"",
+    "OR \"my boyfriend\" OR \"my girlfriend\"",
+    // Work / employment conflicts
+    "OR \"work ran late\" OR \"work conflict\" OR \"called into work\" OR \"got called in\"",
+    "OR \"work emergency\" OR overtime OR interview OR \"job interview\" OR internship",
+    // Housing / home emergencies
+    "OR eviction OR \"housing court\" OR \"gas leak\" OR \"locked out\" OR \"no heat\"",
+    "OR \"break in\" OR \"flat tire\" OR \"car broke down\"",
+    // Legal / government / benefits
+    "OR \"jury duty\" OR \"court date\" OR arraignment OR probation",
+    "OR immigration OR visa OR DMV OR \"social security\" OR \"public assistance\"",
+    "OR \"housing authority\" OR NYCHA",
+    // NYC transit
+    "OR subway OR \"the train\" OR MTA OR \"train delay\" OR \"subway delay\"",
+    "OR \"signal problem\" OR \"track problem\" OR \"track work\" OR \"service disruption\"",
+    "OR LIRR OR \"NJ Transit\" OR PATH OR ferry",
+    // Traffic / transport
+    "OR \"stuck in traffic\" OR traffic OR accident OR \"car accident\"",
+    // Weather (NYC)
+    "OR snowstorm OR blizzard OR flooding OR \"power outage\" OR \"heat wave\"",
+    // Technical / connectivity
+    "OR \"internet down\" OR \"no internet\" OR wifi OR \"can't log in\" OR \"laptop crashed\"",
+    "OR \"no connection\" OR hotspot",
+    // General
+    "OR appointment OR excuse",
+    ")",
+  ].join(" ");
 
   try {
     let accessToken = user.googleAccessToken;
@@ -159,13 +219,19 @@ async function runGmailScan(userId: number) {
 
         if (!body.trim()) continue;
 
-        const categorization = await categorizeExcuse(body);
-        const snippet = body.substring(0, 150).replace(/\n/g, " ").trim();
-
+        // Only process emails from students on the roster — skip non-roster senders entirely
         const matchedStudent = allStudents.find(
           s => s.email.toLowerCase() === senderEmail.toLowerCase()
             || s.name.toLowerCase() === senderName.toLowerCase()
         );
+
+        if (!matchedStudent) {
+          console.log(`[Scheduler] Skipping ${senderEmail} — not on student roster`);
+          continue;
+        }
+
+        const categorization = await categorizeExcuse(body);
+        const snippet = body.substring(0, 150).replace(/\n/g, " ").trim();
 
         const record = await storage.createRecord({
           userId,

@@ -1,8 +1,8 @@
 # PULSE — Project Documentation
 
 **Multi-Tenant Attendance Automation Tool for Pursuit**
-**Version:** 3.0
-**Last Updated:** February 28, 2026
+**Version:** 5.0
+**Last Updated:** March 21, 2026
 
 ---
 
@@ -47,7 +47,8 @@ Program administrators and instructors spend significant time manually reading, 
 | **Student Roster** | Per-class student lists with status tracking (Active/Graduated/Hired); per-student attendance history and profile view |
 | **Class Progression** | Bulk promote all active students in a class to a target class; individually move students between classes |
 | **Dual-Classification AI** | Every email classified on two axes: Attendance Type (Absent, Late/Tardy, Unexcused) + Excuse Category (Sick/Medical, Personal, Program Event, Technical Issue, Other, None) |
-| **Multi-LLM Fallback** | Cost-optimized AI: tries nano model first → mini → full; escalates only on low confidence (<0.4) or failure |
+| **Hybrid AI Classification** | Cost-optimized two-stage system: keyword pre-classifier runs first (free, no API call) → handles ~80% of emails; OpenAI (`gpt-4o-mini` → `gpt-4o` fallback) handles ambiguous cases only |
+| **Roster-Only Scanning** | Gmail and Slack scans skip all non-roster senders before any AI call — only emails/messages from enrolled students trigger classification |
 | **Alert Detection** | AI flags emails needing instructor response (questions, special requests, urgent matters); urgency levels (low/medium/high); peer mention detection (student-about-student); school/program mention detection |
 | **Alert Management** | Alert feed with mark read/unread, urgency color-coding, full email body detail view, unread count badge in sidebar |
 | **Email Reply from Portal** | Compose and send replies to student emails directly from the Alerts page; sent via instructor's connected Gmail with proper email threading |
@@ -523,45 +524,48 @@ attendance_records 1:N → alerts (record_id)
 - Auto-seeds: 2 instructor accounts (instructor_smith for L1/L2, instructor_jones for L3/L∞), 4 cohorts, 12 students (all Active), schedule entries, 7 attendance records (4 Absent, 2 Late/Tardy, 1 Unexcused), 2 alerts
 - No Google ID attached (Gmail features unavailable in demo)
 
-### 4.2 Multi-LLM AI Classification Engine
+### 4.2 Hybrid AI Classification Engine
 
-**Provider**: OpenAI via Replit AI Integrations
-**Model Tiers** (cost optimization):
+**Design**: Two-stage system minimizes OpenAI costs — ~80% of emails are classified by keyword pre-classifier for free; only ambiguous cases hit OpenAI.
+
+**Stage 1 — Keyword Pre-Classifier** (free, zero API calls):
+- Detects absence/late attendance type via keyword lists (`won't be`, `running late`, etc.)
+- Scores against Medical / Family / Administrative / Technical keyword sets
+- Returns result on ≥1 category hit; confidence = `min(0.72 + hits×0.04, 0.92)`
+
+**Stage 2 — OpenAI Fallback** (ambiguous emails only):
 | Tier | Model | When Used |
 |---|---|---|
-| nano | gpt-5-nano | First attempt (cheapest) |
-| mini | gpt-5-mini | Escalation if nano confidence < 0.4 or fails |
-| full | gpt-5.2 | Final escalation if mini also low confidence or fails |
+| mini | gpt-4o-mini | First OpenAI attempt (lower cost) |
+| full | gpt-4o | Escalation if mini confidence < 0.4 or fails |
+
+**Roster-Only Pre-filter** (before any classification):
+- Sender email/name matched against instructor's enrolled student roster
+- Non-roster senders skipped entirely — no keyword check, no AI call
 
 **Response Format**: JSON mode (`response_format: { type: "json_object" }`)
 
-**Dual-Classification + Alert Detection Prompt**:
-The AI prompt instructs the model to analyze each email and return:
+**Classification Fields**:
 1. `attendanceType`: Absent, Late/Tardy, or Unexcused
-2. `category`: Sick/Medical, Personal, Program Event, Technical Issue, Other, or None
-3. `confidence`: Float 0-1 indicating classification confidence
-4. `reasoning`: One-sentence explanation
-5. `needsResponse`: Boolean — does email contain a question or request?
-6. `urgency`: low, medium, or high
-7. `alertReason`: Why the email needs attention (if applicable)
-8. `mentionsStudent`: Boolean — does a student mention another student?
-9. `mentionsSchool`: Boolean — does email mention Pursuit/program/curriculum/instructors?
-10. `peerOrSchoolDetail`: Details of what was mentioned
+2. `category`: Medical, Family, Administrative, Technical, or Unexcused
+3. `confidence`: Float 0-1
+4. `confidenceTier`: low (<0.4) / medium (0.4-0.7) / high (>0.7)
+5. `reasoning`: One-sentence explanation
+6. `needsResponse`: Boolean
+7. `urgency`: low, medium, or high
+8. `alertReason`: string or null
+9. `mentionsStudent` / `mentionsSchool`: Boolean peer/school detection
+10. `recommendedAssessmentAction`: excuse / makeup_allowed / zero_out / none
 
-**Escalation Logic**:
+**Classification Flow**:
 ```
-parseResponse returns null if confidence < 0.4
-   → triggers escalation to next model tier
-   → if all tiers exhausted → defaults to Absent/Unexcused/0 confidence
+Incoming email/message
+  → Roster check: not enrolled? skip (free)
+  → Stage 1 keywords: clear signal? return result (free)
+  → Stage 2 gpt-4o-mini: low confidence? escalate
+  → Stage 2 gpt-4o: all fail? requiresManualReview=true
+Medium-confidence AI results → Slack alert to instructor for manual review
 ```
-
-**Phrase Recognition** (comprehensive examples in prompt):
-- Sick/Medical: not feeling well, under the weather, flu, fever, migraine, hospital, ER, urgent care, therapy, mental health day, COVID, quarantine, food poisoning, surgery, recovery
-- Personal: family emergency, funeral, wedding, out of town, traveling, personal matter, child care, moving, jury duty, court date, religious observance, bereavement
-- Program Event: conference, workshop, hackathon, career fair, networking event, field trip, orientation, guest speaker, company visit
-- Technical Issue: internet down, WiFi issues, laptop broken, power outage, car broke down, bus delayed, train cancelled, can't log in
-- Late/Tardy indicators: running late, running behind, stuck in traffic, held up, on my way, be there soon, overslept but coming, parking issues, stepping in late, missed the bus but on my way
-- Unexcused indicators: can't make it (no reason), something came up (no details), just won't be there
 
 ### 4.3 Gmail Integration
 
@@ -1470,7 +1474,7 @@ Key differentiators:
 | Batch upload | Complete | JSON and CSV support, SSE streaming |
 | Gmail fetch | Complete | Search, select, process with Message-ID storage |
 | Gmail send (reply) | Complete | Threaded replies from Alerts page with header injection prevention |
-| Multi-LLM AI classification | Complete | nano → mini → full fallback chain |
+| Multi-LLM AI classification | Complete | Keyword pre-classifier (free) → gpt-4o-mini → gpt-4o fallback chain |
 | Alert detection | Complete | needsResponse, urgency, peer mentions, school mentions |
 | Alert management | Complete | Feed, mark read/unread, detail view, reply, sidebar badge |
 | Attendance type filter buttons | Complete | All/Absent/Late-Tardy/Unexcused with counts |
@@ -1496,7 +1500,16 @@ Key differentiators:
 | Theme persistence | Complete | localStorage |
 | Sidebar navigation | Complete | Role-based items, alert badge, collapse on mobile |
 | Responsive design | Complete | Mobile-first with breakpoints |
-| Slack integration | Complete (Backend) | Slack scanner, channel configs, per-source scan toggles all built; requires SLACK_BOT_TOKEN to activate |
+| Slack channel scanning | Complete | Channel + thread + DM scanning; keyword match → AI classify; deduplication |
+| Slack channel config UI | Complete | Settings page; admin can add/toggle/delete channel mappings |
+| Slack reply from portal | Complete | Reply in-thread via chat.postMessage from Alerts page |
+| Student Slack ID mapping | Complete | slackUserId on students table; editable from profile; scanner prioritizes it |
+| Duplicate message prevention | Complete | gmailMessageId + slackMessageTs dedup before creating records |
+| Dashboard analytics | Complete | Attendance trend bar chart + top students; toggled via Analytics button |
+| Notification system | Complete | 60s polling of unread count; toast fires when new alerts arrive |
+| Thread message scanning | Complete | conversations.replies fetched for all parent messages with replies |
+| AI draft reply | Complete | Reply dialog auto-generates draft using student context; editable before send |
+| Expanded keyword detection | Complete | NYC transit, life situations, caretaking, parenting, weather, work conflicts |
 
 ### 9.3 Security Measures
 
@@ -1555,14 +1568,14 @@ Key differentiators:
 
 ## 10. Project Roadmap
 
-### 10.1 Completed (v4.0)
+### 10.1 Completed (v5.0)
 
 - Multi-tenant with Admin/Instructor roles
 - Class management (L1, L2, L3, L∞) with instructor assignment
 - Student roster with Active/Graduated/Hired status tracking
 - Class progression (bulk promote, individual move)
 - Dual-classification AI (attendance type + excuse category)
-- Multi-LLM fallback (nano → mini → full)
+- Hybrid AI classification (keyword pre-classifier free tier + gpt-4o-mini/gpt-4o fallback)
 - Alert system with urgency, peer mentions, school mentions
 - Direct email reply from portal with Gmail threading
 - Automated multi-source scanning (Gmail + Slack) at 5 configurable times
@@ -1577,59 +1590,65 @@ Key differentiators:
 - Dark/light mode with animated star field and proper contrast in both modes
 - Google OAuth with reconnect for scope upgrades
 - Settings page with scan schedule config and per-source toggles
-- Slack channel config CRUD (admin only)
+- Slack channel config CRUD UI in Settings (admin only)
+- **Duplicate message prevention** — Gmail + Slack dedup using gmailMessageId / slackMessageTs
+- **Student Slack ID mapping** — slackUserId on students table, editable from profile, scanner prioritizes it
+- **Slack reply from portal** — Reply in-thread to Slack messages from Alerts page via chat.postMessage
+- **Dashboard analytics** — Attendance trend bar chart + top students by absence count (Analytics toggle)
+- **Notification system** — Sidebar polls unread count every 60s; toast fires when new alerts arrive
+- **Thread message scanning** — Slack scanner fetches thread replies (conversations.replies) for parent messages with replies
+- **AI draft reply** — Reply dialog auto-generates contextual draft using student name, type, category, and assessment action
+- **Expanded keyword detection** — NYC transit, life situations (caretaking, parenting, housing, legal, mental health, work), weather, general notification phrases
 
 ### 10.2 Current Status & What Still Needs To Be Done
 
-#### COMPLETED — Built and functional:
+#### COMPLETED — All code built and functional:
 - All core attendance features (classification, alerts, records, exports)
-- Gmail integration (OAuth, fetch, send, automated scanning)
-- Slack scanning backend (`server/slack-scanner.ts`)
+- Gmail integration (OAuth, fetch, send, automated scanning, dedup)
+- Slack integration (channel + thread + DM scanning, dedup, reply from portal, channel config UI)
+- Student Slack ID mapping (schema + profile UI + scanner priority)
+- Dashboard analytics (trend chart + top students by absence)
+- Notification system (60s polling + toast on new alerts)
+- AI draft reply (auto-generated contextual draft pre-fills reply dialog)
 - Per-source scan controls (Settings UI + backend)
-- Multi-source dashboard UI (Gmail/Slack filter, source column, icons)
+- Multi-source dashboard (Gmail/Slack filter, source column, icons)
 - Light/dark mode with proper contrast in both modes
+- Expanded keyword coverage (NYC transit, life roles, general notification phrases)
+- Roster-only scanning — non-roster senders skipped before any AI call
 
-#### NEEDS EXTERNAL SETUP — Code is built but requires user/admin action:
+#### NEEDS EXTERNAL SETUP — Credentials and one-time actions required:
 
-| Item | What's Needed | Who Does It | Status |
-|---|---|---|---|
-| **Google OAuth** | Google Cloud Console project with OAuth 2.0 credentials | User/Admin | Partially configured (env vars exist but app is in "Testing" mode) |
-| **SLACK_BOT_TOKEN** | Slack app created at api.slack.com/apps with Bot Token scopes | User/Admin | NOT YET PROVIDED — scanner will gracefully skip |
-| **Slack Channel Configs** | Map Slack channels to classes via Settings/API | User/Admin | UI endpoint exists, no channels configured yet |
+| Item | What's Needed | Status |
+|---|---|---|
+| **OpenAI API Key** | Set `OPENAI_API_KEY` in `.env` from platform.openai.com | Required for AI classification |
+| **Google OAuth** | Set `PULSE_GOOGLE_CLIENT_ID` + `PULSE_GOOGLE_CLIENT_SECRET` in `.env`; move app from Testing → Production in Google Cloud Console | Required for Gmail features |
+| **SLACK_BOT_TOKEN** | Create Slack app → add scopes → install to workspace → copy `xoxb-` token → set in `.env` | Required for Slack scanning |
+| **Slack Channel Config** | After token is set, add cohort channels in Settings → Slack Integration | Required for channel scanning |
+| **Database migration** | Run `npm run db:push` to apply `slack_user_id` column on students table | Required once |
 
-#### TODO LIST — Remaining work items:
+#### Slack Bot Scopes Required:
+```
+channels:history
+groups:history
+im:history
+users:read
+users:read.email
+chat:write
+channels:read
+groups:read
+```
 
-**Priority 1 — Required for Production:**
+#### TODO LIST — Future features (all current P1/P2 items complete):
 
-| # | Task | Details | Files |
-|---|---|---|---|
-| 1 | **Google OAuth Production Setup** | Move Google Cloud Console app from "Testing" to "Production" status OR add all user emails as authorized test users. Currently the app can only be used by accounts explicitly added as test users in Google Cloud Console. | External: Google Cloud Console |
-| 2 | **Provide SLACK_BOT_TOKEN** | Create Slack app at api.slack.com/apps → OAuth & Permissions → add Bot Token Scopes → Install to Workspace → copy Bot User OAuth Token → set as `SLACK_BOT_TOKEN` env secret | External: Slack admin |
-| 3 | **Configure Slack Channels** | After providing SLACK_BOT_TOKEN, use `/api/slack-channels` POST endpoint to map Slack channels to classes (cohortId, channelId, channelName) | API calls or future Settings UI |
-| 4 | **Slack Channel Config UI** | Build a Settings section or separate page for admins to browse/select Slack channels and map them to classes | `client/src/pages/settings.tsx` or new page |
-| 5 | **Duplicate Message Prevention** | Add deduplication logic to prevent re-processing the same Gmail/Slack message on subsequent scans (check gmailMessageId / slackMessageTs before creating record) | `server/scheduler.ts`, `server/slack-scanner.ts` |
-
-**Priority 2 — Important Improvements:**
-
-| # | Task | Details | Files |
-|---|---|---|---|
-| 6 | **Slack Reply from Portal** | Add ability to reply to Slack messages directly from the Alerts page (similar to Gmail reply); uses `chat.postMessage` API | `server/routes.ts`, `client/src/pages/alerts.tsx` |
-| 7 | **Student Slack ID Mapping** | Add Slack user ID to student records for better sender matching; currently matches by email/name | `shared/schema.ts`, `server/slack-scanner.ts` |
-| 8 | **Dashboard Analytics** | Add charts/graphs for attendance trends over time, per-student patterns, cohort comparison | `client/src/pages/dashboard.tsx` or new analytics page |
-| 9 | **Notification System** | Push notifications or email alerts to instructors when high-urgency messages arrive | New feature |
-| 10 | **Thread Message Scanning** | Currently Slack scanner skips threaded replies; add option to scan thread messages too | `server/slack-scanner.ts` |
-
-**Priority 3 — Nice to Have:**
-
-| # | Task | Details | Files |
-|---|---|---|---|
-| 11 | **Calendar Integration** | Sync class schedules with Google Calendar | New feature |
-| 12 | **Student Self-Service Portal** | Students confirm/update their own absence details | New feature |
-| 13 | **Custom Alert Rules** | Configurable thresholds (e.g., alert if student absent 3+ times in a month) | New feature |
-| 14 | **Mobile App / PWA** | Native mobile or Progressive Web App for on-the-go alert management | New feature |
-| 15 | **Webhook Support** | Trigger external systems (Zapier, etc.) when alerts are created | New feature |
-| 16 | **SMS/Text Notifications** | Alert instructors via text for high-urgency messages | New feature |
-| 17 | **Parent/Guardian Notifications** | Auto-notify family contacts for students | New feature |
+| # | Task | Details |
+|---|---|---|
+| 1 | **Calendar Integration** | Sync class schedules with Google Calendar |
+| 2 | **Student Self-Service Portal** | Students confirm/update their own absence details |
+| 3 | **Custom Alert Rules** | Configurable thresholds (e.g., alert if student absent 3+ times in a month) |
+| 4 | **Mobile App / PWA** | Progressive Web App for on-the-go alert management |
+| 5 | **Webhook Support** | Trigger external systems (Zapier, etc.) when alerts are created |
+| 6 | **SMS/Text Notifications** | Alert instructors via text for high-urgency messages |
+| 7 | **Parent/Guardian Notifications** | Auto-notify family contacts for students |
 
 ---
 
@@ -1786,4 +1805,4 @@ To enable Slack message scanning, the following Slack app setup is required:
 
 ---
 
-*End of PULSE Project Documentation v4.0*
+*End of PULSE Project Documentation v5.0*

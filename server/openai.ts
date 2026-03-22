@@ -83,9 +83,8 @@ Respond in JSON with these fields:
 - "recommendedAssessmentReason": string or null`;
 
 const MODEL_TIERS = [
-  { model: "gpt-5-nano", label: "nano" },
-  { model: "gpt-5-mini", label: "mini" },
-  { model: "gpt-5.2", label: "full" },
+  { model: "gpt-4o-mini", label: "mini" },
+  { model: "gpt-4o", label: "full" },
 ] as const;
 
 const validCategories = ["Medical", "Family", "Administrative", "Technical", "Unexcused"];
@@ -284,7 +283,70 @@ async function getStorage() {
   return storage;
 }
 
+// ---------------------------------------------------------------------------
+// Keyword pre-classifier — free, zero API calls, handles ~80% of cases
+// ---------------------------------------------------------------------------
+const KEYWORD_MAP = {
+  Medical: ["sick", "ill ", "fever", "flu", "covid", "hospital", "er ", "urgent care", "doctor", "dentist", "surgery", "therapy", "migraine", "food poisoning", "injured", "medication", "quarantine", "vomiting", "nausea", "headache", "stomachache", "not feeling well", "feeling sick", "under the weather", "medical appointment", "mental health"],
+  Family: ["family emergency", "funeral", "memorial", "passed away", "died", "bereavement", "family crisis", "relative hospitalized", "family member sick", "childcare", "eldercare", "death in the family", "family situation", "family matter"],
+  Administrative: ["jury duty", "subpoena", "court date", "legal obligation", "immigration", "visa appointment", "government office", "dmv", "passport", "tribunal", "deposition", "legal matter"],
+  Technical: ["internet down", "no internet", "wifi", "power outage", "laptop broken", "computer crashed", "car broke down", "vehicle trouble", "train cancelled", "bus delayed", "can't log in", "connection issues", "no power", "outage"],
+};
+
+const ABSENCE_KEYWORDS = ["won't be", "cannot make it", "can't make it", "will not be", "unable to attend", "not going to be", "won't attend", "won't be able", "can't come", "absent today", "missing class", "not coming", "not able to make", "staying home", "going to miss"];
+const LATE_KEYWORDS = ["running late", "will be late", "going to be late", "might be late", "few minutes late", "behind schedule", "tardy", "late today", "arriving late", "leaving early", "have to leave early", "need to leave early", "slightly late", "a little late"];
+
+function classifyByKeywords(emailBody: string): ClassificationResult | null {
+  const body = emailBody.toLowerCase();
+
+  const isLate = LATE_KEYWORDS.some(k => body.includes(k));
+  const isAbsent = ABSENCE_KEYWORDS.some(k => body.includes(k));
+
+  if (!isLate && !isAbsent) return null;
+
+  const attendanceType: "Absent" | "Late/Tardy" = isLate ? "Late/Tardy" : "Absent";
+
+  let matchedCategory: ClassificationResult["category"] | null = null;
+  let matchCount = 0;
+
+  for (const [cat, keywords] of Object.entries(KEYWORD_MAP)) {
+    const hits = keywords.filter(k => body.includes(k)).length;
+    if (hits > matchCount) {
+      matchCount = hits;
+      matchedCategory = cat as ClassificationResult["category"];
+    }
+  }
+
+  if (!matchedCategory) return null;
+
+  const confidence = Math.min(0.72 + matchCount * 0.04, 0.92);
+  const assessmentAction = getDefaultAssessmentAction(matchedCategory, attendanceType);
+
+  console.log(`[AI] Keyword classifier matched: ${matchedCategory} / ${attendanceType} (confidence: ${confidence.toFixed(2)}, hits: ${matchCount}) — skipping OpenAI`);
+
+  return {
+    attendanceType,
+    category: matchedCategory,
+    confidence,
+    confidenceTier: getConfidenceTier(confidence),
+    reasoning: `Rule-based keyword match (${matchCount} signal${matchCount > 1 ? "s" : ""} detected)`,
+    needsResponse: false,
+    urgency: "low",
+    alertReason: null,
+    mentionsStudent: false,
+    mentionsSchool: false,
+    peerOrSchoolDetail: null,
+    requiresManualReview: false,
+    recommendedAssessmentAction: assessmentAction,
+    recommendedAssessmentReason: getAssessmentActionReason(assessmentAction),
+  };
+}
+
 export async function categorizeExcuse(emailBody: string): Promise<ClassificationResult> {
+  // Try keyword pre-classifier first — free, no API call, handles ~80% of cases
+  const keywordResult = classifyByKeywords(emailBody);
+  if (keywordResult) return keywordResult;
+
   const tiersArray = Array.from(MODEL_TIERS);
   const lastIndex = tiersArray.length - 1;
 
@@ -312,7 +374,7 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
         // Handle medium-confidence results with Slack notification
         if (result.confidenceTier === "medium") {
           console.log("[AI] Medium confidence detected — triggering Slack notification for manual review");
-          const store = await getStorage();
+          await getStorage();
           await sendSlackNotification(result, emailBody).catch(err => {
             console.error("[AI] Failed to send Slack notification:", err);
           });
@@ -325,7 +387,7 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
         console.warn("[WARNG] Final Tier Quality Threshold Not Met");
         const fallbackResult: ClassificationResult = {
           attendanceType: "Absent",
-          category: "None",
+          category: "Unexcused",
           confidence: 0,
           confidenceTier: "low",
           reasoning: "Final tier model returned low-confidence result",
@@ -336,6 +398,8 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
           mentionsSchool: false,
           peerOrSchoolDetail: null,
           requiresManualReview: true,
+          recommendedAssessmentAction: "none",
+          recommendedAssessmentReason: "Manual review required",
         };
         return fallbackResult;
       }
@@ -350,7 +414,7 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
         console.warn("[WARNG] Final Tier Quality Threshold Not Met");
         const fallbackResult: ClassificationResult = {
           attendanceType: "Absent",
-          category: "None",
+          category: "Unexcused",
           confidence: 0,
           confidenceTier: "low",
           reasoning: "All AI models failed to classify this email",
@@ -361,6 +425,8 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
           mentionsSchool: false,
           peerOrSchoolDetail: null,
           requiresManualReview: true,
+          recommendedAssessmentAction: "none",
+          recommendedAssessmentReason: "Manual review required",
         };
         return fallbackResult;
       }
@@ -370,7 +436,7 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
   console.error("[AI] All model tiers failed, returning default classification");
   return {
     attendanceType: "Absent",
-    category: "None",
+    category: "Unexcused",
     confidence: 0,
     confidenceTier: "low",
     reasoning: "All AI models failed to classify this email",
@@ -381,5 +447,53 @@ export async function categorizeExcuse(emailBody: string): Promise<Classificatio
     mentionsSchool: false,
     peerOrSchoolDetail: null,
     requiresManualReview: true,
+    recommendedAssessmentAction: "none",
+    recommendedAssessmentReason: "Manual review required",
   };
+}
+
+export async function generateReplyDraft(
+  messageBody: string,
+  context: {
+    senderName: string;
+    attendanceType: string;
+    category: string;
+    assessmentAction: string;
+  }
+): Promise<string> {
+  const actionNote: Record<string, string> = {
+    excuse: "Their absence will be marked as excused.",
+    makeup_allowed: "They'll have the opportunity to make up any missed work.",
+    zero_out: "Please note that unexcused absences affect attendance grades.",
+    none: "",
+  };
+
+  const systemPrompt = `You are helping a Pursuit instructor write a short, warm, professional reply to a student's attendance message.
+Write 2-3 sentences max. Acknowledge their situation, confirm receipt, and note what action is being taken if relevant.
+Be human, empathetic, and encouraging. Use first person as the instructor. Do not use placeholders like [name] — use the actual student name provided.
+Do not add a subject line. Return only the reply body text.`;
+
+  const userPrompt = `Student name: ${context.senderName}
+Attendance type: ${context.attendanceType}
+Category: ${context.category}
+Action: ${actionNote[context.assessmentAction] || ""}
+
+Student's original message:
+${messageBody}
+
+Write a reply the instructor can send directly.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_completion_tokens: 200,
+    });
+    return response.choices[0]?.message?.content?.trim() || "";
+  } catch {
+    return "";
+  }
 }
