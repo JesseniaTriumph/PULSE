@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Menu,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export function AppSidebar() {
   const [location] = useLocation();
@@ -29,10 +30,26 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const { toast } = useToast();
+  const prevCountRef = useRef<number | null>(null);
+
   const { data: alertData } = useQuery<{ count: number }>({
     queryKey: ["/api/alerts/unread-count"],
+    refetchInterval: 60_000,
   });
   const unreadCount = alertData?.count || 0;
+
+  useEffect(() => {
+    if (alertData === undefined) return;
+    if (prevCountRef.current !== null && alertData.count > prevCountRef.current) {
+      const newAlerts = alertData.count - prevCountRef.current;
+      toast({
+        title: `${newAlerts} new alert${newAlerts > 1 ? "s" : ""}`,
+        description: "New attendance alerts require your attention.",
+      });
+    }
+    prevCountRef.current = alertData.count;
+  }, [alertData?.count]);
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },

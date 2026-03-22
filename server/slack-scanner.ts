@@ -19,6 +19,7 @@ interface SlackMessage {
   user: string;
   ts: string;
   thread_ts?: string;
+  reply_count?: number;
 }
 
 interface SlackChannel {
@@ -97,9 +98,11 @@ export async function scanSlackForUser(userId: number): Promise<number> {
         limit: "50",
       });
 
-      const messages: SlackMessage[] = (data.messages || []).filter(
+      const allTopLevel: SlackMessage[] = (data.messages || []).filter(
         (m: SlackMessage) => m.type === "message" && m.text && !m.thread_ts
       );
+      const messages = allTopLevel;
+      const threadParents = allTopLevel.filter(m => m.reply_count && m.reply_count > 0);
 
       for (const msg of messages) {
         if (!KEYWORD_REGEX.test(msg.text)) continue;
@@ -114,6 +117,12 @@ export async function scanSlackForUser(userId: number): Promise<number> {
             senderEmail = userInfo.profile?.email || "";
           } catch {
             senderName = msg.user;
+          }
+
+          const duplicate = await storage.getRecordBySlackMessageTs(userId, channelConfig.channelId, msg.ts);
+          if (duplicate) {
+            console.log(`[Slack Scanner] Skipping message ${msg.ts} in ${channelConfig.channelName} - already processed`);
+            continue;
           }
 
           if (senderEmail) {
@@ -132,9 +141,10 @@ export async function scanSlackForUser(userId: number): Promise<number> {
           const snippet = msg.text.substring(0, 150).replace(/\n/g, " ").trim();
           const msgDate = new Date(parseFloat(msg.ts) * 1000);
 
-          const matchedStudent = studentPool.find(
-            s => (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
-              || s.name.toLowerCase() === senderName.toLowerCase()
+          const matchedStudent = studentPool.find(s =>
+            (s.slackUserId && s.slackUserId === msg.user)
+            || (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+            || s.name.toLowerCase() === senderName.toLowerCase()
           );
 
           const isDm = false;
@@ -186,6 +196,107 @@ export async function scanSlackForUser(userId: number): Promise<number> {
           console.error(`[Slack Scanner] Error processing message in ${channelConfig.channelName}:`, err);
         }
       }
+
+      // Scan thread replies for top-level messages that have replies
+      for (const parent of threadParents) {
+        try {
+          const threadData = await slackApi("conversations.replies", token, {
+            channel: channelConfig.channelId,
+            ts: parent.ts,
+            oldest,
+            limit: "20",
+          });
+
+          const replies: SlackMessage[] = (threadData.messages || []).filter(
+            (r: SlackMessage) => r.type === "message" && r.text && r.ts !== parent.ts
+          );
+
+          for (const reply of replies) {
+            if (!KEYWORD_REGEX.test(reply.text)) continue;
+
+            try {
+              let senderName = "Unknown";
+              let senderEmail = "";
+
+              try {
+                const userInfo = await getUserInfo(reply.user, token);
+                senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
+                senderEmail = userInfo.profile?.email || "";
+              } catch {
+                senderName = reply.user;
+              }
+
+              const duplicate = await storage.getRecordBySlackMessageTs(userId, channelConfig.channelId, reply.ts);
+              if (duplicate) continue;
+
+              if (senderEmail) {
+                const existingCooldown = await storage.getAutoReplyCooldown(userId, senderEmail);
+                if (existingCooldown && new Date(existingCooldown.expiresAt) > new Date()) {
+                  skippedCooldown++;
+                  continue;
+                }
+              }
+
+              const matchedStudent = studentPool.find(s =>
+                (s.slackUserId && s.slackUserId === reply.user)
+                || (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+                || s.name.toLowerCase() === senderName.toLowerCase()
+              );
+
+              const categorization = await categorizeExcuse(reply.text);
+              const snippet = reply.text.substring(0, 150).replace(/\n/g, " ").trim();
+              const msgDate = new Date(parseFloat(reply.ts) * 1000);
+
+              const record = await storage.createRecord({
+                userId,
+                studentId: matchedStudent?.id || null,
+                senderName,
+                senderEmail: senderEmail || `slack:${reply.user}`,
+                receivedAt: msgDate,
+                emailBody: reply.text,
+                attendanceType: categorization.attendanceType,
+                excuseCategory: categorization.category,
+                messageSnippet: snippet + (reply.text.length > 150 ? "..." : ""),
+                status: "processed",
+                batchId: `slack-scan-${new Date().toISOString().split("T")[0]}`,
+                needsResponse: categorization.needsResponse,
+                urgency: categorization.urgency,
+                alertReason: categorization.alertReason,
+                mentionsStudent: categorization.mentionsStudent,
+                mentionsSchool: categorization.mentionsSchool,
+                peerOrSchoolDetail: categorization.peerOrSchoolDetail,
+                source: "slack",
+                slackChannelId: channelConfig.channelId,
+                slackChannelName: channelConfig.channelName,
+                slackMessageTs: reply.ts,
+                slackIsDm: false,
+                aiConfidence: categorization.confidence,
+                aiConfidenceTier: categorization.confidenceTier,
+                requiresManualReview: categorization.requiresManualReview,
+                assessmentAction: categorization.recommendedAssessmentAction,
+                lmsSynced: false,
+              });
+
+              if (categorization.needsResponse && senderEmail) {
+                await storage.createAlert({
+                  userId,
+                  recordId: record.id,
+                  alertType: categorization.urgency === "high" ? "urgent" : "action_needed",
+                  message: categorization.alertReason || "This Slack thread reply may need a response",
+                  urgency: categorization.urgency,
+                });
+                await storage.setAutoReplyCooldown(userId, senderEmail, 7);
+              }
+
+              processed++;
+            } catch (err) {
+              console.error(`[Slack Scanner] Error processing thread reply in ${channelConfig.channelName}:`, err);
+            }
+          }
+        } catch (err) {
+          console.error(`[Slack Scanner] Error fetching thread ${parent.ts} in ${channelConfig.channelName}:`, err);
+        }
+      }
     } catch (err) {
       console.error(`[Slack Scanner] Error scanning channel ${channelConfig.channelName}:`, err);
     }
@@ -226,12 +337,19 @@ export async function scanSlackForUser(userId: number): Promise<number> {
               senderName = msg.user;
             }
 
-            const matchedStudent = studentPool.find(
-              s => (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
-                || s.name.toLowerCase() === senderName.toLowerCase()
+            const matchedStudent = studentPool.find(s =>
+              (s.slackUserId && s.slackUserId === msg.user)
+              || (senderEmail && s.email.toLowerCase() === senderEmail.toLowerCase())
+              || s.name.toLowerCase() === senderName.toLowerCase()
             );
 
             if (!matchedStudent) continue;
+
+            const dmDuplicate = await storage.getRecordBySlackMessageTs(userId, dm.id, msg.ts);
+            if (dmDuplicate) {
+              console.log(`[Slack Scanner] Skipping DM ${msg.ts} - already processed`);
+              continue;
+            }
 
             if (senderEmail) {
               const existingCooldown = await storage.getAutoReplyCooldown(userId, senderEmail);

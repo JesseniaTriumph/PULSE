@@ -132,6 +132,12 @@ async function runGmailScan(userId: number) {
         const senderName = nameMatch ? nameMatch[1].trim() : from;
         const senderEmail = emailMatch ? emailMatch[1] : from;
 
+        const duplicate = await storage.getRecordByGmailMessageId(userId, msg.id);
+        if (duplicate) {
+          console.log(`[Scheduler] Skipping Gmail message ${msg.id} - already processed`);
+          continue;
+        }
+
         const existingCooldown = await storage.getAutoReplyCooldown(userId, senderEmail);
         if (existingCooldown) {
           const expiresAt = new Date(existingCooldown.expiresAt);

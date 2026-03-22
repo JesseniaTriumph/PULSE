@@ -51,6 +51,8 @@ export interface IStorage {
   getRecordsByCohort(cohortId: number): Promise<AttendanceRecord[]>;
   getRecordById(id: number): Promise<AttendanceRecord | undefined>;
   getRecordsByBatchId(batchId: string, userId: number): Promise<AttendanceRecord[]>;
+  getRecordByGmailMessageId(userId: number, gmailMessageId: string): Promise<AttendanceRecord | undefined>;
+  getRecordBySlackMessageTs(userId: number, channelId: string, slackMessageTs: string): Promise<AttendanceRecord | undefined>;
   createRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord>;
   createRecords(records: InsertAttendanceRecord[]): Promise<AttendanceRecord[]>;
   updateRecordCategory(id: number, category: string): Promise<AttendanceRecord | undefined>;
@@ -256,6 +258,22 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(attendanceRecords)
       .where(and(eq(attendanceRecords.batchId, batchId), eq(attendanceRecords.userId, userId)))
       .orderBy(desc(attendanceRecords.createdAt));
+  }
+
+  async getRecordByGmailMessageId(userId: number, gmailMessageId: string): Promise<AttendanceRecord | undefined> {
+    const [record] = await db.select().from(attendanceRecords)
+      .where(and(eq(attendanceRecords.userId, userId), eq(attendanceRecords.gmailMessageId, gmailMessageId)));
+    return record;
+  }
+
+  async getRecordBySlackMessageTs(userId: number, channelId: string, slackMessageTs: string): Promise<AttendanceRecord | undefined> {
+    const [record] = await db.select().from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, userId),
+        eq(attendanceRecords.slackChannelId, channelId),
+        eq(attendanceRecords.slackMessageTs, slackMessageTs),
+      ));
+    return record;
   }
 
   async createRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord> {

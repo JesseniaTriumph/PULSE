@@ -155,7 +155,7 @@ export async function registerRoutes(
         }
       }
 
-      const allowedFields: Record<string, boolean> = { status: true, cohortId: true, name: true, email: true };
+      const allowedFields: Record<string, boolean> = { status: true, cohortId: true, name: true, email: true, slackUserId: true };
       const updateData: Record<string, any> = {};
       for (const key of Object.keys(req.body)) {
         if (!allowedFields[key]) continue;
@@ -300,6 +300,9 @@ export async function registerRoutes(
             messageSnippet: record.messageSnippet,
             gmailMessageId: record.gmailMessageId,
             gmailThreadId: record.gmailThreadId,
+            source: record.source,
+            slackChannelId: record.slackChannelId,
+            slackMessageTs: record.slackMessageTs,
           } : null,
         };
       }));
@@ -888,6 +891,64 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting slack channel config:", error);
       res.status(500).json({ error: "Failed to delete config" });
+    }
+  });
+
+  app.get("/api/slack/status", requireAuth, async (_req, res) => {
+    res.json({ connected: !!process.env.SLACK_BOT_TOKEN });
+  });
+
+  app.post("/api/slack/send", requireAuth, async (req, res) => {
+    const token = process.env.SLACK_BOT_TOKEN;
+    if (!token) {
+      return res.status(503).json({ error: "Slack is not configured on this server" });
+    }
+
+    const { channelId, threadTs, body, alertId } = req.body;
+    if (!channelId || !body) {
+      return res.status(400).json({ error: "channelId and body are required" });
+    }
+
+    if (alertId) {
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      const alertList = user?.role === "admin"
+        ? await storage.getAllAlerts()
+        : await storage.getAlertsByUser(userId);
+      const alert = alertList.find(a => a.id === alertId);
+      if (!alert) {
+        return res.status(403).json({ error: "Alert not found or not authorized" });
+      }
+    }
+
+    try {
+      const payload: Record<string, string> = { channel: channelId, text: body };
+      if (threadTs) payload.thread_ts = threadTs;
+
+      const slackRes = await fetch("https://slack.com/api/chat.postMessage", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await slackRes.json();
+      if (!data.ok) {
+        return res.status(500).json({ error: data.error || "Slack API error" });
+      }
+
+      if (alertId) {
+        const userId = req.session.userId!;
+        await storage.markAlertRead(alertId);
+        req.app.emit("alert-read", { userId });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error sending Slack message:", error);
+      res.status(500).json({ error: "Failed to send Slack message" });
     }
   });
 

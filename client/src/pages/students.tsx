@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Briefcase, Award, ArrowRightLeft } from "lucide-react";
+import { GraduationCap, Plus, Search, ArrowLeft, Trash2, Mail, Briefcase, Award, ArrowRightLeft, MessageSquare, Check, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +49,8 @@ export default function StudentsPage() {
   const [moveStudentId, setMoveStudentId] = useState<number | null>(null);
   const [moveTarget, setMoveTarget] = useState("");
   const [newStudent, setNewStudent] = useState({ name: "", email: "", cohortId: "" });
+  const [slackIdEdit, setSlackIdEdit] = useState(false);
+  const [slackIdValue, setSlackIdValue] = useState("");
 
   const { data: students = [], isLoading: studentsLoading } = useQuery<Student[]>({
     queryKey: ["/api/students"],
@@ -138,6 +140,18 @@ export default function StudentsPage() {
 
   const moveStudentObj = moveStudentId ? students.find(s => s.id === moveStudentId) : null;
 
+  const handleSaveSlackId = async (studentId: number) => {
+    try {
+      await apiRequest("PATCH", `/api/students/${studentId}`, { slackUserId: slackIdValue.trim() || null });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/students", studentId] });
+      setSlackIdEdit(false);
+      toast({ title: "Slack User ID updated" });
+    } catch {
+      toast({ title: "Failed to update Slack User ID", variant: "destructive" });
+    }
+  };
+
   const renderProfileView = () => {
     if (!selectedStudent || !studentProfile) return null;
     const { student, records } = studentProfile;
@@ -209,6 +223,47 @@ export default function StudentsPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-violet-500" /> Slack Integration
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {slackIdEdit ? (
+                <>
+                  <Input
+                    value={slackIdValue}
+                    onChange={e => setSlackIdValue(e.target.value)}
+                    placeholder="e.g. U0123ABC456"
+                    className="h-8 text-sm font-mono border-violet-500/20 max-w-xs"
+                    autoFocus
+                  />
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-600" onClick={() => handleSaveSlackId(student.id)}>
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground" onClick={() => setSlackIdEdit(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm font-mono text-muted-foreground">
+                    {student.slackUserId || <span className="italic">Not set</span>}
+                  </span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs border-violet-500/20 ml-2" onClick={() => { setSlackIdValue(student.slackUserId || ""); setSlackIdEdit(true); }}>
+                    Edit
+                  </Button>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Slack User ID enables automatic message matching. Find it in Slack under a member's profile → More → Copy member ID.
+            </p>
+          </CardContent>
+        </Card>
 
         <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
           <CardHeader>

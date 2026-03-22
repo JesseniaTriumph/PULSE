@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Clock, Users, School, Reply, Send, Mail } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Clock, Users, School, Reply, Send, Mail, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Alert } from "@shared/schema";
@@ -18,6 +18,9 @@ interface AlertRecord {
   messageSnippet: string;
   gmailMessageId: string | null;
   gmailThreadId: string | null;
+  source: string | null;
+  slackChannelId: string | null;
+  slackMessageTs: string | null;
 }
 
 interface EnrichedAlert extends Alert {
@@ -44,6 +47,10 @@ export default function AlertsPage() {
 
   const { data: googleStatus } = useQuery<{ connected: boolean; hasGmailAccess: boolean }>({
     queryKey: ["/api/auth/google/status"],
+  });
+
+  const { data: slackStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/slack/status"],
   });
 
   const handleMarkRead = async (id: number) => {
@@ -88,16 +95,26 @@ export default function AlertsPage() {
   const handleSendReply = async () => {
     if (!replyAlert?.record || !replyBody.trim()) return;
     setSending(true);
+    const isSlack = replyAlert.record.source === "slack";
     try {
-      const subject = `Re: ${replyAlert.message.substring(0, 80)}`;
-      await apiRequest("POST", "/api/gmail/send", {
-        to: replyAlert.record.senderEmail,
-        subject,
-        body: replyBody,
-        inReplyTo: replyAlert.record.gmailMessageId || undefined,
-        threadId: replyAlert.record.gmailThreadId || undefined,
-        alertId: replyAlert.id,
-      });
+      if (isSlack) {
+        await apiRequest("POST", "/api/slack/send", {
+          channelId: replyAlert.record.slackChannelId,
+          threadTs: replyAlert.record.slackMessageTs || undefined,
+          body: replyBody,
+          alertId: replyAlert.id,
+        });
+      } else {
+        const subject = `Re: ${replyAlert.message.substring(0, 80)}`;
+        await apiRequest("POST", "/api/gmail/send", {
+          to: replyAlert.record.senderEmail,
+          subject,
+          body: replyBody,
+          inReplyTo: replyAlert.record.gmailMessageId || undefined,
+          threadId: replyAlert.record.gmailThreadId || undefined,
+          alertId: replyAlert.id,
+        });
+      }
       setReplyDialogOpen(false);
       setReplyAlert(null);
       setReplyBody("");
@@ -106,9 +123,14 @@ export default function AlertsPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
         queryClient.invalidateQueries({ queryKey: ["/api/alerts/unread-count"] });
       }
-      toast({ title: "Reply sent successfully" });
+      toast({ title: isSlack ? "Slack reply sent" : "Reply sent successfully" });
     } catch {
-      toast({ title: "Failed to send reply. Make sure your Google account is connected with send permissions.", variant: "destructive" });
+      toast({
+        title: isSlack
+          ? "Failed to send Slack reply. Make sure SLACK_BOT_TOKEN is configured."
+          : "Failed to send reply. Make sure your Google account is connected with send permissions.",
+        variant: "destructive",
+      });
     } finally {
       setSending(false);
     }
@@ -117,6 +139,7 @@ export default function AlertsPage() {
   const unread = alertsList.filter(a => !a.isRead);
   const read = alertsList.filter(a => a.isRead);
   const canSendEmail = googleStatus?.hasGmailAccess;
+  const canSendSlack = slackStatus?.connected;
 
   return (
     <div className="space-y-6">
@@ -188,7 +211,7 @@ export default function AlertsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {hasRecord && canSendEmail && (
+                    {hasRecord && (alert.record?.source === "slack" ? canSendSlack : canSendEmail) && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -196,7 +219,10 @@ export default function AlertsPage() {
                         data-testid={`button-reply-alert-${alert.id}`}
                         className="hover:bg-violet-500/10 text-xs"
                       >
-                        <Reply className="w-3.5 h-3.5 mr-1" /> Reply
+                        {alert.record?.source === "slack"
+                          ? <><MessageSquare className="w-3.5 h-3.5 mr-1" /> Reply</>
+                          : <><Reply className="w-3.5 h-3.5 mr-1" /> Reply</>
+                        }
                       </Button>
                     )}
                     {alert.isRead && (
@@ -262,9 +288,12 @@ export default function AlertsPage() {
             </div>
           )}
           <DialogFooter>
-            {detailAlert?.record && canSendEmail && (
+            {detailAlert?.record && (detailAlert.record.source === "slack" ? canSendSlack : canSendEmail) && (
               <Button onClick={() => { setDetailAlert(null); openReplyDialog(detailAlert); }} className="bg-gradient-to-r from-violet-600 to-indigo-600" data-testid="button-reply-from-detail">
-                <Reply className="w-4 h-4 mr-1.5" /> Reply to {detailAlert.record.senderName}
+                {detailAlert.record.source === "slack"
+                  ? <><MessageSquare className="w-4 h-4 mr-1.5" /> Reply in Slack</>
+                  : <><Reply className="w-4 h-4 mr-1.5" /> Reply to {detailAlert.record.senderName}</>
+                }
               </Button>
             )}
           </DialogFooter>
@@ -275,14 +304,21 @@ export default function AlertsPage() {
         <DialogContent className="border-violet-500/20 bg-card/95 backdrop-blur-md max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Reply className="w-5 h-5" />
-              Reply to {replyAlert?.record?.senderName}
+              {replyAlert?.record?.source === "slack"
+                ? <MessageSquare className="w-5 h-5 text-emerald-500" />
+                : <Reply className="w-5 h-5" />
+              }
+              {replyAlert?.record?.source === "slack" ? "Reply in Slack" : `Reply to ${replyAlert?.record?.senderName}`}
             </DialogTitle>
           </DialogHeader>
           {replyAlert?.record && (
             <div className="space-y-4">
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>To: {replyAlert.record.senderEmail}</p>
+                {replyAlert.record.source === "slack" ? (
+                  <p>Replying in thread in #{replyAlert.record.slackChannelId}</p>
+                ) : (
+                  <p>To: {replyAlert.record.senderEmail}</p>
+                )}
                 <p>Re: {replyAlert.message.substring(0, 80)}</p>
               </div>
               <div className="bg-muted/20 rounded-lg p-3 text-xs max-h-[120px] overflow-y-auto border border-violet-500/10 text-muted-foreground">

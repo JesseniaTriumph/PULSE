@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +23,7 @@ import {
   Braces,
   Clock,
   MessageSquare,
+  TrendingUp,
 } from "lucide-react";
 import type { AttendanceRecord, Cohort } from "@shared/schema";
 import { RecordsTable } from "@/components/records-table";
@@ -32,6 +33,16 @@ import { GmailFetchDialog } from "@/components/gmail-fetch-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import {
   startOfDay, endOfDay,
   startOfWeek, endOfWeek,
@@ -115,6 +126,7 @@ const categoryConfig: Record<
 };
 
 export default function Dashboard() {
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [gmailDialogOpen, setGmailDialogOpen] = useState(false);
@@ -184,6 +196,35 @@ export default function Dashboard() {
       byCategory[r.excuseCategory] = (byCategory[r.excuseCategory] || 0) + 1;
     }
     return { total: timeFilteredRecords.length, byCategory };
+  }, [timeFilteredRecords]);
+
+  const trendData = useMemo(() => {
+    if (timeFilteredRecords.length === 0) return [];
+    const buckets = new Map<string, { date: string; Absent: number; "Late/Tardy": number; Unexcused: number }>();
+    for (const r of timeFilteredRecords) {
+      const date = new Date(r.receivedAt);
+      const key = (timePeriod === "day" || timePeriod === "week" || timePeriod === "month")
+        ? format(date, "MMM d")
+        : format(date, "MMM yyyy");
+      if (!buckets.has(key)) buckets.set(key, { date: key, Absent: 0, "Late/Tardy": 0, Unexcused: 0 });
+      const b = buckets.get(key)!;
+      if (r.attendanceType === "Absent") b.Absent++;
+      else if (r.attendanceType === "Late/Tardy") b["Late/Tardy"]++;
+      else if (r.attendanceType === "Unexcused") b.Unexcused++;
+    }
+    return Array.from(buckets.values());
+  }, [timeFilteredRecords, timePeriod]);
+
+  const topStudents = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of timeFilteredRecords) {
+      if (!r.senderName) continue;
+      counts.set(r.senderName, (counts.get(r.senderName) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
   }, [timeFilteredRecords]);
 
   const handleExportCSV = () => {
@@ -266,6 +307,15 @@ export default function Dashboard() {
               Gmail
             </Button>
           )}
+          <Button
+            size="sm"
+            variant={showAnalytics ? "default" : "outline"}
+            onClick={() => setShowAnalytics(v => !v)}
+            className={showAnalytics ? "bg-gradient-to-r from-violet-600 to-indigo-600" : "border-violet-500/30 hover:bg-violet-500/10"}
+          >
+            <TrendingUp className="w-4 h-4 mr-1.5" />
+            Analytics
+          </Button>
         </div>
       </div>
 
@@ -347,6 +397,64 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {showAnalytics && timeFilteredRecords.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 no-print">
+          <Card className="lg:col-span-2 border-violet-500/10 bg-card/60 backdrop-blur-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Attendance Trend</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    cursor={{ fill: "hsl(var(--muted)/0.3)" }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="Absent" fill="#f43f5e" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Late/Tardy" fill="#f97316" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Unexcused" fill="#64748b" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="border-violet-500/10 bg-card/60 backdrop-blur-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Most Absences</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {topStudents.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No data</p>
+              ) : (
+                <div className="space-y-2">
+                  {topStudents.map((s, i) => (
+                    <div key={s.name} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-medium truncate">{s.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{s.count}</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full"
+                            style={{ width: `${(s.count / topStudents[0].count) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">

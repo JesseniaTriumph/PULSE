@@ -57,6 +57,7 @@ export const students = pgTable("students", {
   email: text("email").notNull(),
   cohortId: integer("cohort_id").notNull().references(() => cohorts.id),
   status: text("status").notNull().default("Active"),
+  slackUserId: text("slack_user_id"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
