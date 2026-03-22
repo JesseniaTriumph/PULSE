@@ -8,7 +8,7 @@ const openai = new OpenAI({
 
 export interface ClassificationResult {
   attendanceType: string;
-  category: "Medical" | "Family" | "Administrative" | "Technical" | "Unexcused";
+  category: "Medical" | "Family" | "Administrative" | "Technical" | "Other" | "Unexcused";
   confidence: number;
   confidenceTier: "low" | "medium" | "high";
   reasoning: string;
@@ -35,6 +35,7 @@ CLASSIFICATION 2 — Institutional Excuse Categories (use these four categories)
 - "Family" — Family emergencies, death in family, childcare/eldercare emergencies. Phrases: family emergency, funeral, memorial, passed away, died, bereavement, family crisis, relative hospitalized, family member sick, childcare emergency, eldercare
 - "Administrative" — Legal obligations, court appearances, jury duty, administrative requirements. Phrases: jury duty, subpoena, court date, legal obligation, immigration, visa, government office, DMV, passport, tribunal, deposition
 - "Technical" — Internet, equipment, transportation, infrastructure problems. Phrases: internet down, WiFi, power outage, laptop broken, computer crashed, car broke down, vehicle trouble, train cancelled, bus delayed, can't log in, server issue
+- "Other" — Legitimate situations that don't fit Medical/Family/Administrative/Technical. Use for: job interviews, work conflicts, housing emergencies (eviction, locked out, no heat), personal emergencies, financial situations. Student provides a real explanation but it falls outside the other four categories.
 - "Unexcused" — No valid reason, vague excuses, or not a genuine notification. Use when student provides no details or clearly invalid excuse.
 
 DUAL-THRESHOLD CONFIDENCE SYSTEM:
@@ -63,14 +64,14 @@ Important rules:
 - Be conservative with confidence — vague excuses get 0.4-0.6
 
 ASSESSMENT ACTION RECOMMENDATION:
-- "excuse" — Medical, Family, Administrative (verified emergencies). Exempt from attendance grade.
+- "excuse" — Medical, Family, Administrative, Other (verified legitimate reason). Exempt from attendance grade.
 - "makeup_allowed" — Technical with valid reason. Allow makeup work or alternative session.
 - "zero_out" — Unexcused absences. Student receives zero for attendance grade.
 - "none" — Late/Tardy (partial attendance) or when instructor should manually decide.
 
 Respond in JSON with these fields:
 - "attendanceType": one of "Absent", "Late/Tardy", "Unexcused"
-- "category": one of "Medical", "Family", "Administrative", "Technical", "Unexcused"
+- "category": one of "Medical", "Family", "Administrative", "Technical", "Other", "Unexcused"
 - "confidence": number 0-1 (vague excuses get 0.4-0.6)
 - "reasoning": brief one-sentence explanation including why this confidence level
 - "needsResponse": boolean
@@ -87,7 +88,7 @@ const MODEL_TIERS = [
   { model: "gpt-4o", label: "full" },
 ] as const;
 
-const validCategories = ["Medical", "Family", "Administrative", "Technical", "Unexcused"];
+const validCategories = ["Medical", "Family", "Administrative", "Technical", "Other", "Unexcused"];
 const validTypes = ["Absent", "Late/Tardy", "Unexcused"];
 const validUrgencies = ["low", "medium", "high"];
 
@@ -119,7 +120,7 @@ function parseResponse(content: string): ClassificationResult | null {
 
     // Medium confidence (0.4-0.7) triggers Slack alert but is still valid
     // High confidence (>0.7) is auto-verified
-    const requiresManualReview = confidenceTier === "low";
+    const requiresManualReview = false; // low confidence already returned null above
     const shouldTriggerSlackAlert = confidenceTier === "medium";
 
     const mentionsStudent = !!parsed.mentionsStudent;
@@ -158,7 +159,7 @@ function parseResponse(content: string): ClassificationResult | null {
 function getDefaultAssessmentAction(category: ClassificationResult["category"], attendanceType: string): "none" | "excuse" | "zero_out" | "makeup_allowed" {
   // Institutional category mapping for assessment actions
   if (attendanceType === "Unexcused" && category === "Unexcused") return "zero_out";
-  if (category === "Medical" || category === "Family" || category === "Administrative") return "excuse";
+  if (category === "Medical" || category === "Family" || category === "Administrative" || category === "Other") return "excuse";
   if (category === "Technical") return "makeup_allowed";
   if (attendanceType === "Late/Tardy") return "none";
   return "excuse";
@@ -291,6 +292,7 @@ const KEYWORD_MAP = {
   Family: ["family emergency", "funeral", "memorial", "passed away", "died", "bereavement", "family crisis", "relative hospitalized", "family member sick", "childcare", "eldercare", "death in the family", "family situation", "family matter"],
   Administrative: ["jury duty", "subpoena", "court date", "legal obligation", "immigration", "visa appointment", "government office", "dmv", "passport", "tribunal", "deposition", "legal matter"],
   Technical: ["internet down", "no internet", "wifi", "power outage", "laptop broken", "computer crashed", "car broke down", "vehicle trouble", "train cancelled", "bus delayed", "can't log in", "connection issues", "no power", "outage"],
+  Other: ["job interview", "interview today", "work conflict", "called into work", "got called in", "work emergency", "housing", "locked out", "eviction", "no heat", "gas leak", "financial", "personal emergency", "personal situation", "personal matter"],
 };
 
 const ABSENCE_KEYWORDS = ["won't be", "cannot make it", "can't make it", "will not be", "unable to attend", "not going to be", "won't attend", "won't be able", "can't come", "absent today", "missing class", "not coming", "not able to make", "staying home", "going to miss"];

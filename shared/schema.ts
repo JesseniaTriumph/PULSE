@@ -18,6 +18,7 @@ export const excuseCategories = [
   "Family",
   "Administrative",
   "Technical",
+  "Other",
   "Unexcused",
 ] as const;
 export type ExcuseCategory = (typeof excuseCategories)[number];

@@ -87,25 +87,25 @@ const categoryConfig: Record<
   string,
   { icon: typeof Users; color: string; bgClass: string; glowClass: string }
 > = {
-  "Sick/Medical": {
+  Medical: {
     icon: Stethoscope,
     color: "text-rose-600 dark:text-rose-400",
     bgClass: "bg-rose-500/15 border-rose-500/30 dark:bg-rose-500/10 dark:border-rose-500/20",
     glowClass: "shadow-rose-500/10",
   },
-  Personal: {
+  Family: {
     icon: User,
     color: "text-amber-700 dark:text-amber-400",
     bgClass: "bg-amber-500/15 border-amber-500/30 dark:bg-amber-500/10 dark:border-amber-500/20",
     glowClass: "shadow-amber-500/10",
   },
-  "Program Event": {
+  Administrative: {
     icon: CalendarCheck,
     color: "text-sky-600 dark:text-sky-400",
     bgClass: "bg-sky-500/15 border-sky-500/30 dark:bg-sky-500/10 dark:border-sky-500/20",
     glowClass: "shadow-sky-500/10",
   },
-  "Technical Issue": {
+  Technical: {
     icon: Wifi,
     color: "text-violet-600 dark:text-violet-400",
     bgClass: "bg-violet-500/15 border-violet-500/30 dark:bg-violet-500/10 dark:border-violet-500/20",
@@ -117,7 +117,7 @@ const categoryConfig: Record<
     bgClass: "bg-emerald-500/15 border-emerald-500/30 dark:bg-emerald-500/10 dark:border-emerald-500/20",
     glowClass: "shadow-emerald-500/10",
   },
-  None: {
+  Unexcused: {
     icon: XCircle,
     color: "text-slate-600 dark:text-slate-400",
     bgClass: "bg-slate-500/15 border-slate-500/30 dark:bg-slate-500/10 dark:border-slate-500/20",
