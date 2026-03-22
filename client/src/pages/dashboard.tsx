@@ -35,6 +35,7 @@ import { GmailFetchDialog } from "@/components/gmail-fetch-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { cn, getPercentageWidthClass } from "@/lib/utils";
 import {
   ResponsiveContainer,
   BarChart,
@@ -485,8 +486,11 @@ export default function Dashboard() {
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full"
-                            style={{ width: `${(s.count / topStudents[0].count) * 100}%` }}
+                            className={cn(
+                              "h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full",
+                              getPercentageWidthClass((s.count / topStudents[0].count) * 100)
+                            )}
+                            aria-hidden="true"
                           />
                         </div>
                       </div>
@@ -539,8 +543,18 @@ export default function Dashboard() {
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
-                            className="h-full rounded-full"
-                            style={{ width: `${(d.count / timeFilteredRecords.length) * 100}%`, backgroundColor: d.color }}
+                            className={cn(
+                              "h-full rounded-full",
+                              getPercentageWidthClass((d.count / timeFilteredRecords.length) * 100),
+                              d.label === "Keyword (free)"
+                                ? "bg-emerald-500"
+                                : d.label === "AI High"
+                                ? "bg-violet-500"
+                                : d.label === "AI Medium"
+                                ? "bg-amber-500"
+                                : "bg-rose-500"
+                            )}
+                            aria-hidden="true"
                           />
                         </div>
                       </div>

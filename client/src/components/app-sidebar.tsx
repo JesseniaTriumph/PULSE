@@ -152,6 +152,8 @@ export function AppSidebar() {
         onClick={() => setMobileOpen(!mobileOpen)}
         className="md:hidden fixed top-3 left-3 z-50 p-2 rounded-lg bg-background/80 backdrop-blur-sm border border-violet-500/20 no-print"
         data-testid="button-mobile-menu"
+        aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+        title={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
       >
         <Menu className="w-5 h-5" />
       </button>
