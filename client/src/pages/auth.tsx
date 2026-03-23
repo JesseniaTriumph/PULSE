@@ -5,18 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Play, Zap, Chrome, Sun, Moon } from "lucide-react";
+import { Loader2, Play, Zap, Chrome, Sun, Moon, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { StarField } from "@/components/star-field";
 import { useTheme } from "@/components/theme-provider";
 
 export default function AuthPage() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const { login, register, demo } = useAuth();
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+  const [showLoginPw, setShowLoginPw] = useState(false);
+  const [showRegisterPw, setShowRegisterPw] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
   const [registerForm, setRegisterForm] = useState({
     username: "",
     email: "",
@@ -100,40 +104,115 @@ export default function AuthPage() {
 
         <Card className="border-violet-500/20 bg-card/80 backdrop-blur-sm">
           <CardHeader className="pb-4">
-            <CardTitle>{mode === "login" ? "Sign In" : "Create Account"}</CardTitle>
+            <CardTitle>
+              {mode === "login" ? "Sign In" : mode === "register" ? "Create Account" : "Reset Password"}
+            </CardTitle>
             <CardDescription>
               {mode === "login"
                 ? "Enter your credentials to access your dashboard"
-                : "Create an account to start processing attendance"}
+                : mode === "register"
+                ? "Create an account to start processing attendance"
+                : "We'll send a reset link to your email"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {mode === "login" ? (
+            {mode === "forgot" ? (
+              <div className="space-y-4">
+                {forgotSent ? (
+                  <div className="text-center py-4 space-y-2">
+                    <CheckCircle2 className="w-10 h-10 mx-auto text-green-500" />
+                    <p className="text-sm font-medium">Check your email</p>
+                    <p className="text-xs text-muted-foreground">
+                      If <span className="font-medium">{forgotEmail}</span> is registered, a reset
+                      link has been sent.
+                    </p>
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setForgotSent(true);
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="forgot-email">Email address</Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        required
+                        className="bg-background/50"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                    >
+                      Send Reset Link
+                    </Button>
+                  </form>
+                )}
+                <p className="text-center text-sm text-muted-foreground">
+                  <button
+                    type="button"
+                    className="text-violet-400 hover:text-violet-300 hover:underline font-medium"
+                    onClick={() => { setMode("login"); setForgotSent(false); setForgotEmail(""); }}
+                  >
+                    Back to sign in
+                  </button>
+                </p>
+              </div>
+            ) : mode === "login" ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-username">Username</Label>
+                  <Label htmlFor="login-username">Username or Email</Label>
                   <Input
                     id="login-username"
                     data-testid="input-login-username"
                     value={loginForm.username}
                     onChange={(e) => setLoginForm((f) => ({ ...f, username: e.target.value }))}
-                    placeholder="Enter your username"
+                    placeholder="username or your@email.com"
                     required
+                    autoComplete="username"
                     className="bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    data-testid="input-login-password"
-                    type="password"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder="Enter your password"
-                    required
-                    className="bg-background/50"
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password">Password</Label>
+                    <button
+                      type="button"
+                      className="text-xs text-violet-400 hover:text-violet-300 hover:underline"
+                      onClick={() => setMode("forgot")}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="login-password"
+                      data-testid="input-login-password"
+                      type={showLoginPw ? "text" : "password"}
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}
+                      placeholder="Enter your password"
+                      required
+                      autoComplete="current-password"
+                      className="bg-background/50 pr-10"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowLoginPw((v) => !v)}
+                      aria-label={showLoginPw ? "Hide password" : "Show password"}
+                    >
+                      {showLoginPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button
                   type="submit"
@@ -203,17 +282,29 @@ export default function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="register-password">Password</Label>
-                  <Input
-                    id="register-password"
-                    data-testid="input-register-password"
-                    type="password"
-                    value={registerForm.password}
-                    onChange={(e) => setRegisterForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder="At least 6 characters"
-                    required
-                    minLength={6}
-                    className="bg-background/50"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="register-password"
+                      data-testid="input-register-password"
+                      type={showRegisterPw ? "text" : "password"}
+                      value={registerForm.password}
+                      onChange={(e) => setRegisterForm((f) => ({ ...f, password: e.target.value }))}
+                      placeholder="At least 6 characters"
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                      className="bg-background/50 pr-10"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowRegisterPw((v) => !v)}
+                      aria-label={showRegisterPw ? "Hide password" : "Show password"}
+                    >
+                      {showRegisterPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button
                   type="submit"
