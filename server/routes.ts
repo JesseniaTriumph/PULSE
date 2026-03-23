@@ -6,6 +6,7 @@ import { categorizeExcuse, generateReplyDraft } from "./openai";
 import { randomUUID } from "crypto";
 import { requireAuth } from "./auth";
 import { handleSlackInteraction, handleSlackEvent } from "./slack-commands";
+import { setupFileIngestion } from "./file-ingestion";
 import crypto from "crypto";
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -1175,6 +1176,8 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to handle Slack event" });
     }
   });
+
+  setupFileIngestion(app);
 
   return httpServer;
 }
