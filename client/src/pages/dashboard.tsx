@@ -622,7 +622,7 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold">
             Records
             {filterCategory && (
-              <Badge variant="secondary" className="ml-2 bg-violet-500/20 text-violet-300 border-violet-500/30">
+              <Badge variant="secondary" className="ml-2 bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500/40 dark:border-violet-500/30">
                 {filterCategory}
               </Badge>
             )}

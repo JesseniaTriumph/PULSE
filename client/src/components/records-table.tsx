@@ -258,7 +258,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                   {new Date(record.receivedAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  <Badge className={`text-xs border ${typeBadgeColors[record.attendanceType] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`} data-testid={`badge-type-${record.id}`}>
+                  <Badge className={`text-xs border ${typeBadgeColors[record.attendanceType] || "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/40 dark:border-slate-500/30"}`} data-testid={`badge-type-${record.id}`}>
                     {record.attendanceType || "Absent"}
                   </Badge>
                 </TableCell>
@@ -392,7 +392,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                     Type
                   </p>
-                  <Badge className={`border ${typeBadgeColors[viewRecord.attendanceType] || "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}>
+                  <Badge className={`border ${typeBadgeColors[viewRecord.attendanceType] || "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/40 dark:border-slate-500/30"}`}>
                     {viewRecord.attendanceType || "Absent"}
                   </Badge>
                 </div>

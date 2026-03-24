@@ -177,7 +177,7 @@ export function GmailFetchDialog({ open, onOpenChange }: GmailFetchDialogProps) 
         {step === "search" ? (
           <div className="space-y-4">
             {!user?.googleId && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>You need to sign in with Google first to access Gmail.</span>
               </div>
