@@ -43,6 +43,8 @@ export const users = pgTable("users", {
   slackUserId: text("slack_user_id"),
   slackAccessToken: text("slack_access_token"),   // user token (xoxp-) — scans DMs & channels as instructor
   slackBotToken: text("slack_bot_token"),          // bot token (xoxb-) — sends messages as @PULSE
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpiry: timestamp("password_reset_expiry"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

@@ -22,6 +22,9 @@ export interface IStorage {
   getUserById(id: number): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   updateUser(id: number, data: Partial<{ role: string; displayName: string }>): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  setResetToken(userId: number, token: string | null, expiry: Date | null): Promise<void>;
+  updateUserPassword(userId: number, hashedPassword: string): Promise<void>;
   updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void>;
   updateUserSlackTokens(userId: number, accessToken: string | null, slackUserId?: string | null, botToken?: string | null): Promise<void>;
   getAllInstructors(): Promise<User[]>;
@@ -131,6 +134,19 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(id: number, data: Partial<{ role: string; displayName: string }>): Promise<void> {
     await db.update(users).set(data).where(eq(users.id, id));
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.passwordResetToken, token));
+    return user;
+  }
+
+  async setResetToken(userId: number, token: string | null, expiry: Date | null): Promise<void> {
+    await db.update(users).set({ passwordResetToken: token, passwordResetExpiry: expiry }).where(eq(users.id, userId));
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
   }
 
   async updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void> {

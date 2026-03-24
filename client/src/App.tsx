@@ -13,6 +13,7 @@ import AdminCohortsPage from "@/pages/admin-cohorts";
 import InstructorsPage from "@/pages/instructors";
 import SettingsPage from "@/pages/settings";
 import AuthPage from "@/pages/auth";
+import ResetPasswordPage from "@/pages/reset-password";
 import { AppSidebar } from "@/components/app-sidebar";
 import { StarField } from "@/components/star-field";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,6 +44,11 @@ function AppLayout() {
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Reset-password is accessible without authentication
+  if (window.location.pathname === "/reset-password") {
+    return <ResetPasswordPage />;
+  }
 
   if (isLoading) {
     return (

@@ -52,6 +52,13 @@ export async function runMigrations() {
         ADD COLUMN IF NOT EXISTS "slack_bot_token" text;
     `);
 
+    // password reset columns on users (added for forgot-password flow)
+    await client.query(`
+      ALTER TABLE "users"
+        ADD COLUMN IF NOT EXISTS "password_reset_token" text,
+        ADD COLUMN IF NOT EXISTS "password_reset_expiry" timestamp;
+    `);
+
     console.log("[migrations] Schema up to date");
   } catch (err) {
     console.error("[migrations] Migration failed:", err);

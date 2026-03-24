@@ -5,6 +5,8 @@ import { pool } from "./db";
 import { storage } from "./storage";
 import { loginSchema, registerSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+import { sendPasswordResetEmail } from "./email";
 
 declare module "express-session" {
   interface SessionData {
@@ -419,6 +421,64 @@ export async function setupAuth(app: Express) {
     } catch (error) {
       console.error("Error with demo login:", error);
       res.status(500).json({ error: "Failed to start demo" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ error: "Email required" });
+      }
+
+      // Always respond with success to avoid email enumeration
+      const user = await storage.getUserByEmail(email.toLowerCase().trim());
+      if (user) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+        await storage.setResetToken(user.id, token, expiry);
+
+        const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+        const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+        try {
+          await sendPasswordResetEmail(user.email, resetUrl);
+        } catch (emailErr) {
+          console.error("Failed to send reset email:", emailErr);
+          // Still return success — token is stored; user can retry
+        }
+      }
+
+      res.json({ message: "If that email is registered, a reset link has been sent." });
+    } catch (error) {
+      console.error("Error in forgot-password:", error);
+      res.status(500).json({ error: "Failed to process request" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ error: "Token required" });
+      }
+      if (!password || typeof password !== "string" || password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const user = await storage.getUserByResetToken(token);
+      if (!user || !user.passwordResetExpiry || user.passwordResetExpiry < new Date()) {
+        return res.status(400).json({ error: "Invalid or expired reset link" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await storage.updateUserPassword(user.id, hashedPassword);
+      await storage.setResetToken(user.id, null, null);
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Error in reset-password:", error);
+      res.status(500).json({ error: "Failed to reset password" });
     }
   });
 

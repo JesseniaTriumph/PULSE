@@ -129,8 +129,18 @@ export default function AuthPage() {
                   </div>
                 ) : (
                   <form
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
+                      try {
+                        const res = await fetch("/api/auth/forgot-password", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email: forgotEmail }),
+                        });
+                        if (!res.ok) throw new Error("Request failed");
+                      } catch {
+                        // Silently ignore errors — always show success to avoid enumeration
+                      }
                       setForgotSent(true);
                     }}
                     className="space-y-4"
