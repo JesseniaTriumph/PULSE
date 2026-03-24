@@ -53,11 +53,30 @@ export function startScheduler() {
   console.log("[Scheduler] Started - checking every 30 seconds");
 }
 
-async function runGmailScan(userId: number) {
+export async function runLiveScanForUser(
+  userId: number,
+  options: { gmail?: boolean; slack?: boolean } = {},
+): Promise<{ gmailProcessed: number; slackProcessed: number; totalProcessed: number }> {
+  const gmail = options.gmail !== false;
+  const slack = options.slack !== false;
+
+  const [gmailProcessed, slackProcessed] = await Promise.all([
+    gmail ? runGmailScan(userId) : Promise.resolve(0),
+    slack ? scanSlackForUser(userId) : Promise.resolve(0),
+  ]);
+
+  return {
+    gmailProcessed,
+    slackProcessed,
+    totalProcessed: gmailProcessed + slackProcessed,
+  };
+}
+
+export async function runGmailScan(userId: number): Promise<number> {
   const user = await storage.getUserById(userId);
   if (!user || !user.googleAccessToken) {
     console.log(`[Scheduler] User ${userId} has no Google token, skipping Gmail scan`);
-    return;
+    return 0;
   }
 
   const searchQuery = [
@@ -148,7 +167,7 @@ async function runGmailScan(userId: number) {
 
     if (!listRes.ok) {
       console.log(`[Scheduler] Gmail API error for user ${userId}: ${listRes.status}`);
-      return;
+      return 0;
     }
 
     const listData = await listRes.json();
@@ -156,7 +175,7 @@ async function runGmailScan(userId: number) {
 
     if (messages.length === 0) {
       console.log(`[Scheduler] No new Gmail messages for user ${userId}`);
-      return;
+      return 0;
     }
 
     const allStudents = await storage.getStudentsByInstructor(userId);
@@ -279,8 +298,10 @@ async function runGmailScan(userId: number) {
     }
 
     console.log(`[Scheduler] Processed ${processed} Gmail messages for user ${userId}`);
+    return processed;
   } catch (error) {
     console.error(`[Scheduler] Error during Gmail scan for user ${userId}:`, error);
+    return 0;
   }
 }
 

@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { requireAuth } from "./auth";
 import { handleSlackInteraction, handleSlackEvent } from "./slack-commands";
 import { setupFileIngestion } from "./file-ingestion";
+import { runLiveScanForUser } from "./scheduler";
 import crypto from "crypto";
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -443,6 +444,23 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting scan config:", error);
       res.status(500).json({ error: "Failed to delete scan config" });
+    }
+  });
+
+  app.post("/api/scan-now", requireAuth, async (req, res) => {
+    try {
+      const gmail = req.body?.gmail !== false;
+      const slack = req.body?.slack !== false;
+
+      if (!gmail && !slack) {
+        return res.status(400).json({ error: "At least one source must be enabled" });
+      }
+
+      const results = await runLiveScanForUser(req.session.userId!, { gmail, slack });
+      res.json(results);
+    } catch (error) {
+      console.error("Error running live scan:", error);
+      res.status(500).json({ error: "Failed to run live scan" });
     }
   });
 

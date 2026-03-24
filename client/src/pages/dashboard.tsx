@@ -140,6 +140,7 @@ export default function Dashboard() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [gmailDialogOpen, setGmailDialogOpen] = useState(false);
+  const [liveScanning, setLiveScanning] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const [filterCohort, setFilterCohort] = useState<string>("all");
@@ -299,6 +300,41 @@ export default function Dashboard() {
     window.print();
   };
 
+  const handleLiveScan = async () => {
+    setLiveScanning(true);
+    try {
+      const response = await apiRequest("POST", "/api/scan-now", {
+        gmail: true,
+        slack: true,
+      });
+      const result = await response.json() as {
+        gmailProcessed: number;
+        slackProcessed: number;
+        totalProcessed: number;
+      };
+
+      queryClient.invalidateQueries({ queryKey: ["/api/records"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts/unread-count"] });
+
+      toast({
+        title: "Live scan complete",
+        description: result.totalProcessed > 0
+          ? `Found ${result.totalProcessed} new record${result.totalProcessed === 1 ? "" : "s"} (${result.gmailProcessed} Gmail, ${result.slackProcessed} Slack).`
+          : "No new Gmail or Slack messages were found.",
+      });
+    } catch {
+      toast({
+        title: "Live scan failed",
+        description: "The app could not pull new Gmail or Slack messages.",
+        variant: "destructive",
+      });
+    } finally {
+      setLiveScanning(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
@@ -349,6 +385,19 @@ export default function Dashboard() {
             >
               <Mail className="w-4 h-4 mr-1.5" />
               Gmail
+            </Button>
+          )}
+          {!isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleLiveScan}
+              disabled={liveScanning}
+              data-testid="button-live-scan"
+              className="border-violet-500/30 hover:bg-violet-500/10"
+            >
+              <RefreshCw className={cn("w-4 h-4 mr-1.5", liveScanning && "animate-spin")} />
+              {liveScanning ? "Scanning..." : "Scan Now"}
             </Button>
           )}
           <Button
