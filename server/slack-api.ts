@@ -22,14 +22,22 @@ interface SlackConversationListItem {
   is_private?: boolean;
 }
 
+// Returns the best token for SCANNING (reading messages/DMs)
+// Prefers user token (xoxp-) so DMs work; falls back to bot token or env
 export async function getSlackTokenForUser(userId: number): Promise<string | null> {
   const user = await storage.getUserById(userId);
-  return user?.slackAccessToken || process.env.SLACK_BOT_TOKEN || null;
+  return user?.slackAccessToken || user?.slackBotToken || process.env.SLACK_BOT_TOKEN || null;
+}
+
+// Returns the best token for SENDING messages as @PULSE
+export async function getSlackSendToken(userId: number): Promise<string | null> {
+  const user = await storage.getUserById(userId);
+  return user?.slackBotToken || process.env.SLACK_BOT_TOKEN || null;
 }
 
 export async function getSlackConnectionStatus(userId: number): Promise<SlackConnectionStatus> {
   const user = await storage.getUserById(userId);
-  const userConnected = !!user?.slackAccessToken;
+  const userConnected = !!(user?.slackAccessToken || user?.slackBotToken);
   const envConnected = !!process.env.SLACK_BOT_TOKEN;
 
   return {

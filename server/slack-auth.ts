@@ -2,9 +2,8 @@ import type { Express, Request, Response } from "express";
 import crypto from "crypto";
 import { storage } from "./storage";
 
-// Bot token scopes — must match what is configured in your Slack App under
-// "Bot Token Scopes" at api.slack.com/apps → OAuth & Permissions
-const SLACK_SCOPES = [
+// Bot Token Scopes — app reads channels/DMs it's been added to, sends as @PULSE
+const BOT_SCOPES = [
   "channels:history",
   "channels:read",
   "groups:history",
@@ -16,6 +15,18 @@ const SLACK_SCOPES = [
   "users:read",
   "users:read.email",
   "chat:write",
+].join(",");
+
+// User Token Scopes — app reads the instructor's own DMs and channels as them
+const USER_SCOPES = [
+  "channels:history",
+  "groups:history",
+  "im:history",
+  "im:read",
+  "mpim:history",
+  "mpim:read",
+  "users:read",
+  "users:read.email",
 ].join(",");
 
 function getRedirectUri(req: Request): string {
@@ -42,7 +53,8 @@ export function setupSlackAuth(app: Express) {
 
     const url = new URL("https://slack.com/oauth/v2/authorize");
     url.searchParams.set("client_id", clientId);
-    url.searchParams.set("scope", SLACK_SCOPES);  // bot token scopes
+    url.searchParams.set("scope", BOT_SCOPES);        // bot token — send as @PULSE
+    url.searchParams.set("user_scope", USER_SCOPES);  // user token — scan instructor's DMs
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
 
@@ -99,18 +111,23 @@ export function setupSlackAuth(app: Express) {
         return res.redirect(`/settings?slack_error=${tokenData.error}`);
       }
 
-      // oauth.v2.access returns the bot token at tokenData.access_token
+      // oauth.v2.access returns:
+      //   tokenData.access_token        — bot token  (xoxb-) for sending as @PULSE
+      //   tokenData.authed_user.access_token — user token (xoxp-) for scanning instructor's DMs
       const botToken = tokenData.access_token || null;
-      const botUserId = tokenData.bot_user_id || tokenData.authed_user?.id || null;
+      const userToken = tokenData.authed_user?.access_token || null;
+      const slackUserId = tokenData.authed_user?.id || null;
+      const botUserId = tokenData.bot_user_id || null;
 
-      if (!botToken) {
-        console.error("[Slack Auth] No bot token in response");
-        return res.redirect("/settings?slack_error=no_bot_token");
+      if (!botToken && !userToken) {
+        console.error("[Slack Auth] No tokens in response:", JSON.stringify(tokenData));
+        return res.redirect("/settings?slack_error=no_token");
       }
 
-      await storage.updateUserSlackTokens(userId, botToken, botUserId);
+      // Store user token as slackAccessToken (scanning), bot token as slackBotToken (sending)
+      await storage.updateUserSlackTokens(userId, userToken, slackUserId, botToken);
       req.session.userId = userId;
-      console.log(`[Slack Auth] Connected Slack for user ${userId} (bot user ${botUserId})`);
+      console.log(`[Slack Auth] Connected Slack for user ${userId} — bot: ${!!botToken}, user token: ${!!userToken}, slackUserId: ${slackUserId || botUserId}`);
 
       res.redirect("/settings?slack_connected=1");
     } catch (err) {

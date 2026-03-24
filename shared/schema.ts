@@ -41,7 +41,8 @@ export const users = pgTable("users", {
   googleAccessToken: text("google_access_token"),
   googleRefreshToken: text("google_refresh_token"),
   slackUserId: text("slack_user_id"),
-  slackAccessToken: text("slack_access_token"),
+  slackAccessToken: text("slack_access_token"),   // user token (xoxp-) — scans DMs & channels as instructor
+  slackBotToken: text("slack_bot_token"),          // bot token (xoxb-) — sends messages as @PULSE
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

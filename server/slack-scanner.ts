@@ -159,10 +159,15 @@ async function getUserInfo(userId: string, token: string): Promise<SlackUserInfo
 export async function scanSlackForUser(userId: number): Promise<number> {
   const globalToken = process.env.SLACK_BOT_TOKEN;
 
-  // Use per-instructor token if they've connected their Slack account
+  // Use per-instructor tokens if they've connected their Slack account
   const instructor = await storage.getUserById(userId);
+  // User token (xoxp-) scans DMs the instructor receives; bot token (xoxb-) scans channels
   const userToken = instructor?.slackAccessToken || null;
-  const effectiveToken = userToken || globalToken;
+  const botToken = instructor?.slackBotToken || null;
+  // For channel scanning: prefer bot token (has channel access), then user token, then global
+  const effectiveToken = botToken || userToken || globalToken;
+  // For DM scanning: prefer user token (sees instructor's DMs), then bot/global
+  const dmToken = userToken || botToken || globalToken;
 
   const enabledChannelConfigs = await storage.getEnabledSlackChannelConfigsByUser(userId);
   if (enabledChannelConfigs.length === 0 && !effectiveToken) {
@@ -397,13 +402,19 @@ export async function scanSlackForUser(userId: number): Promise<number> {
     }
   }
 
-  if (!effectiveToken) {
+  if (!effectiveToken && !dmToken) {
+    console.log(`[Slack Scanner] Processed ${processed} Slack messages for user ${userId}`);
+    return processed;
+  }
+
+  if (!dmToken) {
+    console.log(`[Slack Scanner] No DM token for user ${userId}, skipping DM scan`);
     console.log(`[Slack Scanner] Processed ${processed} Slack messages for user ${userId}`);
     return processed;
   }
 
   try {
-    const dmData = await slackApi("conversations.list", effectiveToken, {
+    const dmData = await slackApi("conversations.list", dmToken, {
       types: "im",
       limit: "100",
     });
@@ -412,7 +423,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
 
     for (const dm of dmChannels) {
       try {
-        const data = await slackApi("conversations.history", effectiveToken, {
+        const data = await slackApi("conversations.history", dmToken, {
           channel: dm.id,
           oldest,
           limit: "20",
@@ -430,7 +441,7 @@ export async function scanSlackForUser(userId: number): Promise<number> {
             let senderEmail = "";
 
             try {
-              const userInfo = await getUserInfo(msg.user, effectiveToken);
+              const userInfo = await getUserInfo(msg.user, dmToken);
               senderName = userInfo.profile?.real_name || userInfo.real_name || "Unknown";
               senderEmail = userInfo.profile?.email || "";
             } catch {
@@ -444,8 +455,8 @@ export async function scanSlackForUser(userId: number): Promise<number> {
               || s.name.toLowerCase() === senderName.toLowerCase()
             );
 
-            // For DMs from the instructor's own account (when using user token), skip self-messages
-            if (userToken && msg.user === instructor?.slackUserId) continue;
+            // Skip self-messages (instructor's own messages in their DMs)
+            if (msg.user === instructor?.slackUserId) continue;
 
             if (!matchedStudent) continue;
 
