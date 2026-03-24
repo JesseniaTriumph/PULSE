@@ -2,6 +2,8 @@ import type { Express, Request, Response } from "express";
 import crypto from "crypto";
 import { storage } from "./storage";
 
+// Bot token scopes — must match what is configured in your Slack App under
+// "Bot Token Scopes" at api.slack.com/apps → OAuth & Permissions
 const SLACK_SCOPES = [
   "channels:history",
   "channels:read",
@@ -40,7 +42,7 @@ export function setupSlackAuth(app: Express) {
 
     const url = new URL("https://slack.com/oauth/v2/authorize");
     url.searchParams.set("client_id", clientId);
-    url.searchParams.set("user_scope", SLACK_SCOPES);
+    url.searchParams.set("scope", SLACK_SCOPES);  // bot token scopes
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
 
@@ -97,15 +99,16 @@ export function setupSlackAuth(app: Express) {
         return res.redirect(`/settings?slack_error=${tokenData.error}`);
       }
 
-      const userToken = tokenData.authed_user?.access_token || null;
-      const slackUserId = tokenData.authed_user?.id || null;
+      // oauth.v2.access returns the bot token at tokenData.access_token
+      const botToken = tokenData.access_token || null;
+      const botUserId = tokenData.bot_user_id || tokenData.authed_user?.id || null;
 
-      if (!userToken) {
-        console.error("[Slack Auth] No user token in response");
-        return res.redirect("/settings?slack_error=no_user_token");
+      if (!botToken) {
+        console.error("[Slack Auth] No bot token in response");
+        return res.redirect("/settings?slack_error=no_bot_token");
       }
 
-      await storage.updateUserSlackTokens(userId, userToken, slackUserId);
+      await storage.updateUserSlackTokens(userId, botToken, botUserId);
       req.session.userId = userId;
       console.log(`[Slack Auth] Connected Slack for user ${userId} (Slack user ${slackUserId})`);
 
