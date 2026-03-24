@@ -139,7 +139,7 @@ export default function AlertsPage() {
     } catch {
       toast({
         title: isSlack
-          ? "Failed to send Slack reply. Make sure SLACK_BOT_TOKEN is configured."
+          ? "Failed to send Slack reply. Connect Slack in Settings or check the server Slack setup."
           : "Failed to send reply. Make sure your Google account is connected with send permissions.",
         variant: "destructive",
       });

@@ -156,7 +156,7 @@ export function RecordsTable({ records, timePeriod }: RecordsTableProps) {
     } catch {
       toast({
         title: record.source === "slack"
-          ? "Failed to send Slack reply — check SLACK_BOT_TOKEN"
+          ? "Failed to send Slack reply — connect Slack in Settings or check the Slack setup"
           : "Failed to send reply — ensure Google account is connected",
         variant: "destructive",
       });
