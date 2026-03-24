@@ -110,7 +110,7 @@ export function setupSlackAuth(app: Express) {
 
       await storage.updateUserSlackTokens(userId, botToken, botUserId);
       req.session.userId = userId;
-      console.log(`[Slack Auth] Connected Slack for user ${userId} (Slack user ${slackUserId})`);
+      console.log(`[Slack Auth] Connected Slack for user ${userId} (bot user ${botUserId})`);
 
       res.redirect("/settings?slack_connected=1");
     } catch (err) {
