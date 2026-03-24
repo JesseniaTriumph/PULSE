@@ -58,7 +58,14 @@ export function setupSlackAuth(app: Express) {
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
 
-    res.redirect(url.toString());
+    // Save session before redirecting so slackOAuthState is persisted to DB
+    req.session.save((err) => {
+      if (err) {
+        console.error("[Slack Auth] Session save error:", err);
+        return res.status(500).json({ error: "Session error" });
+      }
+      res.redirect(url.toString());
+    });
   });
 
   app.get("/api/auth/slack/callback", async (req: Request, res: Response) => {
