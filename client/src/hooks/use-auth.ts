@@ -8,6 +8,8 @@ interface AuthUser {
   displayName: string;
   role: string;
   googleId?: string | null;
+  slackConnected?: boolean;
+  slackUserId?: string | null;
 }
 
 export function useAuth() {

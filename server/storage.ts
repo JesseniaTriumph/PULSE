@@ -23,6 +23,7 @@ export interface IStorage {
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   updateUser(id: number, data: Partial<{ role: string; displayName: string }>): Promise<void>;
   updateUserGoogleTokens(userId: number, accessToken: string, refreshToken?: string): Promise<void>;
+  updateUserSlackTokens(userId: number, accessToken: string | null, slackUserId?: string | null): Promise<void>;
   getAllInstructors(): Promise<User[]>;
 
   createCohort(cohort: InsertCohort): Promise<Cohort>;
@@ -137,6 +138,12 @@ export class DatabaseStorage implements IStorage {
     if (refreshToken) {
       updateData.googleRefreshToken = refreshToken;
     }
+    await db.update(users).set(updateData).where(eq(users.id, userId));
+  }
+
+  async updateUserSlackTokens(userId: number, accessToken: string | null, slackUserId?: string | null): Promise<void> {
+    const updateData: Record<string, string | null> = { slackAccessToken: accessToken };
+    if (slackUserId !== undefined) updateData.slackUserId = slackUserId;
     await db.update(users).set(updateData).where(eq(users.id, userId));
   }
 

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare, AlertTriangle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Clock, ScanLine, Mail, Shield, MessageSquare, AlertTriangle, BookOpen, ChevronDown, ChevronUp, Hash } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,6 +24,28 @@ const timeLabels: Record<string, string> = {
   "21:55": "9:55 PM — Late night scan",
 };
 
+const slackErrorMessages: Record<string, string> = {
+  access_denied: "Slack access was denied before the connection finished.",
+  invalid_state: "Slack sign-in expired or was interrupted. Try connecting again.",
+  missing_params: "Slack did not return the expected OAuth response.",
+  not_configured: "Slack OAuth is not configured yet. Add SLACK_CLIENT_ID and SLACK_CLIENT_SECRET on the server.",
+  no_user_token: "Slack did not return a usable access token for this account.",
+  server_error: "Slack connection failed on the server. Check the server logs for details.",
+};
+
+interface SlackStatus {
+  connected: boolean;
+  userConnected: boolean;
+  connectionSource: "oauth" | "env" | null;
+  oauthConfigured: boolean;
+}
+
+interface SlackAvailableChannel {
+  id: string;
+  name: string;
+  isPrivate: boolean;
+}
+
 function formatTime(t: string) {
   const [h, m] = t.split(":").map(Number);
   const ampm = h >= 12 ? "PM" : "AM";
@@ -36,9 +58,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const [newTime, setNewTime] = useState("");
   const [newChannelId, setNewChannelId] = useState("");
-  const [newChannelName, setNewChannelName] = useState("");
   const [newChannelCohortId, setNewChannelCohortId] = useState<string>("");
-  const [newChannelToken, setNewChannelToken] = useState("");
   const [lmsFormOpen, setLmsFormOpen] = useState(false);
   const [newLmsType, setNewLmsType] = useState<string>("");
   const [newLmsUrl, setNewLmsUrl] = useState("");
@@ -57,6 +77,16 @@ export default function SettingsPage() {
     retry: false,
   });
 
+  const { data: slackStatus } = useQuery<SlackStatus>({
+    queryKey: ["/api/slack/status"],
+  });
+
+  const { data: availableSlackChannels = [], isLoading: isLoadingAvailableSlackChannels, error: availableSlackChannelsError } = useQuery<SlackAvailableChannel[]>({
+    queryKey: ["/api/slack/available-channels"],
+    enabled: isAdmin && !!slackStatus?.connected,
+    retry: false,
+  });
+
   const { data: cohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
   });
@@ -64,6 +94,36 @@ export default function SettingsPage() {
   const { data: lmsConfigs = [] } = useQuery<LmsConfig[]>({
     queryKey: ["/api/lms-configs"],
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("slack_connected");
+    const error = params.get("slack_error");
+
+    if (!connected && !error) return;
+
+    queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/slack/status"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/slack/available-channels"] });
+
+    if (connected) {
+      toast({ title: "Slack connected" });
+    }
+
+    if (error) {
+      toast({
+        title: "Slack connection failed",
+        description: slackErrorMessages[error] || "Slack could not be connected.",
+        variant: "destructive",
+      });
+    }
+
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [toast]);
+
+  const selectableSlackChannels = availableSlackChannels.filter(
+    channel => !slackChannels.some(config => config.channelId === channel.id),
+  );
 
   const handleToggle = async (id: number, currentEnabled: boolean) => {
     try {
@@ -115,23 +175,22 @@ export default function SettingsPage() {
   };
 
   const handleAddChannel = async () => {
-    if (!newChannelId.trim() || !newChannelName.trim() || !newChannelCohortId) {
-      toast({ title: "Channel ID, name, and class are required", variant: "destructive" });
+    const selectedChannel = availableSlackChannels.find(channel => channel.id === newChannelId);
+    if (!selectedChannel || !newChannelCohortId) {
+      toast({ title: "Choose a Slack channel and class", variant: "destructive" });
       return;
     }
     try {
       await apiRequest("POST", "/api/slack-channels", {
-        channelId: newChannelId.trim(),
-        channelName: newChannelName.trim(),
+        channelId: selectedChannel.id,
+        channelName: selectedChannel.name,
         cohortId: parseInt(newChannelCohortId),
-        ...(newChannelToken.trim() ? { slackBotToken: newChannelToken.trim() } : {}),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/slack-channels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/slack/available-channels"] });
       setNewChannelId("");
-      setNewChannelName("");
       setNewChannelCohortId("");
-      setNewChannelToken("");
-      toast({ title: `#${newChannelName.trim()} added` });
+      toast({ title: `#${selectedChannel.name} added` });
     } catch {
       toast({ title: "Failed to add channel", variant: "destructive" });
     }
@@ -141,6 +200,7 @@ export default function SettingsPage() {
     try {
       await apiRequest("DELETE", `/api/slack-channels/${id}`);
       queryClient.invalidateQueries({ queryKey: ["/api/slack-channels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/slack/available-channels"] });
       toast({ title: "Channel removed" });
     } catch {
       toast({ title: "Failed to remove channel", variant: "destructive" });
@@ -256,7 +316,16 @@ export default function SettingsPage() {
               {user?.googleId ? "Connected" : "Not Connected"}
             </Badge>
           </div>
-          <div className="pt-2 flex gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Slack Connected</span>
+            <Badge
+              className={user?.slackConnected ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" : "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30"}
+              data-testid="text-slack-status"
+            >
+              {user?.slackConnected ? "Connected" : "Not Connected"}
+            </Badge>
+          </div>
+          <div className="pt-2 flex gap-2 flex-wrap">
             {!user?.googleId ? (
               <Button
                 size="sm"
@@ -278,7 +347,48 @@ export default function SettingsPage() {
                 <Mail className="w-4 h-4 mr-1.5" /> Reconnect Google Account
               </Button>
             )}
+            {!user?.slackConnected ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+                disabled={slackStatus ? !slackStatus.oauthConfigured : false}
+                onClick={() => window.location.href = "/api/auth/slack"}
+                data-testid="button-connect-slack"
+              >
+                <Hash className="w-4 h-4 mr-1.5" /> Connect Slack
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+                onClick={async () => {
+                  await apiRequest("POST", "/api/auth/slack/disconnect");
+                  queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/slack/status"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/slack/available-channels"] });
+                  toast({ title: "Slack disconnected" });
+                }}
+                data-testid="button-disconnect-slack"
+              >
+                <Hash className="w-4 h-4 mr-1.5" /> Disconnect Slack
+              </Button>
+            )}
           </div>
+          {!slackStatus?.oauthConfigured && (
+            <Alert variant="default" className="border-amber-500/30 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-700 dark:text-amber-400">
+                Slack OAuth is not fully configured on this server yet. Add `SLACK_CLIENT_ID` and `SLACK_CLIENT_SECRET` to enable one-click Slack connection.
+              </AlertDescription>
+            </Alert>
+          )}
+          {slackStatus?.connectionSource === "env" && !user?.slackConnected && (
+            <p className="text-xs text-muted-foreground">
+              Slack is available through server setup, but connect your own Slack if you want PULSE to scan your DMs and reply from your connected account.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -290,11 +400,24 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Connect Slack once, then assign shared class channels here. Teachers do not need to paste channel IDs or bot tokens.
+          </p>
+
+          {!slackStatus?.connected && (
+            <Alert variant="default" className="border-amber-500/30 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-700 dark:text-amber-400">
+                Connect Slack above to load channels and enable Slack scanning.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {slackError && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                SLACK_BOT_TOKEN is missing or has insufficient permissions. Scanning will be skipped until configured.
+                Saved Slack channel mappings could not be loaded.
               </AlertDescription>
             </Alert>
           )}
@@ -302,29 +425,31 @@ export default function SettingsPage() {
           {isAdmin && (
             <div className="space-y-3 pb-3 border-b border-violet-500/10">
               <Label className="text-sm font-medium">Add Slack Channel</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Channel ID (e.g. C01ABC123)"
-                  value={newChannelId}
-                  onChange={e => setNewChannelId(e.target.value)}
-                  className="border-violet-500/20 font-mono text-xs"
-                  data-testid="input-slack-channel-id"
-                />
-                <Input
-                  placeholder="Display name (e.g. l1-attendance)"
-                  value={newChannelName}
-                  onChange={e => setNewChannelName(e.target.value)}
-                  className="border-violet-500/20 text-sm"
-                  data-testid="input-slack-channel-name"
-                />
-              </div>
-              <Input
-                placeholder="Bot token override — optional (xoxb-…)"
-                value={newChannelToken}
-                onChange={e => setNewChannelToken(e.target.value)}
-                className="border-violet-500/20 font-mono text-xs"
-                data-testid="input-slack-bot-token"
-              />
+              <p className="text-xs text-muted-foreground">
+                Pick a channel from Slack and assign it to a class. Instructors should also be members of the mapped channel if scans are using their connected Slack account.
+              </p>
+              <Select value={newChannelId} onValueChange={setNewChannelId} disabled={!slackStatus?.connected || isLoadingAvailableSlackChannels}>
+                <SelectTrigger className="border-violet-500/20" data-testid="select-slack-channel">
+                  <SelectValue placeholder={isLoadingAvailableSlackChannels ? "Loading Slack channels…" : "Select Slack channel…"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectableSlackChannels.map(channel => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      #{channel.name}{channel.isPrivate ? " (private)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableSlackChannelsError && (
+                <p className="text-xs text-rose-600 dark:text-rose-400">
+                  Slack channels could not be loaded from Slack.
+                </p>
+              )}
+              {!isLoadingAvailableSlackChannels && slackStatus?.connected && selectableSlackChannels.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No additional Slack channels are available to map right now. Join the channel in Slack first, or remove an existing mapping.
+                </p>
+              )}
               <div className="flex gap-2">
                 <Select value={newChannelCohortId} onValueChange={setNewChannelCohortId}>
                   <SelectTrigger className="border-violet-500/20 flex-1" data-testid="select-slack-cohort">
@@ -340,7 +465,7 @@ export default function SettingsPage() {
                 </Select>
                 <Button
                   onClick={handleAddChannel}
-                  disabled={!newChannelId.trim() || !newChannelName.trim() || !newChannelCohortId}
+                  disabled={!newChannelId || !newChannelCohortId}
                   className="bg-gradient-to-r from-violet-600 to-indigo-600"
                   size="sm"
                   data-testid="button-add-slack-channel"

@@ -10,6 +10,7 @@ declare module "express-session" {
   interface SessionData {
     userId: number;
     oauthState?: string;
+    slackOAuthState?: string;
   }
 }
 
@@ -438,6 +439,8 @@ export async function setupAuth(app: Express) {
       displayName: user.displayName,
       role: user.role,
       googleId: user.googleId || null,
+      slackConnected: !!(user.slackAccessToken),
+      slackUserId: user.slackUserId || null,
     });
   });
 }

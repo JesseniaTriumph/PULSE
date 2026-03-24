@@ -7,6 +7,8 @@ import { randomUUID } from "crypto";
 import { requireAuth } from "./auth";
 import { handleSlackInteraction, handleSlackEvent } from "./slack-commands";
 import { setupFileIngestion } from "./file-ingestion";
+import { setupSlackAuth } from "./slack-auth";
+import { getSlackConnectionStatus, getSlackTokenForUser, listSlackChannels, slackApiPost } from "./slack-api";
 import { runLiveScanForUser } from "./scheduler";
 import crypto from "crypto";
 
@@ -947,8 +949,29 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/slack/status", requireAuth, async (_req, res) => {
-    res.json({ connected: !!process.env.SLACK_BOT_TOKEN });
+  app.get("/api/slack/status", requireAuth, async (req, res) => {
+    try {
+      const status = await getSlackConnectionStatus(req.session.userId!);
+      res.json(status);
+    } catch (error) {
+      console.error("Error fetching Slack status:", error);
+      res.status(500).json({ error: "Failed to fetch Slack status" });
+    }
+  });
+
+  app.get("/api/slack/available-channels", requireAdmin, async (req, res) => {
+    try {
+      const token = await getSlackTokenForUser(req.session.userId!);
+      if (!token) {
+        return res.status(503).json({ error: "Slack is not connected. Connect Slack first." });
+      }
+
+      const channels = await listSlackChannels(token);
+      res.json(channels);
+    } catch (error) {
+      console.error("Error fetching available Slack channels:", error);
+      res.status(500).json({ error: "Failed to fetch Slack channels from Slack" });
+    }
   });
 
   app.post("/api/ai/draft-reply", requireAuth, async (req, res) => {
@@ -974,9 +997,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/slack/send", requireAuth, async (req, res) => {
-    const token = process.env.SLACK_BOT_TOKEN;
+    const userId = req.session.userId!;
+    const token = await getSlackTokenForUser(userId);
     if (!token) {
-      return res.status(503).json({ error: "Slack is not configured on this server" });
+      return res.status(503).json({ error: "Slack is not connected. Connect Slack in Settings or configure a server token." });
     }
 
     const { channelId, threadTs, body, alertId } = req.body;
@@ -985,7 +1009,6 @@ export async function registerRoutes(
     }
 
     if (alertId) {
-      const userId = req.session.userId!;
       const user = await storage.getUserById(userId);
       const alertList = user?.role === "admin"
         ? await storage.getAllAlerts()
@@ -1000,22 +1023,9 @@ export async function registerRoutes(
       const payload: Record<string, string> = { channel: channelId, text: body };
       if (threadTs) payload.thread_ts = threadTs;
 
-      const slackRes = await fetch("https://slack.com/api/chat.postMessage", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await slackRes.json();
-      if (!data.ok) {
-        return res.status(500).json({ error: data.error || "Slack API error" });
-      }
+      await slackApiPost("chat.postMessage", token, payload);
 
       if (alertId) {
-        const userId = req.session.userId!;
         await storage.markAlertRead(alertId);
         req.app.emit("alert-read", { userId });
       }
@@ -1195,6 +1205,7 @@ export async function registerRoutes(
     }
   });
 
+  setupSlackAuth(app);
   setupFileIngestion(app);
 
   return httpServer;
