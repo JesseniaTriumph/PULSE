@@ -902,4 +902,157 @@ describe("POST /api/gmail/fetch", () => {
     expect(res.body.emails[0].senderEmail).toBe("student@school.edu");
     expect(res.body.emails[0].senderName).toBe("student"); // bare email -> split on @
   });
+
+  it("returns 500 when internal fetch throws unexpectedly (lines 377-378)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__login/2");
+
+    mockStorage.getUserById.mockResolvedValueOnce({ id: 2, googleAccessToken: "tok" });
+    // Make the Gmail list fetch itself throw to trigger the catch block
+    mockFetch.mockRejectedValueOnce(new Error("Unexpected network failure"));
+
+    const res = await agent.post("/api/gmail/fetch").send({});
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain("Failed to fetch emails");
+  });
+
+  it("returns 401 when retry list fetch fails after token refresh (line 358)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__login/2");
+
+    mockStorage.getUserById.mockResolvedValueOnce({
+      id: 2,
+      googleAccessToken: "expired",
+      googleRefreshToken: "refresh",
+    });
+    mockStorage.updateUserGoogleTokens.mockResolvedValueOnce(undefined);
+
+    // List: 401
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401 });
+    // Token refresh: succeeds
+    mockFetch.mockResolvedValueOnce(jsonOk({ access_token: "new-tok" }));
+    // Retry list: fails (non-401)
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 403 });
+
+    const res = await agent.post("/api/gmail/fetch").send({});
+    expect(res.status).toBe(401);
+    expect(res.body.error).toContain("expired");
+  });
+
+  it("skips message when detail fetch returns non-ok (line 417)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__login/2");
+
+    mockStorage.getUserById.mockResolvedValueOnce({ id: 2, googleAccessToken: "tok" });
+    mockFetch.mockResolvedValueOnce(jsonOk({ messages: [{ id: "err1" }] }));
+    // Message detail fetch: not ok → should skip
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+    const res = await agent.post("/api/gmail/fetch").send({});
+    expect(res.status).toBe(200);
+    expect(res.body.emails).toHaveLength(0);
+  });
+
+  it("catches and continues when message detail fetch throws (line 478)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__login/2");
+
+    mockStorage.getUserById.mockResolvedValueOnce({ id: 2, googleAccessToken: "tok" });
+    mockFetch.mockResolvedValueOnce(jsonOk({ messages: [{ id: "throw1" }] }));
+    // Message detail fetch: throws
+    mockFetch.mockRejectedValueOnce(new Error("message fetch error"));
+
+    const res = await agent.post("/api/gmail/fetch").send({});
+    expect(res.status).toBe(200);
+    expect(res.body.emails).toHaveLength(0);
+  });
+});
+
+
+describe("GET /api/auth/google/callback (additional paths)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+  });
+
+  it("stores refresh_token when merging existing email account with refresh token (line 166)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__set-session?oauthState=s-merge-rt");
+
+    // tokens with refresh_token
+    mockFetch.mockResolvedValueOnce(jsonOk({ access_token: "tok-m", refresh_token: "ref-m" }));
+    mockFetch.mockResolvedValueOnce(jsonOk({ id: "gid-m", email: "merge-rt@school.edu", name: "Merge RT" }));
+
+    mockStorage.getUserByGoogleId.mockResolvedValueOnce(null);
+    mockStorage.getUserByEmail.mockResolvedValueOnce({ id: 77, email: "merge-rt@school.edu" });
+    mockDbUpdate.mockResolvedValueOnce([]);
+
+    const res = await agent.get("/api/auth/google/callback?code=cm&state=s-merge-rt");
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe("/");
+    // updateData should include googleRefreshToken (line 166)
+    expect(mockDbUpdate).toHaveBeenCalledOnce();
+  });
+});
+
+describe("POST /api/gmail/send (additional paths)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+  });
+
+  it("returns 401 when token refresh fetch throws (line 402 catch)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__login/1");
+
+    mockStorage.getUserById.mockResolvedValueOnce({
+      id: 1,
+      email: "t@school.edu",
+      googleAccessToken: "expired",
+      googleRefreshToken: "refresh-tok",
+      displayName: "Teacher",
+      role: "admin",
+    });
+
+    // First send: 401
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401, text: vi.fn().mockResolvedValue("Unauthorized") });
+    // Token refresh fetch: throws (triggers line 402)
+    mockFetch.mockRejectedValueOnce(new Error("Token endpoint unreachable"));
+
+    const res = await agent.post("/api/gmail/send").send({
+      to: "s@school.edu",
+      body: "hello",
+    });
+    // refresh returns null → original 401 sendRes is still non-ok → falls to 500 handler
+    expect(res.status).toBe(500);
+  });
+
+  it("returns 500 when gmail send fetch throws (lines 318-319)", async () => {
+    const app = makeApp();
+    const agent = request.agent(app);
+    await agent.get("/__login/1");
+
+    mockStorage.getUserById.mockResolvedValueOnce({
+      id: 1,
+      email: "t@school.edu",
+      googleAccessToken: "tok",
+      displayName: "Teacher",
+      role: "admin",
+    });
+
+    mockFetch.mockRejectedValueOnce(new Error("Gmail network error"));
+
+    const res = await agent.post("/api/gmail/send").send({
+      to: "s@school.edu",
+      body: "hello",
+    });
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain("Failed to send email");
+  });
 });

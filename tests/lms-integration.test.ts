@@ -397,6 +397,56 @@ describe("AgilixBuzzConnector.allowMakeup", () => {
   });
 });
 
+// ─── AgilixBuzzConnector private catch paths (lines 299, 312) ────────────────
+
+describe("AgilixBuzzConnector private fetch catch paths", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns failure when findStudentByEmail fetch throws (line 299)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("Buzz DNS failure")));
+    const c = new AgilixBuzzConnector(makeBuzzConfig());
+    const r = await c.excuseAssessment({ ...baseEntry });
+    expect(r.success).toBe(false);
+    // findStudentByEmail catches → returns null → "not found in Agilix Buzz"
+    expect(r.message).toContain("not found in Agilix Buzz");
+  });
+
+  it("returns failure when findAttendanceItem fetch throws (line 312)", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(okJson({ students: [{ id: "s1", name: "Alice", email: "alice@test.com" }] }))
+      .mockRejectedValueOnce(new Error("Buzz gradebook fetch error"))
+    );
+    const c = new AgilixBuzzConnector(makeBuzzConfig());
+    const r = await c.excuseAssessment({ ...baseEntry });
+    expect(r.success).toBe(false);
+    expect(r.message).toContain("not found");
+  });
+
+  it("returns failure when findAttendanceItem fetch returns non-ok (line 308)", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(okJson({ students: [{ id: "s1", name: "Alice", email: "alice@test.com" }] }))
+      .mockResolvedValueOnce(notOk()) // findAttendanceItem fetch → not ok → return null
+    );
+    const c = new AgilixBuzzConnector(makeBuzzConfig());
+    const r = await c.excuseAssessment({ ...baseEntry });
+    expect(r.success).toBe(false);
+    expect(r.message).toContain("not found");
+  });
+
+  it("uses first item as fallback when no item has type=attendance (line 308)", async () => {
+    // findStudentByEmail ok, findAttendanceItem returns items with no "attendance" type → uses items[0]
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(okJson({ students: [{ id: "s1", name: "Alice", email: "alice@test.com" }] }))
+      .mockResolvedValueOnce(okJson({ items: [{ id: "i9", name: "Quiz 1", type: "quiz" }] })) // no "attendance" type → fallback to items[0]
+      .mockResolvedValueOnce(okJson({ id: "ext-fallback" }))
+    );
+    const c = new AgilixBuzzConnector(makeBuzzConfig());
+    const r = await c.excuseAssessment({ ...baseEntry });
+    expect(r.success).toBe(true);
+    expect(r.externalId).toBe("ext-fallback");
+  });
+});
+
 // ─── D2LBrightspaceConnector — direct method calls (no auth step) ─────────────
 //
 // excuseAssessment()  → [findStudentByEmail, findGradeObject, PUT grade value]
@@ -646,6 +696,55 @@ describe("CustomLmsConnector — direct method calls", () => {
     expect(r.success).toBe(true);
     expect(r.message).toBe("Processed without id");
     expect(r.externalId).toBeUndefined();
+  });
+});
+
+// ─── D2LBrightspaceConnector.authenticate() success (lines 335-338) ──────────
+
+describe("D2LBrightspaceConnector.authenticate via sync()", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns success when authenticate() receives access_token and sync completes", async () => {
+    // 1st fetch: authenticate POST → ok with access_token
+    // 2nd fetch: findStudentByEmail → ok
+    // 3rd fetch: findGradeObject → ok
+    // 4th fetch: PUT grade → ok
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(okJson({ access_token: "tok-d2l-123" }))
+      .mockResolvedValueOnce(okJson({ items: [{ identifier: "u1" }] }))
+      .mockResolvedValueOnce(okJson({ items: [{ identifier: "g1", name: "Day 1" }] }))
+      .mockResolvedValueOnce({ ok: true })
+    );
+    const c = new D2LBrightspaceConnector(makeD2LConfig());
+    const r = await c.sync({ ...baseEntry }, "excuse");
+    expect(r.success).toBe(true);
+    expect(r.lmsType).toBe("d2l_brightspace");
+  });
+});
+
+// ─── D2LBrightspaceConnector private catch paths (lines 499, 511) ─────────────
+
+describe("D2LBrightspaceConnector private fetch catch paths", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns failure when findStudentByEmail fetch throws (line 499)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("DNS failure")));
+    const c = new D2LBrightspaceConnector(makeD2LConfig());
+    const r = await c.excuseAssessment({ ...baseEntry });
+    expect(r.success).toBe(false);
+    // findStudentByEmail catches and returns null → student not found message
+    expect(r.message).toContain("not found in D2L");
+  });
+
+  it("returns failure when findGradeObject fetch throws (line 511)", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(okJson({ items: [{ identifier: "u1" }] })) // findStudentByEmail ok
+      .mockRejectedValueOnce(new Error("grade fetch error"))             // findGradeObject throws
+    );
+    const c = new D2LBrightspaceConnector(makeD2LConfig());
+    const r = await c.excuseAssessment({ ...baseEntry });
+    expect(r.success).toBe(false);
+    expect(r.message).toContain("not found");
   });
 });
 

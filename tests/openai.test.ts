@@ -435,6 +435,65 @@ describe("categorizeExcuse — OpenAI path", () => {
     vi.unstubAllGlobals();
     delete process.env.SLACK_BOT_TOKEN;
   });
+
+  it("logs error when storage throws in sendSlackNotification (line 400 catch)", async () => {
+    process.env.SLACK_BOT_TOKEN = "xoxb-token";
+    mockGetAllEnabledSlackChannelConfigs.mockRejectedValueOnce(new Error("DB connection lost"));
+
+    mockCreate.mockResolvedValueOnce(
+      makeApiResponse(buildAiResponse({ confidence: 0.55 }))
+    );
+    // Should not throw — .catch at call site handles error
+    const result = await categorizeExcuse("Medium confidence with storage error");
+    expect(result.confidenceTier).toBe("medium");
+    vi.unstubAllGlobals();
+    delete process.env.SLACK_BOT_TOKEN;
+  });
+
+  it("logs error when Slack fetch returns non-ok HTTP status (lines 262-263)", async () => {
+    process.env.SLACK_BOT_TOKEN = "xoxb-token";
+    mockGetAllEnabledSlackChannelConfigs.mockResolvedValueOnce([{ channelId: "C123" }]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: false, status: 403 }));
+
+    mockCreate.mockResolvedValueOnce(
+      makeApiResponse(buildAiResponse({ confidence: 0.55 }))
+    );
+    const result = await categorizeExcuse("Medium confidence slack 403");
+    expect(result.confidenceTier).toBe("medium");
+    vi.unstubAllGlobals();
+    delete process.env.SLACK_BOT_TOKEN;
+  });
+
+  it("logs error when Slack API returns data.ok=false (line 270)", async () => {
+    process.env.SLACK_BOT_TOKEN = "xoxb-token";
+    mockGetAllEnabledSlackChannelConfigs.mockResolvedValueOnce([{ channelId: "C123" }]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: false, error: "channel_not_found" }),
+    }));
+
+    mockCreate.mockResolvedValueOnce(
+      makeApiResponse(buildAiResponse({ confidence: 0.55 }))
+    );
+    const result = await categorizeExcuse("Medium confidence slack error response");
+    expect(result.confidenceTier).toBe("medium");
+    vi.unstubAllGlobals();
+    delete process.env.SLACK_BOT_TOKEN;
+  });
+
+  it("catches fetch error in sendSlackNotification (line 273)", async () => {
+    process.env.SLACK_BOT_TOKEN = "xoxb-token";
+    mockGetAllEnabledSlackChannelConfigs.mockResolvedValueOnce([{ channelId: "C123" }]);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("Slack fetch timeout")));
+
+    mockCreate.mockResolvedValueOnce(
+      makeApiResponse(buildAiResponse({ confidence: 0.55 }))
+    );
+    const result = await categorizeExcuse("Medium confidence fetch throw");
+    expect(result.confidenceTier).toBe("medium");
+    vi.unstubAllGlobals();
+    delete process.env.SLACK_BOT_TOKEN;
+  });
 });
 
 describe("generateReplyDraft", () => {
