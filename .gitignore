@@ -7,3 +7,17 @@ vite.config.ts.*
 .env
 .env.local
 coverage/
+# --- secrets (added by cleanup pass) ---
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*_service_account*.json
+*serviceAccount*.json
+credentials.json
+secrets.json
+*.p12
